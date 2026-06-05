@@ -1,0 +1,50 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Account {
+  id            String     @id @default(uuid())
+  name          String     @unique
+  wabaId        String     // WhatsApp Business Account ID
+  phoneNumberId String     // Phone Number ID
+  accessToken   String     // System User Token
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  templates     Template[]
+  messages      Message[]
+}
+
+model Template {
+  id         String   @id @default(uuid())
+  metaId     String?  @unique // ID returned by Meta API
+  name       String
+  language   String   @default("pt_BR")
+  category   String
+  status     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  components Json     // Holds the structure: body, headers, buttons, etc.
+  accountId  String
+  account    Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([accountId, name])
+}
+
+model Message {
+  id           String   @id @default(uuid())
+  wamid        String?  @unique // WhatsApp Message ID (e.g. wamid.HBgNNTUxM...)
+  to           String   // Recipient phone number (e.g. 5511999999999)
+  status       String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED
+  errorMessage String?
+  templateName String
+  variables    Json?    // Sent parameters (variables arrays/objects)
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
