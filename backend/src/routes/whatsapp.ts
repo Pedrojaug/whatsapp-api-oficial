@@ -39,6 +39,41 @@ router.post("/accounts", async (req: Request, res: Response) => {
   }
 });
 
+// Valida as credenciais da Meta antes de salvar
+router.post("/accounts/verify", async (req: Request, res: Response) => {
+  const { wabaId, phoneNumberId, accessToken } = req.body;
+  if (!wabaId || !phoneNumberId || !accessToken) {
+    return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+  }
+
+  try {
+    // Fazer uma chamada simples de validação na Meta buscando templates com limit=1
+    await axios.get(
+      `https://graph.facebook.com/v19.0/${wabaId}/message_templates?limit=1`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }
+    );
+    res.json({ success: true, message: "Conexão validada com sucesso!" });
+  } catch (error: any) {
+    console.error("Erro de validação Meta:", error.response?.data || error.message);
+    const metaError = error.response?.data?.error;
+    let message = "Não foi possível conectar à Meta. Verifique seus dados.";
+
+    if (metaError) {
+      if (metaError.code === 190) {
+        message = "O Token de Acesso da Meta é inválido ou expirou. Por favor, insira um token válido.";
+      } else if (metaError.code === 100 || metaError.code === 80004) {
+        message = "O WABA ID fornecido é inválido. Verifique o ID no painel da Meta.";
+      } else {
+        message = `Erro da Meta (${metaError.code}): ${metaError.message}`;
+      }
+    }
+
+    res.status(400).json({ error: message });
+  }
+});
+
 // Delete account
 router.delete("/accounts/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
@@ -184,6 +219,65 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
   }
 });
 
+// Upload de arquivo de exemplo para obter o header_handle da Meta
+router.post("/accounts/:accountId/templates/upload-sample", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { fileName, fileType, fileBase64 } = req.body;
+
+  if (!fileName || !fileType || !fileBase64) {
+    return res.status(400).json({ error: "Missing fileName, fileType, or fileBase64" });
+  }
+
+  try {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) return res.status(404).json({ error: "Account not found" });
+
+    // 1. Obter o App ID do token da Meta
+    const appResponse = await axios.get(
+      `https://graph.facebook.com/v19.0/app?access_token=${account.accessToken}`
+    );
+    const appId = appResponse.data.id;
+
+    // Converter base64 para Buffer
+    const base64Data = fileBase64.replace(/^data:.*?;base64,/, "");
+    const fileBuffer = Buffer.from(base64Data, "base64");
+
+    // 2. Iniciar a sessão de upload na Meta
+    const sessionResponse = await axios.post(
+      `https://graph.facebook.com/v19.0/${appId}/uploads`,
+      null,
+      {
+        params: {
+          file_name: fileName,
+          file_length: fileBuffer.length,
+          file_type: fileType,
+          access_token: account.accessToken,
+        },
+      }
+    );
+    const uploadSessionId = sessionResponse.data.id;
+
+    // 3. Fazer o upload do buffer binário
+    const uploadResponse = await axios.post(
+      `https://graph.facebook.com/v19.0/${uploadSessionId}`,
+      fileBuffer,
+      {
+        headers: {
+          Authorization: `Bearer ${account.accessToken}`,
+          "Content-Type": "application/octet-stream",
+        },
+      }
+    );
+
+    const headerHandle = uploadResponse.data.h;
+    res.json({ headerHandle });
+  } catch (error: any) {
+    console.error("Erro no upload de sample para a Meta:", error.response?.data || error.message);
+    const details = error.response?.data?.error?.message || error.message;
+    res.status(400).json({ error: "Falha ao enviar arquivo de exemplo para a Meta.", details });
+  }
+});
+
 // ==========================================
 // MESSAGES ROUTES
 // ==========================================
@@ -191,7 +285,7 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
 // Enviar mensagem via Template
 router.post("/accounts/:accountId/messages/send", async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { to, templateName, language, variables } = req.body;
+  const { to, templateName, language, variables, mediaUrl } = req.body;
 
   if (!to || !templateName) {
     return res.status(400).json({ error: "Missing to or templateName" });
@@ -211,15 +305,36 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
         accountId,
         to,
         templateName,
-        variables: variables || null,
+        variables: variables ? { variables, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
         status: "PENDING",
       },
     });
 
-    // Montar os componentes de variáveis da Meta se fornecidos
-    // Ex: variables = ["Pedro", "Cupom10"]
-    // Transforma para: [{"type": "body", "parameters": [{"type": "text", "text": "Pedro"}, ...]}]
     const components: any[] = [];
+
+    // 1. Processar cabeçalho de mídia se necessário
+    const templateComponents = template?.components as any[];
+    const headerComp = templateComponents && Array.isArray(templateComponents)
+      ? templateComponents.find((c: any) => c.type === "HEADER")
+      : null;
+
+    if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
+      const typeLower = headerComp.format.toLowerCase();
+      components.push({
+        type: "header",
+        parameters: [
+          {
+            type: typeLower,
+            [typeLower]: {
+              link: mediaUrl,
+              ...(typeLower === "document" ? { filename: mediaUrl.split("/").pop() || "document.pdf" } : {})
+            }
+          }
+        ]
+      });
+    }
+
+    // 2. Processar variáveis do corpo
     if (variables && Array.isArray(variables) && variables.length > 0) {
       components.push({
         type: "body",
