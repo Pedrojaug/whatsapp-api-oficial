@@ -326,26 +326,39 @@ export default function App() {
     const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     const parsed: any[] = [];
 
+    const cleanValue = (val: string) => {
+      let s = val.trim();
+      if (s.startsWith('"') && s.endsWith('"')) {
+        s = s.slice(1, -1);
+      } else if (s.startsWith("'") && s.endsWith("'")) {
+        s = s.slice(1, -1);
+      }
+      return s.trim();
+    };
+
     for (const line of lines) {
-      if (line.includes(",")) {
-        const parts = line.split(",").map(p => p.trim());
-        const phone = parts[0];
-        const name = parts[1] || "";
-        const variables = parts.slice(2);
-        
-        if (phone) {
-          parsed.push({
-            phone,
-            name: name || undefined,
-            variables: variables.length > 0 ? variables : undefined
-          });
-        }
+      const separator = line.includes(";") ? ";" : ",";
+      let phone = "";
+      let name = "";
+      let variables: string[] = [];
+
+      if (line.includes(separator)) {
+        const parts = line.split(separator).map(p => p.trim());
+        phone = cleanValue(parts[0] || "");
+        name = cleanValue(parts[1] || "");
+        variables = parts.slice(2).map(cleanValue);
       } else {
-        if (line) {
-          parsed.push({
-            phone: line,
-          });
-        }
+        phone = cleanValue(line);
+      }
+
+      const cleanPhone = phone.replace(/\D/g, "");
+      // Skip headers or invalid lines (must have at least 8 digits to be a phone number)
+      if (cleanPhone.length >= 8) {
+        parsed.push({
+          phone: cleanPhone,
+          name: name || undefined,
+          variables: variables.length > 0 ? variables : undefined
+        });
       }
     }
     return parsed;
@@ -1530,12 +1543,43 @@ export default function App() {
                       />
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Copiar & Colar Contatos</label>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "15px" }}>
+                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Importar de Planilha (.csv)</label>
                       <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-                        Insira um contato por linha. Formatos aceitos:<br />
+                        Selecione um arquivo de planilha exportado como CSV. Suporta separação por vírgula ou ponto-e-vírgula.
+                      </div>
+                      <input
+                        type="file"
+                        accept=".csv"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            const text = event.target?.result as string;
+                            setNewListRawContacts(text);
+                            showAlert("Planilha CSV carregada com sucesso!");
+                          };
+                          reader.readAsText(file);
+                        }}
+                        style={{
+                          padding: "10px",
+                          borderRadius: "var(--radius-md)",
+                          background: "rgba(255,255,255,0.02)",
+                          border: "1px dashed var(--border-color)",
+                          color: "var(--text-secondary)",
+                          fontSize: "0.85rem",
+                          cursor: "pointer"
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Contatos Carregados / Copiar & Colar</label>
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
+                        Edite abaixo ou cole novos contatos diretamente. Formatos aceitos:<br />
                         • Telefone simples: <code>5583986241167</code><br />
-                        • CSV Completo: <code>5583986241167, Pedro, VIP, 20% de Desconto</code> (Telefone, Nome, Var 1, Var 2...)
+                        • Planilha CSV: <code>5583986241167, Pedro, VIP, 20%</code> (Telefone, Nome, Var 1, Var 2...)
                       </div>
                       <textarea
                         placeholder={`5583986241167, Pedro, VIP, Desconto de 20%\n5511999999999, João, Standard, Frete Grátis`}
@@ -1545,7 +1589,7 @@ export default function App() {
                         style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", resize: "none", fontFamily: "monospace", fontSize: "0.85rem", outline: "none" }}
                         required
                       />
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Limite máximo de 1.000 contatos por lote de importação.</span>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Limite máximo de 1.000 contatos por lote de importação. As linhas de cabeçalho da planilha serão ignoradas automaticamente.</span>
                     </div>
 
                     {/* Footer Actions */}
