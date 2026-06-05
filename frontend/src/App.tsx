@@ -77,6 +77,7 @@ export default function App() {
 
   // Template editing state
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [deleteConfirmTemplate, setDeleteConfirmTemplate] = useState<{ id: string, name: string } | null>(null);
 
   // Contact lists states
   const [contactLists, setContactLists] = useState<any[]>([]);
@@ -241,15 +242,14 @@ export default function App() {
     }
   };
 
-  const handleDeleteTemplate = async (templateId: string, templateName: string) => {
+  const handleDeleteTemplate = async (templateId: string) => {
     if (!selectedAccount) return;
-    if (!window.confirm(`Tem certeza que deseja excluir o template "${templateName}" permanentemente da Meta e do banco de dados?`)) return;
-    
     try {
       showAlert("Excluindo template...");
       await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/templates/${templateId}`);
       showAlert("Template excluído com sucesso.");
-      fetchTemplates(selectedAccount.id);
+      setTemplates((prev) => prev.filter((t) => t.id !== templateId));
+      setTimeout(() => fetchTemplates(selectedAccount.id), 2000);
     } catch (err: any) {
       const details = err.response?.data?.error || err.message;
       showAlert(`Erro ao excluir template: ${details}`, "error");
@@ -955,7 +955,7 @@ export default function App() {
                           ✏️ Editar
                         </button>
                         <button
-                          onClick={() => handleDeleteTemplate(tmpl.id, tmpl.name)}
+                          onClick={() => setDeleteConfirmTemplate({ id: tmpl.id, name: tmpl.name })}
                           className="btn btn-danger"
                           style={{ padding: "8px 14px", fontSize: "0.85rem" }}
                         >
@@ -965,6 +965,31 @@ export default function App() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {deleteConfirmTemplate && (
+              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+                <div className="glass fade-in" style={{ width: "450px", maxWidth: "90vw", padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Confirmar Exclusão</h3>
+                  <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", lineHeight: "1.5" }}>
+                    Tem certeza que deseja excluir o template <strong>{deleteConfirmTemplate.name}</strong> permanentemente da Meta e do banco de dados? Esta ação não pode ser desfeita.
+                  </p>
+                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "10px" }}>
+                    <button type="button" onClick={() => setDeleteConfirmTemplate(null)} className="btn btn-secondary">Cancelar</button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const { id } = deleteConfirmTemplate;
+                        setDeleteConfirmTemplate(null);
+                        await handleDeleteTemplate(id);
+                      }}
+                      className="btn btn-danger"
+                    >
+                      Excluir Template
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
