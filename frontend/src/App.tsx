@@ -716,10 +716,14 @@ export default function App() {
       {/* Sidebar */}
       <aside className="glass" style={{ width: "280px", padding: "30px 20px", display: "flex", flexDirection: "column", gap: "30px", borderRight: "1px solid var(--border-color)" }}>
         <div>
-          <h2 style={{ fontSize: "1.5rem", fontWeight: "700", background: "linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-            Meta WABA Hub
+          <h2 style={{ fontSize: "1.6rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", fontFamily: "var(--font-sans)" }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)", flexShrink: 0 }}>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+            <span style={{ color: "#fff" }}>Send</span>
+            <span style={{ background: "linear-gradient(135deg, var(--primary) 0%, #10b981 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Inteligentte</span>
           </h2>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Seu portal oficial de WhatsApp</p>
+          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "500" }}>por Inteligentte Lab</p>
         </div>
 
         {/* Account Switcher */}
@@ -1426,7 +1430,7 @@ export default function App() {
                             borderRadius: "var(--radius-md)",
                             cursor: "pointer",
                             border: selectedList?.id === list.id ? "1.5px solid var(--primary)" : "1px solid rgba(255,255,255,0.05)",
-                            background: selectedList?.id === list.id ? "rgba(99, 102, 241, 0.05)" : undefined,
+                            background: selectedList?.id === list.id ? "rgba(0, 194, 107, 0.05)" : undefined,
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center"

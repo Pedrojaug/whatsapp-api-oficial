@@ -71,7 +71,7 @@ export default function PhoneSimulator({
 
       {/* WhatsApp Header */}
       <header style={{ background: "#1f2c34", padding: "10px 16px", display: "flex", alignItems: "center", gap: "10px", borderBottom: "1px solid rgba(0,0,0,0.15)" }}>
-        <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "#4f46e5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#fff", fontWeight: "bold" }}>
+        <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "var(--primary, #00c26b)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.2rem", color: "#fff", fontWeight: "bold" }}>
           W
         </div>
         <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
