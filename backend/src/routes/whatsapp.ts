@@ -300,6 +300,7 @@ router.delete("/accounts/:accountId/templates/:templateId", async (req: Request,
           {
             params: {
               hsm_id: template.metaId,
+              name: template.name,
             },
             headers: { Authorization: `Bearer ${account.accessToken}` },
           }
