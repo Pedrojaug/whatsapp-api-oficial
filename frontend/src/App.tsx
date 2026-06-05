@@ -388,6 +388,15 @@ export default function App() {
       return;
     }
 
+    // Validar se o template exige mídia e a URL foi fornecida
+    const tmpl = templates.find((t) => t.name === selectedTemplateName);
+    const headerComp = tmpl?.components?.find((c: any) => c.type === "HEADER");
+    const hasMedia = headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format);
+    if (hasMedia && !messageMediaUrl.trim()) {
+      showAlert(`Este template exige uma URL de mídia (${headerComp.format}).`, "error");
+      return;
+    }
+
     setLoading(true);
     try {
       await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/send`, {
