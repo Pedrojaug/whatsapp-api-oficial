@@ -222,3 +222,9 @@ body {
   top: -2px;
   animation: pulse-glow 2s infinite ease-in-out;
 }
+
+/* Corrigir legibilidade dos options em selects escuros no Windows/Chrome */
+select option {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
