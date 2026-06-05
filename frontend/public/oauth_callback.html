@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conectando ao Send Inteligentte...</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #0b0f19 0%, #111827 100%);
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      overflow: hidden;
+    }
+    .container {
+      background: rgba(17, 24, 39, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 40px;
+      text-align: center;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      max-width: 400px;
+      width: 90%;
+    }
+    .spinner {
+      border: 4px solid rgba(255, 255, 255, 0.1);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border-left-color: #00c26b;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px auto;
+    }
+    h2 {
+      margin: 0 0 10px 0;
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+    p {
+      color: #9ca3af;
+      font-size: 0.9rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2>Autenticação Meta</h2>
+    <p id="status-text">Processando autenticação segura. Por favor, aguarde...</p>
+  </div>
+
+  <script>
+    function handleAuth() {
+      // 1. Extrair os parâmetros do fragmento (#) ou query (?) da URL
+      const hash = window.location.hash;
+      const params = new URLSearchParams(hash.replace("#", "?"));
+      const accessToken = params.get("access_token");
+
+      const statusText = document.getElementById("status-text");
+
+      if (accessToken) {
+        // Envia o token para a janela principal (parent window)
+        if (window.opener) {
+          window.opener.postMessage({
+            type: "FACEBOOK_OAUTH_SUCCESS",
+            token: accessToken
+          }, window.location.origin);
+          
+          statusText.textContent = "Conexão estabelecida com sucesso! Fechando esta janela...";
+          setTimeout(() => {
+            window.close();
+          }, 1000);
+        } else {
+          statusText.textContent = "Erro: Janela principal não encontrada.";
+        }
+      } else {
+        // Tenta buscar por erro na URL
+        const queryParams = new URLSearchParams(window.location.search);
+        const errorMsg = queryParams.get("error_description") || queryParams.get("error") || "Token não encontrado na URL de retorno.";
+        
+        statusText.textContent = "Falha na autenticação: " + errorMsg;
+        statusText.style.color = "#ef4444";
+        
+        if (window.opener) {
+          window.opener.postMessage({
+            type: "FACEBOOK_OAUTH_FAILED",
+            error: errorMsg
+          }, window.location.origin);
+        }
+      }
+    }
+
+    // Executa no carregamento
+    window.addEventListener("DOMContentLoaded", handleAuth);
+  </script>
+</body>
+</html>

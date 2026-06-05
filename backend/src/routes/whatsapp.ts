@@ -806,4 +806,111 @@ router.post("/webhooks", async (req: Request, res: Response) => {
   }
 });
 
+// ==========================================
+// FACEBOOK OAUTH ONBOARDING ROUTES
+// ==========================================
+
+// Trocar token curto por token de longa duração e buscar WABAs e Telefones
+router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Response) => {
+  const { shortLivedToken } = req.body;
+  if (!shortLivedToken) {
+    return res.status(400).json({ error: "Token temporário é obrigatório." });
+  }
+
+  const appId = process.env.FACEBOOK_APP_ID;
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
+
+  if (!appId || !appSecret) {
+    return res.status(500).json({ error: "Credenciais do aplicativo do Facebook (App ID ou App Secret) não configuradas no servidor." });
+  }
+
+  try {
+    // 1. Trocar por token de longa duração
+    const tokenResponse = await axios.get(
+      `https://graph.facebook.com/v19.0/oauth/access_token`,
+      {
+        params: {
+          grant_type: "fb_exchange_token",
+          client_id: appId,
+          client_secret: appSecret,
+          fb_exchange_token: shortLivedToken,
+        },
+      }
+    );
+
+    const longLivedToken = tokenResponse.data.access_token;
+
+    // 2. Buscar WABAs vinculadas
+    const wabasResponse = await axios.get(
+      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts`,
+      {
+        headers: { Authorization: `Bearer ${longLivedToken}` },
+      }
+    );
+
+    const wabasData = wabasResponse.data.data || [];
+    const wabasWithPhones: any[] = [];
+
+    // 3. Buscar números de telefone para cada WABA
+    for (const waba of wabasData) {
+      try {
+        const phonesResponse = await axios.get(
+          `https://graph.facebook.com/v19.0/${waba.id}/phone_numbers`,
+          {
+            headers: { Authorization: `Bearer ${longLivedToken}` },
+          }
+        );
+
+        const phoneNumbers = (phonesResponse.data.data || []).map((phone: any) => ({
+          id: phone.id,
+          displayPhoneNumber: phone.display_phone_number,
+          verifiedName: phone.verified_name,
+        }));
+
+        wabasWithPhones.push({
+          id: waba.id,
+          name: waba.name || `WABA - ${waba.id}`,
+          phoneNumbers,
+        });
+      } catch (phoneError: any) {
+        console.error(`Erro ao buscar números para WABA ${waba.id}:`, phoneError.response?.data || phoneError.message);
+        wabasWithPhones.push({
+          id: waba.id,
+          name: waba.name || `WABA - ${waba.id}`,
+          phoneNumbers: [],
+        });
+      }
+    }
+
+    res.json({
+      longLivedToken,
+      wabas: wabasWithPhones,
+    });
+  } catch (error: any) {
+    console.error("Erro no onboarding do Facebook:", error.response?.data || error.message);
+    const details = error.response?.data?.error?.message || error.message;
+    res.status(400).json({ error: "Falha ao processar token e buscar contas na Meta.", details });
+  }
+});
+
+// Salvar conta do Facebook Onboarding
+router.post("/accounts/facebook-onboard/save", async (req: Request, res: Response) => {
+  const { name, wabaId, phoneNumberId, accessToken } = req.body;
+
+  if (!name || !wabaId || !phoneNumberId || !accessToken) {
+    return res.status(400).json({ error: "Preencha todos os campos obrigatórios." });
+  }
+
+  try {
+    const account = await prisma.account.upsert({
+      where: { name },
+      update: { wabaId, phoneNumberId, accessToken },
+      create: { name, wabaId, phoneNumberId, accessToken },
+    });
+    res.status(201).json(account);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
