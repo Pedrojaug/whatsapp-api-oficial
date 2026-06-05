@@ -92,50 +92,54 @@ router.delete("/accounts/:id", async (req: Request, res: Response) => {
 // Sincronizar e listar templates da Meta para uma conta
 router.get("/accounts/:accountId/templates", async (req: Request, res: Response) => {
   const { accountId } = req.params;
+  const sync = req.query.sync === "true";
+  
   try {
     const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) return res.status(404).json({ error: "Account not found" });
 
-    // Buscar templates direto da Meta
-    try {
-      const response = await axios.get(
-        `https://graph.facebook.com/v19.0/${account.wabaId}/message_templates`,
-        {
-          headers: { Authorization: `Bearer ${account.accessToken}` },
-        }
-      );
+    // Buscar templates direto da Meta apenas se sync=true
+    if (sync) {
+      try {
+        const response = await axios.get(
+          `https://graph.facebook.com/v19.0/${account.wabaId}/message_templates`,
+          {
+            headers: { Authorization: `Bearer ${account.accessToken}` },
+          }
+        );
 
-      const metaTemplates = response.data.data;
+        const metaTemplates = response.data.data;
 
-      // Upsert templates locais
-      for (const t of metaTemplates) {
-        await prisma.template.upsert({
-          where: {
-            accountId_name: {
+        // Upsert templates locais
+        for (const t of metaTemplates) {
+          await prisma.template.upsert({
+            where: {
+              accountId_name: {
+                accountId,
+                name: t.name,
+              },
+            },
+            update: {
+              metaId: t.id,
+              status: t.status,
+              language: t.language,
+              category: t.category,
+              components: t.components || [],
+            },
+            create: {
               accountId,
               name: t.name,
+              metaId: t.id,
+              status: t.status,
+              language: t.language,
+              category: t.category,
+              components: t.components || [],
             },
-          },
-          update: {
-            metaId: t.id,
-            status: t.status,
-            language: t.language,
-            category: t.category,
-            components: t.components || [],
-          },
-          create: {
-            accountId,
-            name: t.name,
-            metaId: t.id,
-            status: t.status,
-            language: t.language,
-            category: t.category,
-            components: t.components || [],
-          },
-        });
+          });
+        }
+      } catch (metaError: any) {
+        console.error("Erro ao puxar da Meta:", metaError.response?.data || metaError.message);
       }
-    } catch (metaError: any) {
-      console.error("Erro ao puxar da Meta, usando cache local:", metaError.response?.data || metaError.message);
     }
 
     // Retornar da base local

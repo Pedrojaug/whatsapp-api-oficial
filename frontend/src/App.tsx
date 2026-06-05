@@ -198,9 +198,12 @@ export default function App() {
     }
   };
 
-  const fetchTemplates = async (accountId: string) => {
+  const fetchTemplates = async (accountId: string, sync = false) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/templates`);
+      const url = sync
+        ? `${API_BASE_URL}/accounts/${accountId}/templates?sync=true`
+        : `${API_BASE_URL}/accounts/${accountId}/templates`;
+      const res = await axios.get(url);
       setTemplates(res.data);
     } catch (err: any) {
       console.error(err);
@@ -212,7 +215,7 @@ export default function App() {
     setSyncingTemplates(true);
     try {
       showAlert("Sincronizando templates com a Meta...");
-      await fetchTemplates(selectedAccount.id);
+      await fetchTemplates(selectedAccount.id, true);
       showAlert("Templates atualizados com sucesso!");
     } catch (err) {
       showAlert("Erro ao sincronizar templates.", "error");
