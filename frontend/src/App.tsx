@@ -43,7 +43,7 @@ interface TemplateButton {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages">("metrics");
+  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists">("metrics");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
@@ -75,11 +75,27 @@ export default function App() {
   const [sampleFileBase64, setSampleFileBase64] = useState<string>("");
   const [sampleFilePreviewUrl, setSampleFilePreviewUrl] = useState<string>("");
 
+  // Template editing state
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+
+  // Contact lists states
+  const [contactLists, setContactLists] = useState<any[]>([]);
+  const [loadingLists, setLoadingLists] = useState(false);
+  const [showNewListModal, setShowNewListModal] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [newListRawContacts, setNewListRawContacts] = useState("");
+  const [selectedList, setSelectedList] = useState<any | null>(null);
+
   // Manual Send Message States
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
   const [recipientNumber, setRecipientNumber] = useState("");
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
   const [messageMediaUrl, setMessageMediaUrl] = useState("");
+
+  // Bulk / single sender states
+  const [recipientType, setRecipientType] = useState<"single" | "list">("single");
+  const [selectedListId, setSelectedListId] = useState("");
+  const [variableMappings, setVariableMappings] = useState<string[]>([]);
 
   // Messages / Alerts
   const [alert, setAlert] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -120,6 +136,7 @@ export default function App() {
     setNewTemplateButtons([]);
     setSampleFile(null);
     setSampleFileBase64("");
+    setEditingTemplateId(null);
     if (sampleFilePreviewUrl) {
       URL.revokeObjectURL(sampleFilePreviewUrl);
     }
@@ -134,11 +151,20 @@ export default function App() {
     if (selectedAccount) {
       fetchTemplates(selectedAccount.id);
       fetchMessages(selectedAccount.id);
+      fetchContactLists(selectedAccount.id);
     } else {
       setTemplates([]);
       setMessageLogs([]);
+      setContactLists([]);
+      setSelectedList(null);
     }
   }, [selectedAccount]);
+
+  useEffect(() => {
+    if (selectedAccount && activeTab === "lists") {
+      fetchContactLists(selectedAccount.id);
+    }
+  }, [activeTab]);
 
   const showAlert = (text: string, type: "success" | "error" = "success") => {
     setAlert({ text, type });
@@ -200,6 +226,194 @@ export default function App() {
       setMessageLogs(res.data);
     } catch (err: any) {
       console.error(err);
+    }
+  };
+
+  const fetchContactLists = async (accountId: string) => {
+    setLoadingLists(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/lists`);
+      setContactLists(res.data);
+    } catch (err: any) {
+      console.error("Erro ao buscar listas de contatos:", err);
+    } finally {
+      setLoadingLists(false);
+    }
+  };
+
+  const handleDeleteTemplate = async (templateId: string, templateName: string) => {
+    if (!selectedAccount) return;
+    if (!window.confirm(`Tem certeza que deseja excluir o template "${templateName}" permanentemente da Meta e do banco de dados?`)) return;
+    
+    try {
+      showAlert("Excluindo template...");
+      await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/templates/${templateId}`);
+      showAlert("Template excluído com sucesso.");
+      fetchTemplates(selectedAccount.id);
+    } catch (err: any) {
+      const details = err.response?.data?.error || err.message;
+      showAlert(`Erro ao excluir template: ${details}`, "error");
+    }
+  };
+
+  const handleEditTemplate = (tmpl: Template) => {
+    resetTemplateForm();
+    setEditingTemplateId(tmpl.id);
+    setNewTemplateName(tmpl.name);
+    setNewTemplateCategory(tmpl.category);
+    setNewTemplateLanguage(tmpl.language);
+    
+    const components = tmpl.components || [];
+    const header = components.find((c: any) => c.type === "HEADER");
+    const body = components.find((c: any) => c.type === "BODY");
+    const footer = components.find((c: any) => c.type === "FOOTER");
+    const buttons = components.find((c: any) => c.type === "BUTTONS");
+
+    if (header) {
+      setNewTemplateHeaderFormat(header.format);
+      if (header.format === "TEXT") {
+        setNewTemplateHeaderText(header.text || "");
+      }
+    } else {
+      setNewTemplateHeaderFormat("NONE");
+    }
+
+    if (body) {
+      setNewTemplateBodyText(body.text || "");
+      if (body.example?.body_text?.[0]) {
+        setNewTemplateBodyVariables(body.example.body_text[0]);
+      }
+    }
+
+    if (footer) {
+      setNewTemplateFooterText(footer.text || "");
+    }
+
+    if (buttons) {
+      const mappedButtons = (buttons.buttons || []).map((btn: any) => {
+        if (btn.type === "QUICK_REPLY") {
+          return { type: "QUICK_REPLY", text: btn.text };
+        } else if (btn.type === "URL") {
+          return { type: "URL", text: btn.text, url: btn.url };
+        } else if (btn.type === "PHONE_NUMBER") {
+          return { type: "PHONE_NUMBER", text: btn.text, phoneNumber: btn.phone_number };
+        }
+        return null;
+      }).filter(Boolean);
+
+      setNewTemplateButtons(mappedButtons);
+      
+      if (mappedButtons.length > 0) {
+        if (mappedButtons[0].type === "QUICK_REPLY") {
+          setNewTemplateButtonType("QUICK_REPLY");
+        } else {
+          setNewTemplateButtonType("CTA");
+        }
+      } else {
+        setNewTemplateButtonType("NONE");
+      }
+    } else {
+      setNewTemplateButtonType("NONE");
+    }
+
+    setShowNewTemplateModal(true);
+  };
+
+  const parseRawContacts = (text: string) => {
+    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const parsed: any[] = [];
+
+    for (const line of lines) {
+      if (line.includes(",")) {
+        const parts = line.split(",").map(p => p.trim());
+        const phone = parts[0];
+        const name = parts[1] || "";
+        const variables = parts.slice(2);
+        
+        if (phone) {
+          parsed.push({
+            phone,
+            name: name || undefined,
+            variables: variables.length > 0 ? variables : undefined
+          });
+        }
+      } else {
+        if (line) {
+          parsed.push({
+            phone: line,
+          });
+        }
+      }
+    }
+    return parsed;
+  };
+
+  const handleCreateContactList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAccount) return;
+    if (!newListName.trim()) {
+      showAlert("O nome da lista é obrigatório.", "error");
+      return;
+    }
+    if (!newListRawContacts.trim()) {
+      showAlert("Insira ao menos um contato.", "error");
+      return;
+    }
+
+    const parsedContacts = parseRawContacts(newListRawContacts);
+    if (parsedContacts.length === 0) {
+      showAlert("Nenhum contato válido encontrado.", "error");
+      return;
+    }
+    if (parsedContacts.length > 1000) {
+      showAlert("O limite de contatos por importação é de 1.000 registros.", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      showAlert("Importando contatos e criando lista...");
+      await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/lists`, {
+        name: newListName,
+        contacts: parsedContacts
+      });
+      showAlert("Lista de contatos criada com sucesso!");
+      setNewListName("");
+      setNewListRawContacts("");
+      setShowNewListModal(false);
+      fetchContactLists(selectedAccount.id);
+    } catch (err: any) {
+      const details = err.response?.data?.error || err.message;
+      showAlert(`Erro ao criar lista: ${details}`, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteContactList = async (listId: string, listName: string) => {
+    if (!selectedAccount) return;
+    if (!window.confirm(`Tem certeza que deseja excluir a lista "${listName}"? Isso excluirá todos os contatos vinculados a ela.`)) return;
+
+    try {
+      showAlert("Excluindo lista...");
+      await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/lists/${listId}`);
+      showAlert("Lista excluída com sucesso.");
+      if (selectedList?.id === listId) {
+        setSelectedList(null);
+      }
+      fetchContactLists(selectedAccount.id);
+    } catch (err: any) {
+      const details = err.response?.data?.error || err.message;
+      showAlert(`Erro ao excluir lista: ${details}`, "error");
+    }
+  };
+
+  const handleViewListDetails = async (list: any) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${selectedAccount!.id}/lists/${list.id}`);
+      setSelectedList(res.data);
+    } catch (err: any) {
+      showAlert("Erro ao buscar detalhes da lista.", "error");
     }
   };
 
@@ -330,6 +544,15 @@ export default function App() {
         });
       }
 
+      if (editingTemplateId) {
+        try {
+          showAlert("Removendo versão anterior do template...");
+          await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/templates/${editingTemplateId}`);
+        } catch (err: any) {
+          console.warn("Erro ao deletar versão anterior do template:", err.message);
+        }
+      }
+
       showAlert("Criando e registrando template na Meta...");
       const templateNameFormatted = newTemplateName
         .toLowerCase()
@@ -369,8 +592,10 @@ export default function App() {
       const bodyComp = tmpl.components.find((c: any) => c.type === "BODY");
       const varCount = bodyComp ? getVariablesCount(bodyComp.text) : 0;
       setTemplateVariables(Array(varCount).fill(""));
+      setVariableMappings(Array(varCount).fill("STATIC_VALUE"));
     } else {
       setTemplateVariables([]);
+      setVariableMappings([]);
     }
   };
 
@@ -383,12 +608,11 @@ export default function App() {
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAccount) return;
-    if (!recipientNumber || !selectedTemplateName) {
-      showAlert("Selecione o template e insira o telefone destinatário.", "error");
+    if (!selectedTemplateName) {
+      showAlert("Selecione o template.", "error");
       return;
     }
 
-    // Validar se o template exige mídia e a URL foi fornecida
     const tmpl = templates.find((t) => t.name === selectedTemplateName);
     const headerComp = tmpl?.components?.find((c: any) => c.type === "HEADER");
     const hasMedia = headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format);
@@ -397,27 +621,70 @@ export default function App() {
       return;
     }
 
-    setLoading(true);
-    try {
-      await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/send`, {
-        to: recipientNumber.replace(/\D/g, ""), // Limpar caracteres não-numéricos
-        templateName: selectedTemplateName,
-        variables: templateVariables,
-        mediaUrl: messageMediaUrl || undefined,
-      });
+    if (recipientType === "single") {
+      if (!recipientNumber) {
+        showAlert("Insira o telefone destinatário.", "error");
+        return;
+      }
+      setLoading(true);
+      try {
+        await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/send`, {
+          to: recipientNumber.replace(/\D/g, ""),
+          templateName: selectedTemplateName,
+          variables: templateVariables,
+          mediaUrl: messageMediaUrl || undefined,
+        });
 
-      showAlert("Mensagem enviada com sucesso!");
-      setRecipientNumber("");
-      setSelectedTemplateName("");
-      setTemplateVariables([]);
-      setMessageMediaUrl("");
-      fetchMessages(selectedAccount.id);
-    } catch (err: any) {
-      const details = err.response?.data?.details?.error?.message || err.response?.data?.error || "Erro desconhecido";
-      showAlert(`Falha no envio: ${details}`, "error");
-      fetchMessages(selectedAccount.id); // Refresh logs to see the FAILED log
-    } finally {
-      setLoading(false);
+        showAlert("Mensagem enviada com sucesso!");
+        setRecipientNumber("");
+        setSelectedTemplateName("");
+        setTemplateVariables([]);
+        setMessageMediaUrl("");
+        fetchMessages(selectedAccount.id);
+      } catch (err: any) {
+        const details = err.response?.data?.details?.error?.message || err.response?.data?.error || "Erro desconhecido";
+        showAlert(`Falha no envio: ${details}`, "error");
+        fetchMessages(selectedAccount.id);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      if (!selectedListId) {
+        showAlert("Selecione a lista de contatos destinatária.", "error");
+        return;
+      }
+      setLoading(true);
+      try {
+        const mappedVars = variableMappings.map((m) => {
+          if (m.startsWith("STATIC:")) {
+            return m.replace("STATIC:", "");
+          }
+          if (m === "STATIC_VALUE") {
+            return "";
+          }
+          return m;
+        });
+
+        await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/lists/${selectedListId}/send`, {
+          templateName: selectedTemplateName,
+          variables: mappedVars,
+          mediaUrl: messageMediaUrl || undefined,
+        });
+
+        showAlert("Disparo em lote iniciado com sucesso!");
+        setSelectedTemplateName("");
+        setTemplateVariables([]);
+        setVariableMappings([]);
+        setMessageMediaUrl("");
+        setSelectedListId("");
+        
+        setTimeout(() => fetchMessages(selectedAccount.id), 1000);
+      } catch (err: any) {
+        const details = err.response?.data?.error || "Erro desconhecido";
+        showAlert(`Falha ao iniciar disparo em lote: ${details}`, "error");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -478,6 +745,13 @@ export default function App() {
             style={{ justifyContent: "flex-start", width: "100%" }}
           >
             📝 Templates Meta
+          </button>
+          <button
+            onClick={() => setActiveTab("lists")}
+            className={`btn ${activeTab === "lists" ? "btn-primary" : "btn-secondary"}`}
+            style={{ justifyContent: "flex-start", width: "100%" }}
+          >
+            👥 Listas de Contatos
           </button>
           <button
             onClick={() => setActiveTab("messages")}
@@ -654,12 +928,12 @@ export default function App() {
 
                   return (
                     <div key={tmpl.id} className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "16px" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                        <div>
-                          <h4 style={{ fontSize: "1.1rem", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis" }}>{tmpl.name}</h4>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", width: "100%" }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <h4 style={{ fontSize: "1.1rem", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tmpl.name}>{tmpl.name}</h4>
                           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>{tmpl.category} • {tmpl.language}</span>
                         </div>
-                        <span className={`badge badge-${tmpl.status.toLowerCase()}`}>
+                        <span className={`badge badge-${tmpl.status.toLowerCase()}`} style={{ flexShrink: 0 }}>
                           {tmpl.status}
                         </span>
                       </div>
@@ -669,6 +943,24 @@ export default function App() {
                         {headerComp && <div style={{ fontWeight: "700", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "4px" }}>{headerComp.text}</div>}
                         <div style={{ whiteSpace: "pre-wrap", color: "#e5e7eb" }}>{bodyComp?.text}</div>
                         {footerComp && <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "4px" }}>{footerComp.text}</div>}
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
+                        <button
+                          onClick={() => handleEditTemplate(tmpl)}
+                          className="btn btn-secondary"
+                          style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTemplate(tmpl.id, tmpl.name)}
+                          className="btn btn-danger"
+                          style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                        >
+                          🗑️ Excluir
+                        </button>
                       </div>
                     </div>
                   );
@@ -683,7 +975,9 @@ export default function App() {
                   
                   {/* Header */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
-                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Criar Novo Template</h3>
+                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>
+                      {editingTemplateId ? "Editar Template (Reenvio para Aprovação)" : "Criar Novo Template"}
+                    </h3>
                     <button type="button" onClick={() => { resetTemplateForm(); setShowNewTemplateModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
                   </div>
 
@@ -693,6 +987,20 @@ export default function App() {
                     {/* Left Side: Form */}
                     <form onSubmit={handleCreateTemplate} style={{ flex: 1.2, padding: "24px 30px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "18px", borderRight: "1px solid var(--border-color)" }}>
                       
+                      {editingTemplateId && (
+                        <div style={{
+                          background: "rgba(245, 158, 11, 0.1)",
+                          border: "1px solid rgba(245, 158, 11, 0.2)",
+                          color: "#f59e0b",
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius-md)",
+                          fontSize: "0.8rem",
+                          lineHeight: "1.4"
+                        }}>
+                          ⚠️ <strong>Aviso de Re-aprovação:</strong> Alterar as mídias ou textos deste template exigirá que a Meta o re-avalie. A versão antiga será deletada ao salvar as alterações.
+                        </div>
+                      )}
+
                       {/* Name, Category, Language */}
                       <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                         <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Nome do Template</label>
@@ -701,7 +1009,8 @@ export default function App() {
                           placeholder="Somente letras minúsculas e _ (ex: confirmacao_compra)"
                           value={newTemplateName}
                           onChange={(e) => setNewTemplateName(e.target.value)}
-                          style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                          disabled={!!editingTemplateId}
+                          style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", opacity: editingTemplateId ? 0.6 : 1 }}
                         />
                       </div>
 
@@ -1036,6 +1345,195 @@ export default function App() {
           </div>
         )}
 
+        {/* Tab: CONTACT LISTS */}
+        {activeTab === "lists" && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>👥 Listas de Contatos</h1>
+                <p style={{ color: "var(--text-secondary)" }}>Crie e gerencie contatos para seus disparos em massa</p>
+              </div>
+              <button onClick={() => setShowNewListModal(true)} disabled={!selectedAccount} className="btn btn-primary">
+                👥 Nova Lista
+              </button>
+            </div>
+
+            {!selectedAccount ? (
+              <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
+                <p style={{ color: "var(--text-muted)" }}>Cadastre uma conta da Meta primeiro nas Configurações.</p>
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "30px", alignItems: "start" }}>
+                
+                {/* Left Column: Lists list */}
+                <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Suas Listas</h3>
+                  
+                  {loadingLists ? (
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Carregando listas...</p>
+                  ) : contactLists.length === 0 ? (
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma lista cadastrada. Crie uma nova lista para importar contatos!</p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      {contactLists.map((list) => (
+                        <div
+                          key={list.id}
+                          onClick={() => handleViewListDetails(list)}
+                          className="glass glass-interactive"
+                          style={{
+                            padding: "20px",
+                            borderRadius: "var(--radius-md)",
+                            cursor: "pointer",
+                            border: selectedList?.id === list.id ? "1.5px solid var(--primary)" : "1px solid rgba(255,255,255,0.05)",
+                            background: selectedList?.id === list.id ? "rgba(99, 102, 241, 0.05)" : undefined,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center"
+                          }}
+                        >
+                          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <span style={{ fontWeight: "600", fontSize: "1.1rem" }}>{list.name}</span>
+                            <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
+                              👤 {list._count?.contacts || 0} Contatos
+                            </span>
+                            <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                              Criado em: {new Date(list.createdAt).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteContactList(list.id, list.name);
+                            }}
+                            className="btn btn-danger"
+                            style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: List details / Contacts */}
+                <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", minHeight: "400px", display: "flex", flexDirection: "column", gap: "20px" }}>
+                  {selectedList ? (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "15px" }}>
+                        <div>
+                          <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>{selectedList.name}</h3>
+                          <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Detalhamento de contatos importados</span>
+                        </div>
+                        <span style={{ background: "var(--primary)", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "600" }}>
+                          {selectedList.contacts?.length || 0} contatos
+                        </span>
+                      </div>
+
+                      {selectedList.contacts?.length === 0 ? (
+                        <p style={{ color: "var(--text-muted)", textAlign: "center", padding: "40px" }}>Esta lista não possui contatos.</p>
+                      ) : (
+                        <div style={{ overflowX: "auto", maxHeight: "450px" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                            <thead>
+                              <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                                <th style={{ padding: "12px 8px" }}>Nome</th>
+                                <th style={{ padding: "12px 8px" }}>Telefone</th>
+                                <th style={{ padding: "12px 8px" }}>Variáveis Extra</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {selectedList.contacts.map((contact: any) => (
+                                <tr key={contact.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                  <td style={{ padding: "12px 8px", fontWeight: "500" }}>{contact.name || "-"}</td>
+                                  <td style={{ padding: "12px 8px" }}>{contact.phone}</td>
+                                  <td style={{ padding: "12px 8px", color: "var(--text-secondary)" }}>
+                                    {contact.variables && contact.variables.length > 0 ? (
+                                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                                        {contact.variables.map((v: string, i: number) => (
+                                          <span key={i} style={{ background: "rgba(255,255,255,0.05)", padding: "2px 8px", borderRadius: "4px", fontSize: "0.75rem" }}>
+                                            var{i+1}: {v}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      "-"
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, color: "var(--text-muted)", textAlign: "center", padding: "40px" }}>
+                      <span style={{ fontSize: "3rem", marginBottom: "15px" }}>👥</span>
+                      Selecione uma lista à esquerda para visualizar seus contatos e mapeamentos.
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* Modal de Nova Lista */}
+            {showNewListModal && (
+              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+                <div className="glass fade-in" style={{ width: "600px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+                  
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Importar Nova Lista de Contatos</h3>
+                    <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setShowNewListModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                  </div>
+
+                  <form onSubmit={handleCreateContactList} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Nome da Lista</label>
+                      <input
+                        type="text"
+                        placeholder="Ex: Clientes VIP - Ofertas de Junho"
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                        required
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Copiar & Colar Contatos</label>
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
+                        Insira um contato por linha. Formatos aceitos:<br />
+                        • Telefone simples: <code>5583986241167</code><br />
+                        • CSV Completo: <code>5583986241167, Pedro, VIP, 20% de Desconto</code> (Telefone, Nome, Var 1, Var 2...)
+                      </div>
+                      <textarea
+                        placeholder={`5583986241167, Pedro, VIP, Desconto de 20%\n5511999999999, João, Standard, Frete Grátis`}
+                        value={newListRawContacts}
+                        onChange={(e) => setNewListRawContacts(e.target.value)}
+                        rows={8}
+                        style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", resize: "none", fontFamily: "monospace", fontSize: "0.85rem", outline: "none" }}
+                        required
+                      />
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Limite máximo de 1.000 contatos por lote de importação.</span>
+                    </div>
+
+                    {/* Footer Actions */}
+                    <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px", marginTop: "10px" }}>
+                      <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setShowNewListModal(false); }} className="btn btn-secondary">Cancelar</button>
+                      <button type="submit" disabled={loading} className="btn btn-primary" style={{ minWidth: "150px" }}>
+                        {loading ? "Importando..." : "Criar Lista & Importar"}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Tab 4: MESSAGES (DISPAROS & HISTORICO) */}
         {activeTab === "messages" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
@@ -1047,7 +1545,7 @@ export default function App() {
             <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1.6fr", gap: "24px", alignItems: "start" }}>
               {/* Testador Manual de Disparo */}
               <form onSubmit={handleSendMessage} className="glass" style={{ padding: "24px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "18px" }}>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: "600" }}>Disparo de Teste</h3>
+                <h3 style={{ fontSize: "1.15rem", fontWeight: "600" }}>Disparo de Mensagens</h3>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Template</label>
@@ -1068,15 +1566,55 @@ export default function App() {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Celular Destinatário</label>
-                  <input
-                    type="text"
-                    placeholder="DDI + DDD + Número (ex: 5511999999999)"
-                    value={recipientNumber}
-                    onChange={(e) => setRecipientNumber(e.target.value)}
-                    style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
-                  />
+                  <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Destinatário</label>
+                  <div style={{ display: "flex", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setRecipientType("single")}
+                      className={`btn ${recipientType === "single" ? "btn-primary" : "btn-secondary"}`}
+                      style={{ flex: 1, padding: "8px", fontSize: "0.85rem" }}
+                    >
+                      Número Único
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRecipientType("list")}
+                      className={`btn ${recipientType === "list" ? "btn-primary" : "btn-secondary"}`}
+                      style={{ flex: 1, padding: "8px", fontSize: "0.85rem" }}
+                    >
+                      Lista de Contatos
+                    </button>
+                  </div>
                 </div>
+
+                {recipientType === "single" ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Celular Destinatário</label>
+                    <input
+                      type="text"
+                      placeholder="DDI + DDD + Número (ex: 5511999999999)"
+                      value={recipientNumber}
+                      onChange={(e) => setRecipientNumber(e.target.value)}
+                      style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Selecionar Lista</label>
+                    <select
+                      value={selectedListId}
+                      onChange={(e) => setSelectedListId(e.target.value)}
+                      style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                    >
+                      <option value="">Selecione uma lista</option>
+                      {contactLists.map((list) => (
+                        <option key={list.id} value={list.id}>
+                          {list.name} ({list._count?.contacts || 0} contatos)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 {/* Media Header URL Input if selected template has media header */}
                 {selectedTemplateName && (() => {
@@ -1101,27 +1639,77 @@ export default function App() {
                   );
                 })()}
 
-                {/* Dynamic Variables Inputs */}
+                {/* Dynamic Variables Inputs / Mapper */}
                 {templateVariables.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
                     <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Variáveis do Template</label>
-                    {templateVariables.map((variable, idx) => (
-                      <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                        <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Variável {"{{" + (idx + 1) + "}}"}</label>
-                        <input
-                          type="text"
-                          placeholder={`Valor para {{${idx + 1}}}`}
-                          value={variable}
-                          onChange={(e) => handleVariableChange(idx, e.target.value)}
-                          style={{ padding: "8px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.85rem", outline: "none" }}
-                        />
-                      </div>
-                    ))}
+                    {templateVariables.map((variable, idx) => {
+                      if (recipientType === "single") {
+                        return (
+                          <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Variável {"{{" + (idx + 1) + "}}"}</label>
+                            <input
+                              type="text"
+                              placeholder={`Valor para {{${idx + 1}}}`}
+                              value={variable}
+                              onChange={(e) => handleVariableChange(idx, e.target.value)}
+                              style={{ padding: "8px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.85rem", outline: "none" }}
+                            />
+                          </div>
+                        );
+                      } else {
+                        const mapping = variableMappings[idx] || "STATIC_VALUE";
+                        const isStatic = mapping.startsWith("STATIC:") || mapping === "STATIC_VALUE";
+                        const staticVal = mapping.startsWith("STATIC:") ? mapping.replace("STATIC:", "") : "";
+
+                        return (
+                          <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "6px", background: "rgba(255,255,255,0.02)", padding: "10px", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.03)" }}>
+                            <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600" }}>Mapeamento de {"{{" + (idx + 1) + "}}"}</label>
+                            
+                            <select
+                              value={isStatic ? "STATIC_VALUE" : mapping}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = [...variableMappings];
+                                if (val === "STATIC_VALUE") {
+                                  updated[idx] = "STATIC:";
+                                } else {
+                                  updated[idx] = val;
+                                }
+                                setVariableMappings(updated);
+                              }}
+                              style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.8rem" }}
+                            >
+                              <option value="STATIC_VALUE">Valor Fixo (Estático)</option>
+                              <option value="CONTACT_NAME">Nome do Contato</option>
+                              <option value="CONTACT_PHONE">Telefone do Contato</option>
+                              <option value="CONTACT_VAR_1">Variável da Lista 1 (var1)</option>
+                              <option value="CONTACT_VAR_2">Variável da Lista 2 (var2)</option>
+                              <option value="CONTACT_VAR_3">Variável da Lista 3 (var3)</option>
+                            </select>
+
+                            {isStatic && (
+                              <input
+                                type="text"
+                                placeholder={`Digite o valor fixo para {{${idx + 1}}}`}
+                                value={staticVal}
+                                onChange={(e) => {
+                                  const updated = [...variableMappings];
+                                  updated[idx] = `STATIC:${e.target.value}`;
+                                  setVariableMappings(updated);
+                                }}
+                                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.8rem", outline: "none" }}
+                              />
+                            )}
+                          </div>
+                        );
+                      }
+                    })}
                   </div>
                 )}
 
                 <button type="submit" disabled={loading || !selectedAccount} className="btn btn-primary" style={{ width: "100%", marginTop: "10px" }}>
-                  {loading ? "Enviando..." : "Disparar WhatsApp"}
+                  {loading ? "Enviando..." : recipientType === "single" ? "Disparar WhatsApp" : "Iniciar Disparo em Lote"}
                 </button>
               </form>
 

@@ -278,6 +278,292 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
   }
 });
 
+// Excluir template local e na Meta
+router.delete("/accounts/:accountId/templates/:templateId", async (req: Request, res: Response) => {
+  const { accountId, templateId } = req.params;
+  try {
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada" });
+
+    const template = await prisma.template.findUnique({ where: { id: templateId } });
+    if (!template) return res.status(404).json({ error: "Template não encontrado" });
+
+    // Se o template tem ID da Meta, deleta na Meta
+    if (template.metaId) {
+      try {
+        await axios.delete(
+          `https://graph.facebook.com/v19.0/${account.wabaId}/message_templates`,
+          {
+            params: {
+              hsm_id: template.metaId,
+            },
+            headers: { Authorization: `Bearer ${account.accessToken}` },
+          }
+        );
+      } catch (metaError: any) {
+        console.error("Erro ao deletar template na Meta:", metaError.response?.data || metaError.message);
+      }
+    }
+
+    // Deleta localmente
+    await prisma.template.delete({ where: { id: templateId } });
+    res.json({ success: true, message: "Template excluído com sucesso." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// CONTACT LISTS ROUTES
+// ==========================================
+
+// Listar listas de contatos
+router.get("/accounts/:accountId/lists", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  try {
+    const lists = await prisma.contactList.findMany({
+      where: { accountId },
+      include: {
+        _count: {
+          select: { contacts: true }
+        }
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    res.json(lists);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter detalhes de uma lista de contatos (e seus contatos)
+router.get("/accounts/:accountId/lists/:listId", async (req: Request, res: Response) => {
+  const { accountId, listId } = req.params;
+  try {
+    const list = await prisma.contactList.findUnique({
+      where: { id: listId },
+      include: {
+        contacts: {
+          orderBy: { createdAt: "desc" }
+        }
+      }
+    });
+    if (!list || list.accountId !== accountId) {
+      return res.status(404).json({ error: "Lista não encontrada" });
+    }
+    res.json(list);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Criar lista e importar contatos
+router.post("/accounts/:accountId/lists", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { name, contacts } = req.body; // contacts: Array<{ name?: string, phone: string, variables?: string[] }>
+
+  if (!name || !contacts || !Array.isArray(contacts)) {
+    return res.status(400).json({ error: "Nome da lista e contatos são obrigatórios." });
+  }
+
+  try {
+    // Criar a lista de contatos
+    const list = await prisma.contactList.create({
+      data: {
+        accountId,
+        name,
+      }
+    });
+
+    // Inserir contatos em lote
+    if (contacts.length > 0) {
+      await prisma.contact.createMany({
+        data: contacts.map(c => ({
+          contactListId: list.id,
+          name: c.name || null,
+          phone: c.phone.trim().replace(/\D/g, ""), // Limpar telefone
+          variables: c.variables || [],
+        }))
+      });
+    }
+
+    // Retorna a lista com a contagem de contatos
+    const createdList = await prisma.contactList.findUnique({
+      where: { id: list.id },
+      include: {
+        _count: {
+          select: { contacts: true }
+        }
+      }
+    });
+
+    res.status(201).json(createdList);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Excluir lista de contatos
+router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Response) => {
+  const { accountId, listId } = req.params;
+  try {
+    await prisma.contactList.delete({
+      where: { id: listId }
+    });
+    res.json({ success: true, message: "Lista excluída com sucesso." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Disparo em lote para uma lista
+router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res: Response) => {
+  const { accountId, listId } = req.params;
+  const { templateName, variables, mediaUrl } = req.body;
+
+  if (!templateName) {
+    return res.status(400).json({ error: "Template é obrigatório." });
+  }
+
+  try {
+    const list = await prisma.contactList.findUnique({
+      where: { id: listId },
+      include: { contacts: true }
+    });
+    if (!list || list.accountId !== accountId) {
+      return res.status(404).json({ error: "Lista de contatos não encontrada." });
+    }
+
+    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+
+    const template = await prisma.template.findFirst({
+      where: { accountId, name: templateName }
+    });
+    const templateComponents = template?.components as any[];
+    const headerComp = templateComponents && Array.isArray(templateComponents)
+      ? templateComponents.find((c: any) => c.type === "HEADER")
+      : null;
+
+    // Responder 200 OK imediatamente para liberar a UI do cliente
+    res.json({
+      success: true,
+      message: `Disparo em lote iniciado para ${list.contacts.length} contatos.`
+    });
+
+    // Processar os envios em background
+    (async () => {
+      for (const contact of list.contacts) {
+        try {
+          // Mapear cada variável dinamicamente com base nas opções selecionadas
+          const resolvedVars = variables.map((v: string) => {
+            if (v === "CONTACT_NAME") return contact.name || "";
+            if (v === "CONTACT_PHONE") return contact.phone;
+            if (v.startsWith("CONTACT_VAR_")) {
+              const idx = parseInt(v.replace("CONTACT_VAR_", "")) - 1;
+              const contactVars = contact.variables as string[];
+              return (contactVars && contactVars[idx]) || "";
+            }
+            return v; // valor estático
+          });
+
+          // Criar log da mensagem como PENDING
+          const dbMessage = await prisma.message.create({
+            data: {
+              accountId,
+              to: contact.phone,
+              templateName,
+              variables: resolvedVars ? { variables: resolvedVars, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
+              status: "PENDING",
+            }
+          });
+
+          const components: any[] = [];
+
+          // 1. Processar cabeçalho de mídia
+          if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
+            const typeLower = headerComp.format.toLowerCase();
+            components.push({
+              type: "header",
+              parameters: [
+                {
+                  type: typeLower,
+                  [typeLower]: {
+                    link: mediaUrl,
+                    ...(typeLower === "document" ? { filename: mediaUrl.split("/").pop() || "document.pdf" } : {})
+                  }
+                }
+              ]
+            });
+          }
+
+          // 2. Processar variáveis do corpo
+          if (resolvedVars && resolvedVars.length > 0) {
+            components.push({
+              type: "body",
+              parameters: resolvedVars.map((v: any) => ({
+                type: "text",
+                text: String(v),
+              })),
+            });
+          }
+
+          // Chamar a Meta API
+          try {
+            const response = await axios.post(
+              `https://graph.facebook.com/v19.0/${account.phoneNumberId}/messages`,
+              {
+                messaging_product: "whatsapp",
+                to: contact.phone,
+                type: "template",
+                template: {
+                  name: templateName,
+                  language: {
+                    code: template?.language || "pt_BR",
+                  },
+                  ...(components.length > 0 ? { components } : {}),
+                },
+              },
+              {
+                headers: { Authorization: `Bearer ${account.accessToken}` },
+              }
+            );
+
+            const wamid = response.data.messages?.[0]?.id;
+
+            // Atualizar status para SENT
+            await prisma.message.update({
+              where: { id: dbMessage.id },
+              data: {
+                wamid,
+                status: "SENT",
+              }
+            });
+          } catch (metaError: any) {
+            console.error(`Erro ao disparar para ${contact.phone}:`, metaError.response?.data || metaError.message);
+            const errMsg = metaError.response?.data?.error?.message || metaError.message;
+            await prisma.message.update({
+              where: { id: dbMessage.id },
+              data: {
+                status: "FAILED",
+                errorMessage: errMsg,
+              }
+            });
+          }
+        } catch (err: any) {
+          console.error(`Erro interno ao processar contato ${contact.phone}:`, err.message);
+        }
+        
+        // Aguarda 200ms entre disparos
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+    })();
+
+  } catch (error: any) {
+    console.error("Erro no disparo em lote:", error);
+  }
+});
+
 // ==========================================
 // MESSAGES ROUTES
 // ==========================================

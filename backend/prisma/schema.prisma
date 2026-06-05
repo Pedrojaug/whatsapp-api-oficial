@@ -17,6 +17,7 @@ model Account {
   updatedAt     DateTime   @updatedAt
   templates     Template[]
   messages      Message[]
+  contactLists  ContactList[]
 }
 
 model Template {
@@ -47,4 +48,27 @@ model Message {
   account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+model ContactList {
+  id        String    @id @default(uuid())
+  name      String
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contacts  Contact[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([accountId, name])
+}
+
+model Contact {
+  id            String      @id @default(uuid())
+  name          String?
+  phone         String      // e.g. "5583986241167"
+  variables     Json?       // Dynamic fields like ["João", "order_123"]
+  contactListId String
+  contactList   ContactList @relation(fields: [contactListId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
