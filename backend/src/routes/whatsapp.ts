@@ -1,17 +1,28 @@
 import { Router, Request, Response } from "express";
 import axios from "axios";
 import { prisma } from "../db";
+import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 
 const router = Router();
+
+// Middleware de autenticação para todas as rotas exceto webhooks
+router.use((req, res, next) => {
+  if (req.path === "/webhooks" || req.path.startsWith("/webhooks")) {
+    return next();
+  }
+  return authMiddleware(req as AuthenticatedRequest, res, next);
+});
 
 // ==========================================
 // ACCOUNTS ROUTES
 // ==========================================
 
-// List WABA accounts
+// List WABA accounts (scoped to user)
 router.get("/accounts", async (req: Request, res: Response) => {
   try {
+    const userId = (req as AuthenticatedRequest).userId;
     const accounts = await prisma.account.findMany({
+      where: { userId },
       orderBy: { createdAt: "desc" },
     });
     res.json(accounts);
@@ -20,7 +31,7 @@ router.get("/accounts", async (req: Request, res: Response) => {
   }
 });
 
-// Create/Update WABA account
+// Create/Update WABA account (scoped to user)
 router.post("/accounts", async (req: Request, res: Response) => {
   const { name, wabaId, phoneNumberId, accessToken } = req.body;
   if (!name || !wabaId || !phoneNumberId || !accessToken) {
@@ -28,10 +39,16 @@ router.post("/accounts", async (req: Request, res: Response) => {
   }
 
   try {
+    const userId = (req as AuthenticatedRequest).userId!;
     const account = await prisma.account.upsert({
-      where: { name },
+      where: {
+        userId_name: {
+          userId,
+          name,
+        },
+      },
       update: { wabaId, phoneNumberId, accessToken },
-      create: { name, wabaId, phoneNumberId, accessToken },
+      create: { userId, name, wabaId, phoneNumberId, accessToken },
     });
     res.status(201).json(account);
   } catch (error: any) {
@@ -74,10 +91,17 @@ router.post("/accounts/verify", async (req: Request, res: Response) => {
   }
 });
 
-// Delete account
+// Delete account (scoped and authorized to user)
 router.delete("/accounts/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id, userId }
+    });
+    if (!account) {
+      return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    }
     await prisma.account.delete({ where: { id } });
     res.json({ message: "Account deleted successfully" });
   } catch (error: any) {
@@ -89,14 +113,17 @@ router.delete("/accounts/:id", async (req: Request, res: Response) => {
 // TEMPLATES ROUTES
 // ==========================================
 
-// Sincronizar e listar templates da Meta para uma conta
+// Sincronizar e listar templates da Meta para uma conta (scoped to user)
 router.get("/accounts/:accountId/templates", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const sync = req.query.sync === "true";
   
   try {
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
-    if (!account) return res.status(404).json({ error: "Account not found" });
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Account not found or access denied" });
 
     // Buscar templates direto da Meta apenas se sync=true
     if (sync) {
@@ -154,7 +181,7 @@ router.get("/accounts/:accountId/templates", async (req: Request, res: Response)
   }
 });
 
-// Criar template local e enviar para a Meta
+// Criar template local e enviar para a Meta (scoped to user)
 router.post("/accounts/:accountId/templates", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { name, language, category, components } = req.body;
@@ -164,7 +191,10 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
   }
 
   try {
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
     if (!account) return res.status(404).json({ error: "Account not found" });
 
     // 1. Criar no banco local como PENDING
@@ -223,7 +253,7 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
   }
 });
 
-// Upload de arquivo de exemplo para obter o header_handle da Meta
+// Upload de arquivo de exemplo para obter o header_handle da Meta (scoped to user)
 router.post("/accounts/:accountId/templates/upload-sample", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { fileName, fileType, fileBase64 } = req.body;
@@ -233,7 +263,10 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
   }
 
   try {
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
     if (!account) return res.status(404).json({ error: "Account not found" });
 
     // 1. Obter o App ID do token da Meta
@@ -282,14 +315,19 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
   }
 });
 
-// Excluir template local e na Meta
+// Excluir template local e na Meta (scoped to user)
 router.delete("/accounts/:accountId/templates/:templateId", async (req: Request, res: Response) => {
   const { accountId, templateId } = req.params;
   try {
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada" });
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
 
-    const template = await prisma.template.findUnique({ where: { id: templateId } });
+    const template = await prisma.template.findFirst({
+      where: { id: templateId, accountId }
+    });
     if (!template) return res.status(404).json({ error: "Template não encontrado" });
 
     // Se o template tem ID da Meta, deleta na Meta
@@ -322,10 +360,16 @@ router.delete("/accounts/:accountId/templates/:templateId", async (req: Request,
 // CONTACT LISTS ROUTES
 // ==========================================
 
-// Listar listas de contatos
+// Listar listas de contatos (scoped to user)
 router.get("/accounts/:accountId/lists", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
     const lists = await prisma.contactList.findMany({
       where: { accountId },
       include: {
@@ -341,19 +385,25 @@ router.get("/accounts/:accountId/lists", async (req: Request, res: Response) => 
   }
 });
 
-// Obter detalhes de uma lista de contatos (e seus contatos)
+// Obter detalhes de uma lista de contatos (e seus contatos) (scoped to user)
 router.get("/accounts/:accountId/lists/:listId", async (req: Request, res: Response) => {
   const { accountId, listId } = req.params;
   try {
-    const list = await prisma.contactList.findUnique({
-      where: { id: listId },
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const list = await prisma.contactList.findFirst({
+      where: { id: listId, accountId },
       include: {
         contacts: {
           orderBy: { createdAt: "desc" }
         }
       }
     });
-    if (!list || list.accountId !== accountId) {
+    if (!list) {
       return res.status(404).json({ error: "Lista não encontrada" });
     }
     res.json(list);
@@ -362,7 +412,7 @@ router.get("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
   }
 });
 
-// Criar lista e importar contatos
+// Criar lista e importar contatos (scoped to user)
 router.post("/accounts/:accountId/lists", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { name, contacts } = req.body; // contacts: Array<{ name?: string, phone: string, variables?: string[] }>
@@ -372,6 +422,12 @@ router.post("/accounts/:accountId/lists", async (req: Request, res: Response) =>
   }
 
   try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
     // Criar a lista de contatos
     const list = await prisma.contactList.create({
       data: {
@@ -408,10 +464,21 @@ router.post("/accounts/:accountId/lists", async (req: Request, res: Response) =>
   }
 });
 
-// Excluir lista de contatos
+// Excluir lista de contatos (scoped to user)
 router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Response) => {
   const { accountId, listId } = req.params;
   try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const list = await prisma.contactList.findFirst({
+      where: { id: listId, accountId }
+    });
+    if (!list) return res.status(404).json({ error: "Lista de contatos não encontrada" });
+
     await prisma.contactList.delete({
       where: { id: listId }
     });
@@ -421,7 +488,7 @@ router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Re
   }
 });
 
-// Disparo em lote para uma lista
+// Disparo em lote para uma lista (scoped to user)
 router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res: Response) => {
   const { accountId, listId } = req.params;
   const { templateName, variables, mediaUrl } = req.body;
@@ -431,15 +498,19 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
   }
 
   try {
-    const list = await prisma.contactList.findUnique({
-      where: { id: listId },
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const list = await prisma.contactList.findFirst({
+      where: { id: listId, accountId },
       include: { contacts: true }
     });
-    if (!list || list.accountId !== accountId) {
+    if (!list) {
       return res.status(404).json({ error: "Lista de contatos não encontrada." });
     }
-
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
     if (!account) return res.status(404).json({ error: "Conta não encontrada." });
 
     const template = await prisma.template.findFirst({
@@ -573,7 +644,7 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
 // MESSAGES ROUTES
 // ==========================================
 
-// Enviar mensagem via Template
+// Enviar mensagem via Template (scoped to user)
 router.post("/accounts/:accountId/messages/send", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { to, templateName, language, variables, mediaUrl } = req.body;
@@ -583,7 +654,10 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
   }
 
   try {
-    const account = await prisma.account.findUnique({ where: { id: accountId } });
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
     if (!account) return res.status(404).json({ error: "Account not found" });
 
     const template = await prisma.template.findFirst({
@@ -690,16 +764,145 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
   }
 });
 
-// List messages logs
+// List messages logs (scoped to user)
 router.get("/accounts/:accountId/messages", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
     const messages = await prisma.message.findMany({
       where: { accountId },
       orderBy: { createdAt: "desc" },
       take: 200, // Limite de 200 logs
     });
     res.json(messages);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter métricas filtradas por período (scoped to user)
+router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { period, startDate: queryStart, endDate: queryEnd } = req.query;
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const start = new Date();
+    const end = new Date();
+
+    if (period === "today") {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (period === "yesterday") {
+      start.setDate(start.getDate() - 1);
+      start.setHours(0, 0, 0, 0);
+      end.setDate(end.getDate() - 1);
+      end.setHours(23, 59, 59, 999);
+    } else if (period === "7days") {
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (period === "30days") {
+      start.setDate(start.getDate() - 30);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (period === "custom" && queryStart) {
+      const parsedStart = new Date(queryStart as string);
+      parsedStart.setHours(0, 0, 0, 0);
+      start.setTime(parsedStart.getTime());
+      
+      if (queryEnd) {
+        const parsedEnd = new Date(queryEnd as string);
+        parsedEnd.setHours(23, 59, 59, 999);
+        end.setTime(parsedEnd.getTime());
+      } else {
+        end.setHours(23, 59, 59, 999);
+      }
+    } else {
+      // Default to last 7 days
+      start.setDate(start.getDate() - 7);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const messages = await prisma.message.findMany({
+      where: {
+        accountId,
+        createdAt: {
+          gte: start,
+          lte: end
+        }
+      },
+      select: {
+        status: true,
+        createdAt: true
+      }
+    });
+
+    // Calculate totals
+    let sent = 0;
+    let delivered = 0;
+    let read = 0;
+    let failed = 0;
+
+    messages.forEach(msg => {
+      if (msg.status === "SENT") sent++;
+      else if (msg.status === "DELIVERED") delivered++;
+      else if (msg.status === "READ") read++;
+      else if (msg.status === "FAILED") failed++;
+    });
+    const total = messages.length;
+
+    // Helper to format Date local to YYYY-MM-DD
+    const formatDateLocal = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    // Group by day for the chart
+    const dailyMap = new Map<string, { date: string; sent: number; read: number; failed: number }>();
+    
+    // Initialize chart dates so that dates with 0 messages are shown!
+    const current = new Date(start);
+    while (current.getTime() <= end.getTime()) {
+      const dateStr = formatDateLocal(current);
+      dailyMap.set(dateStr, { date: dateStr, sent: 0, read: 0, failed: 0 });
+      current.setDate(current.getDate() + 1);
+    }
+
+    messages.forEach(msg => {
+      const dateStr = formatDateLocal(msg.createdAt);
+      const dayData = dailyMap.get(dateStr);
+      if (dayData) {
+        if (msg.status === "READ") {
+          dayData.read++;
+          dayData.sent++;
+        } else if (msg.status === "DELIVERED" || msg.status === "SENT") {
+          dayData.sent++;
+        } else if (msg.status === "FAILED") {
+          dayData.failed++;
+        }
+      }
+    });
+
+    const chartData = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    res.json({
+      totals: { sent, delivered, read, failed, total },
+      chartData
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -893,7 +1096,7 @@ router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Res
   }
 });
 
-// Salvar conta do Facebook Onboarding
+// Salvar conta do Facebook Onboarding (scoped to user)
 router.post("/accounts/facebook-onboard/save", async (req: Request, res: Response) => {
   const { name, wabaId, phoneNumberId, accessToken } = req.body;
 
@@ -902,10 +1105,16 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
   }
 
   try {
+    const userId = (req as AuthenticatedRequest).userId!;
     const account = await prisma.account.upsert({
-      where: { name },
+      where: {
+        userId_name: {
+          userId,
+          name,
+        },
+      },
       update: { wabaId, phoneNumberId, accessToken },
-      create: { name, wabaId, phoneNumberId, accessToken },
+      create: { userId, name, wabaId, phoneNumberId, accessToken },
     });
     res.status(201).json(account);
   } catch (error: any) {

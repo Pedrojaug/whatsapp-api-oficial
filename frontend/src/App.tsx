@@ -3,8 +3,17 @@ import axios from "axios";
 import "./App.css";
 import SetupWizard from "./components/SetupWizard";
 import PhoneSimulator from "./components/PhoneSimulator";
+import AuthPages from "./components/AuthPages";
 
 const API_BASE_URL = "http://localhost:3001/api";
+
+const parseJwt = (token: string) => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+};
 
 interface Account {
   id: string;
@@ -43,7 +52,12 @@ interface TemplateButton {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists">("metrics");
+  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
+  const [user, setUser] = useState<{ id: string; email: string; name: string | null } | null>(
+    localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null
+  );
+
+  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists" | "admin">("metrics");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
@@ -52,6 +66,100 @@ export default function App() {
   const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [syncingTemplates, setSyncingTemplates] = useState(false);
+
+  // Admin and Impersonation states
+  const [adminUsers, setAdminUsers] = useState<any[]>([]);
+  const [loadingAdminUsers, setLoadingAdminUsers] = useState(false);
+
+  // Dashboard Metrics states
+  const [metricsPeriod, setMetricsPeriod] = useState<"today" | "yesterday" | "7days" | "30days" | "custom">("7days");
+  const [metricsStartDate, setMetricsStartDate] = useState("");
+  const [metricsEndDate, setMetricsEndDate] = useState("");
+  const [metricsData, setMetricsData] = useState<{
+    totals: { sent: number; delivered: number; read: number; failed: number; total: number };
+    chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
+  }>({
+    totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
+    chartData: []
+  });
+
+  const handleLoginSuccess = (newToken: string, newUser: any) => {
+    localStorage.setItem("token", newToken);
+    localStorage.setItem("user", JSON.stringify(newUser));
+    setToken(newToken);
+    setUser(newUser);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    localStorage.removeItem("admin_token");
+    localStorage.removeItem("admin_user");
+    setToken(null);
+    setUser(null);
+    setAccounts([]);
+    setSelectedAccount(null);
+  };
+
+  const fetchAdminUsers = async () => {
+    setLoadingAdminUsers(true);
+    try {
+      const res = await axios.get("http://localhost:3001/api/admin/users");
+      setAdminUsers(res.data);
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        handleLogout();
+      } else {
+        showAlert("Erro ao buscar usuários do sistema.", "error");
+      }
+    } finally {
+      setLoadingAdminUsers(false);
+    }
+  };
+
+  const handleImpersonate = async (targetUserId: string) => {
+    try {
+      showAlert("Iniciando sessão de suporte...");
+      const currentToken = localStorage.getItem("token")!;
+      const currentUser = localStorage.getItem("user")!;
+      
+      const res = await axios.post("http://localhost:3001/api/admin/impersonate", { targetUserId });
+      
+      // Save original admin details
+      localStorage.setItem("admin_token", currentToken);
+      localStorage.setItem("admin_user", currentUser);
+      
+      // Load client session
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      
+      // Update React states
+      setToken(res.data.token);
+      setUser(res.data.user);
+      setActiveTab("metrics");
+      showAlert("Sessão de suporte iniciada!", "success");
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao iniciar suporte.", "error");
+    }
+  };
+
+  const handleStopImpersonating = () => {
+    const adminToken = localStorage.getItem("admin_token");
+    const adminUser = localStorage.getItem("admin_user");
+    
+    if (adminToken && adminUser) {
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_user");
+      
+      localStorage.setItem("token", adminToken);
+      localStorage.setItem("user", adminUser);
+      
+      setToken(adminToken);
+      setUser(JSON.parse(adminUser));
+      setActiveTab("admin");
+      showAlert("Retornado ao painel de administrador.", "success");
+    }
+  };
 
   // New Template Form States (Template Builder)
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
@@ -145,19 +253,45 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchAccounts();
-  }, []);
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      fetchAccounts();
+    } else {
+      delete axios.defaults.headers.common['Authorization'];
+    }
+  }, [token]);
+
+  const fetchMetrics = async (accountId: string) => {
+    try {
+      let url = `${API_BASE_URL}/accounts/${accountId}/metrics?period=${metricsPeriod}`;
+      if (metricsPeriod === "custom" && metricsStartDate) {
+        url += `&startDate=${metricsStartDate}`;
+        if (metricsEndDate) {
+          url += `&endDate=${metricsEndDate}`;
+        }
+      }
+      const res = await axios.get(url);
+      setMetricsData(res.data);
+    } catch (err: any) {
+      console.error("Erro ao buscar métricas:", err);
+    }
+  };
 
   useEffect(() => {
     if (selectedAccount) {
       fetchTemplates(selectedAccount.id);
       fetchMessages(selectedAccount.id);
       fetchContactLists(selectedAccount.id);
+      fetchMetrics(selectedAccount.id);
     } else {
       setTemplates([]);
       setMessageLogs([]);
       setContactLists([]);
       setSelectedList(null);
+      setMetricsData({
+        totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
+        chartData: []
+      });
     }
   }, [selectedAccount]);
 
@@ -165,7 +299,16 @@ export default function App() {
     if (selectedAccount && activeTab === "lists") {
       fetchContactLists(selectedAccount.id);
     }
+    if (activeTab === "admin") {
+      fetchAdminUsers();
+    }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedAccount && activeTab === "metrics") {
+      fetchMetrics(selectedAccount.id);
+    }
+  }, [selectedAccount, activeTab, metricsPeriod, metricsStartDate, metricsEndDate]);
 
   const showAlert = (text: string, type: "success" | "error" = "success") => {
     setAlert({ text, type });
@@ -176,11 +319,20 @@ export default function App() {
     try {
       const res = await axios.get(`${API_BASE_URL}/accounts`);
       setAccounts(res.data);
-      if (res.data.length > 0 && !selectedAccount) {
-        setSelectedAccount(res.data[0]);
+      if (res.data.length > 0) {
+        const stillExists = res.data.some((a: any) => a.id === selectedAccount?.id);
+        if (!stillExists) {
+          setSelectedAccount(res.data[0]);
+        }
+      } else {
+        setSelectedAccount(null);
       }
     } catch (err: any) {
-      showAlert("Erro ao buscar contas Meta.", "error");
+      if (err.response?.status === 401) {
+        handleLogout();
+      } else {
+        showAlert("Erro ao buscar contas Meta.", "error");
+      }
     }
   };
 
@@ -704,16 +856,58 @@ export default function App() {
     }
   };
 
-  // Metrics processing
-  const totalSent = messageLogs.filter((m) => m.status === "SENT").length;
-  const totalDelivered = messageLogs.filter((m) => m.status === "DELIVERED").length;
-  const totalRead = messageLogs.filter((m) => m.status === "READ").length;
-  const totalFailed = messageLogs.filter((m) => m.status === "FAILED").length;
-  const totalAll = messageLogs.length;
+  // Metrics processing mapped to active metricsData state
+  const totalSent = metricsData.totals.sent;
+  const totalDelivered = metricsData.totals.delivered;
+  const totalRead = metricsData.totals.read;
+  const totalFailed = metricsData.totals.failed;
+  const totalAll = metricsData.totals.total;
+
+  if (!token) {
+    return <AuthPages onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const decoded = parseJwt(token);
+  const isImpersonating = !!decoded?.impersonatorId;
+  const impersonatorName = decoded?.impersonatorName;
 
   return (
-    <div style={{ display: "flex", minHeight: "100vh" }}>
-      {/* Sidebar */}
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      {isImpersonating && (
+        <div style={{
+          backgroundColor: "#f59e0b",
+          color: "#1e1b4b",
+          padding: "10px 20px",
+          fontSize: "0.95rem",
+          fontWeight: "600",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          zIndex: 1001,
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+        }}>
+          <span>
+            ⚠️ MODO SUPORTE ATIVO: Visualizando e configurando o painel de <strong>{user?.name || user?.email}</strong> (por {impersonatorName}).
+          </span>
+          <button
+            onClick={handleStopImpersonating}
+            className="btn btn-secondary"
+            style={{
+              backgroundColor: "#fff",
+              color: "#1e1b4b",
+              border: "none",
+              padding: "6px 14px",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              cursor: "pointer"
+            }}
+          >
+            Voltar para Administrador
+          </button>
+        </div>
+      )}
+      <div style={{ display: "flex", flex: 1 }}>
+        {/* Sidebar */}
       <aside className="glass" style={{ width: "280px", padding: "30px 20px", display: "flex", flexDirection: "column", gap: "30px", borderRight: "1px solid var(--border-color)" }}>
         <div>
           <h2 style={{ fontSize: "1.6rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", fontFamily: "var(--font-sans)" }}>
@@ -787,7 +981,44 @@ export default function App() {
           >
             ⚙️ Contas Meta API
           </button>
+          {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
+            <button
+              onClick={() => setActiveTab("admin")}
+              className={`btn ${activeTab === "admin" ? "btn-primary" : "btn-secondary"}`}
+              style={{ justifyContent: "flex-start", width: "100%" }}
+            >
+              🛠️ Administração
+            </button>
+          )}
         </nav>
+
+        {user && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+              <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                👤 {user.name || user.email}
+              </span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                {user.email}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="btn btn-secondary"
+              style={{
+                width: "100%",
+                background: "rgba(239, 68, 68, 0.08)",
+                color: "var(--error)",
+                borderColor: "rgba(239, 68, 68, 0.15)",
+                justifyContent: "flex-start",
+                padding: "8px 12px",
+                fontSize: "0.85rem",
+              }}
+            >
+              🚪 Sair da Conta
+            </button>
+          </div>
+        )}
 
         <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
           Desenvolvido com ❤️ | v1.0.0
@@ -812,59 +1043,314 @@ export default function App() {
         {/* Tab 1: METRICS */}
         {activeTab === "metrics" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-            <div>
-              <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Painel de Métricas</h1>
-              <p style={{ color: "var(--text-secondary)" }}>Visão geral dos disparos efetuados pela conta <strong>{selectedAccount?.name || "Nenhuma conta selecionada"}</strong></p>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
+              <div>
+                <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Painel de Métricas</h1>
+                <p style={{ color: "var(--text-secondary)" }}>Visão geral dos disparos efetuados pela conta <strong>{selectedAccount?.name || "Nenhuma conta selecionada"}</strong></p>
+              </div>
+              
+              <button 
+                type="button" 
+                onClick={() => selectedAccount && fetchMetrics(selectedAccount.id)} 
+                className="btn btn-secondary" 
+                style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                disabled={!selectedAccount}
+              >
+                🔄 Atualizar Dados
+              </button>
             </div>
 
-            {/* Metrics cards grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
-              <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Total Disparado</span>
-                <span style={{ fontSize: "2.5rem", fontWeight: "700" }}>{totalAll}</span>
+            {/* Filtros de Período */}
+            <div className="glass" style={{ padding: "20px 24px", borderRadius: "var(--radius-lg)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "15px" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {(["7days", "today", "yesterday", "30days", "custom"] as const).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setMetricsPeriod(p)}
+                    className={`btn ${metricsPeriod === p ? "btn-primary" : "btn-secondary"}`}
+                    style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                  >
+                    {p === "7days" && "Últimos 7 dias"}
+                    {p === "today" && "Hoje"}
+                    {p === "yesterday" && "Ontem"}
+                    {p === "30days" && "Últimos 30 dias"}
+                    {p === "custom" && "Personalizado"}
+                  </button>
+                ))}
               </div>
-              <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ color: "#818cf8", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Enviado</span>
-                <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#818cf8" }}>{totalSent}</span>
-              </div>
-              <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ color: "#22d3ee", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Entregue</span>
-                <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#22d3ee" }}>{totalDelivered}</span>
-              </div>
-              <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ color: "var(--success)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Lido</span>
-                <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--success)" }}>{totalRead}</span>
-              </div>
-              <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                <span style={{ color: "var(--error)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Falhas</span>
-                <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--error)" }}>{totalFailed}</span>
-              </div>
+
+              {metricsPeriod === "custom" && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>De:</label>
+                    <input
+                      type="date"
+                      value={metricsStartDate}
+                      onChange={(e) => setMetricsStartDate(e.target.value)}
+                      style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Até:</label>
+                    <input
+                      type="date"
+                      value={metricsEndDate}
+                      onChange={(e) => setMetricsEndDate(e.target.value)}
+                      style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Quick Chart Simulation / Info */}
-            <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Funil de Entrega</h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                    <span>Taxa de Leitura</span>
-                    <span style={{ marginLeft: "auto", fontWeight: "600" }}>{totalAll > 0 ? Math.round((totalRead / totalAll) * 100) : 0}%</span>
-                  </div>
-                  <div style={{ height: "8px", background: "rgba(255,255,255,0.05)", borderRadius: "4px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 0}%`, background: "var(--success)", borderRadius: "4px" }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ display: "flex", justifyContent: "between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                    <span>Taxa de Entrega</span>
-                    <span style={{ marginLeft: "auto", fontWeight: "600" }}>{totalAll > 0 ? Math.round(((totalDelivered + totalRead) / totalAll) * 100) : 0}%</span>
-                  </div>
-                  <div style={{ height: "8px", background: "rgba(255,255,255,0.05)", borderRadius: "4px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${totalAll > 0 ? ((totalDelivered + totalRead) / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "4px" }}></div>
-                  </div>
-                </div>
+            {!selectedAccount ? (
+              <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
+                <p style={{ color: "var(--text-muted)" }}>Nenhuma conta Meta API selecionada. Configure ou ative uma conta para visualizar métricas.</p>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Metrics cards grid */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
+                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Total Disparado</span>
+                    <span style={{ fontSize: "2.5rem", fontWeight: "700" }}>{totalAll}</span>
+                  </div>
+                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <span style={{ color: "#818cf8", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Enviado</span>
+                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#818cf8" }}>{totalSent}</span>
+                  </div>
+                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <span style={{ color: "#22d3ee", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Entregue</span>
+                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#22d3ee" }}>{totalDelivered}</span>
+                  </div>
+                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <span style={{ color: "var(--success)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Lido</span>
+                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--success)" }}>{totalRead}</span>
+                  </div>
+                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                    <span style={{ color: "var(--error)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Falhas</span>
+                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--error)" }}>{totalFailed}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "25px", alignItems: "stretch" }}>
+                  {/* Delivery Funnel */}
+                  <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Funil de Entrega</h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "24px", justifyContent: "center", flex: 1 }}>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
+                          <span>Taxa de Leitura (Abertura)</span>
+                          <span style={{ fontWeight: "600" }}>{totalAll > 0 ? Math.round((totalRead / totalAll) * 100) : 0}%</span>
+                        </div>
+                        <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 0}%`, background: "var(--success)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
+                          <span>Taxa de Entrega (Recebimento)</span>
+                          <span style={{ fontWeight: "600" }}>{totalAll > 0 ? Math.round(((totalDelivered + totalRead) / totalAll) * 100) : 0}%</span>
+                        </div>
+                        <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", width: `${totalAll > 0 ? ((totalDelivered + totalRead) / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HTML/CSS-based Daily Trends Bar Chart */}
+                  <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+                      <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Histórico de Envio Diário</h3>
+                      <div style={{ display: "flex", gap: "12px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "var(--primary)" }}></span> Enviados
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#06b6d4" }}></span> Lidos
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "var(--error)" }}></span> Falhas
+                        </div>
+                      </div>
+                    </div>
+
+                    {metricsData.chartData.length === 0 ? (
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, minHeight: "220px", color: "var(--text-muted)", fontSize: "0.95rem" }}>
+                        Nenhum envio registrado neste período.
+                      </div>
+                                        ) : (() => {
+                      const maxRaw = Math.max(...metricsData.chartData.map(d => Math.max(d.sent, d.failed)), 10);
+                      // Arredonda para cima para múltiplos de 5 para as linhas guia ficarem com números inteiros limpos
+                      const maxVal = maxRaw <= 10 ? 10 : Math.ceil(maxRaw / 5) * 5;
+
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, justifyContent: "flex-end" }}>
+                          {/* Y-Axis scale and chart layout */}
+                          <div style={{ display: "flex", gap: "12px", height: "220px", position: "relative" }}>
+                            {/* Y-Axis Labels */}
+                            <div style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                              alignItems: "flex-end",
+                              width: "30px",
+                              color: "var(--text-muted)",
+                              fontSize: "0.75rem",
+                              paddingBottom: "8px",
+                              userSelect: "none"
+                            }}>
+                              <span>{maxVal}</span>
+                              <span>{Math.round(maxVal * 0.75)}</span>
+                              <span>{Math.round(maxVal * 0.50)}</span>
+                              <span>{Math.round(maxVal * 0.25)}</span>
+                              <span>0</span>
+                            </div>
+
+                            {/* Chart Area */}
+                            <div style={{
+                              flex: 1,
+                              position: "relative",
+                              height: "100%"
+                            }}>
+                              {/* Gridlines */}
+                              <div style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                right: 0,
+                                bottom: "8px",
+                                display: "flex",
+                                flexDirection: "column",
+                                justifyContent: "space-between",
+                                pointerEvents: "none"
+                              }}>
+                                <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
+                                <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
+                                <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
+                                <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
+                                <div style={{ borderBottom: "1px solid var(--border-color)", width: "100%", height: 0 }}></div>
+                              </div>
+
+                              {/* Bars columns wrapper */}
+                              <div style={{
+                                display: "flex",
+                                alignItems: "flex-end",
+                                justifyContent: "space-between",
+                                height: "100%",
+                                paddingBottom: "8px",
+                                gap: "8px",
+                                position: "relative",
+                                zIndex: 2
+                              }}>
+                                {metricsData.chartData.map((d, index) => {
+                                  const dayMax = Math.max(d.sent, d.failed);
+                                  const heightPercent = dayMax > 0 ? (dayMax / maxVal) * 100 : 0;
+                                  const readPercent = d.sent > 0 ? (d.read / d.sent) * 100 : 0;
+
+                                  const formattedDate = new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+                                  const tooltip = `${new Date(d.date + "T00:00:00").toLocaleDateString()}:\n• Enviados/Entregues: ${d.sent}\n• Lidos: ${d.read}\n• Falhas: ${d.failed}`;
+
+                                  return (
+                                    <div
+                                      key={index}
+                                      title={tooltip}
+                                      style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        flex: 1,
+                                        height: `${heightPercent}%`,
+                                        minWidth: "16px",
+                                        position: "relative",
+                                        cursor: "pointer"
+                                      }}
+                                    >
+                                      <div style={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "flex-end",
+                                        width: "100%",
+                                        height: "100%",
+                                        gap: "2px"
+                                      }}>
+                                        {/* Successful + Read Column */}
+                                        {d.sent > 0 && (
+                                          <div style={{
+                                            width: "45%",
+                                            height: "100%",
+                                            position: "relative",
+                                            display: "flex",
+                                            flexDirection: "column",
+                                            justifyContent: "flex-end"
+                                          }}>
+                                            {/* Read Layer (Cyan Overlay) */}
+                                            {d.read > 0 && (
+                                              <div style={{
+                                                width: "100%",
+                                                height: `${readPercent}%`,
+                                                background: "linear-gradient(to top, #06b6d4, #22d3ee)",
+                                                borderRadius: "2px 2px 0 0",
+                                                position: "absolute",
+                                                bottom: 0,
+                                                zIndex: 2,
+                                                boxShadow: "0 0 8px rgba(6,182,212,0.2)"
+                                              }}></div>
+                                            )}
+                                            {/* Sent Base Layer (Green) */}
+                                            <div style={{
+                                              width: "100%",
+                                              height: "100%",
+                                              background: "linear-gradient(to top, var(--primary), #10b981)",
+                                              borderRadius: "2px 2px 0 0",
+                                              zIndex: 1,
+                                              boxShadow: "0 0 8px rgba(0,194,107,0.2)"
+                                            }}></div>
+                                          </div>
+                                        )}
+
+                                        {/* Failed Column (Red) */}
+                                        {d.failed > 0 && (
+                                          <div style={{
+                                            width: "45%",
+                                            height: `${(d.failed / dayMax) * 100}%`,
+                                            background: "linear-gradient(to top, var(--error), #ef4444)",
+                                            borderRadius: "2px 2px 0 0",
+                                            boxShadow: "0 0 8px rgba(239,68,68,0.2)"
+                                          }}></div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* X Axis labels */}
+                          <div style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            fontSize: "0.75rem",
+                            color: "var(--text-muted)",
+                            padding: "0 4px",
+                            marginLeft: "42px" // Deslocado para alinhar perfeitamente com a área de colunas (30px eixo Y + 12px gap)
+                          }}>
+                            <span>{new Date(metricsData.chartData[0].date + "T00:00:00").toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                            {metricsData.chartData.length > 2 && (
+                              <span>{new Date(metricsData.chartData[Math.floor(metricsData.chartData.length / 2)].date + "T00:00:00").toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                            )}
+                            <span>{new Date(metricsData.chartData[metricsData.chartData.length - 1].date + "T00:00:00").toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1875,7 +2361,86 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* Tab 5: ADMIN (ADMINISTRAÇÃO DE USUÁRIOS) */}
+        {activeTab === "admin" && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+            <div>
+              <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Painel Administrativo</h1>
+              <p style={{ color: "var(--text-secondary)" }}>Gerencie todos os clientes cadastrados e acesse suas contas via suporte técnico</p>
+            </div>
+
+            <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Clientes Cadastrados ({adminUsers.length})</h3>
+                <button type="button" onClick={fetchAdminUsers} className="btn btn-secondary" style={{ padding: "8px 14px", fontSize: "0.85rem" }}>
+                  🔄 Atualizar Lista
+                </button>
+              </div>
+
+              {loadingAdminUsers ? (
+                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Carregando dados dos clientes...</p>
+              ) : adminUsers.length === 0 ? (
+                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhum usuário cadastrado no sistema.</p>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.95rem" }}>
+                    <thead>
+                      <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                        <th style={{ padding: "12px 8px" }}>Nome</th>
+                        <th style={{ padding: "12px 8px" }}>E-mail</th>
+                        <th style={{ padding: "12px 8px" }}>Perfil</th>
+                        <th style={{ padding: "12px 8px" }}>Linhas Meta</th>
+                        <th style={{ padding: "12px 8px" }}>Cadastro</th>
+                        <th style={{ padding: "12px 8px" }}>Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {adminUsers.map((u) => (
+                        <tr key={u.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <td style={{ padding: "12px 8px", fontWeight: "600" }}>{u.name || "-"}</td>
+                          <td style={{ padding: "12px 8px" }}>{u.email}</td>
+                          <td style={{ padding: "12px 8px" }}>
+                            <span style={{
+                              background: u.role === "SUPERUSER" ? "rgba(0, 194, 107, 0.15)" : "rgba(255, 255, 255, 0.05)",
+                              color: u.role === "SUPERUSER" ? "var(--primary)" : "var(--text-secondary)",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              fontSize: "0.75rem",
+                              fontWeight: "600"
+                            }}>
+                              {u.role}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 8px" }}>📱 {u._count?.accounts || 0}</td>
+                          <td style={{ padding: "12px 8px", color: "var(--text-muted)", fontSize: "0.85rem" }}>
+                            {new Date(u.createdAt).toLocaleDateString()}
+                          </td>
+                          <td style={{ padding: "12px 8px" }}>
+                            {u.id !== user?.id ? (
+                              <button
+                                type="button"
+                                onClick={() => handleImpersonate(u.id)}
+                                className="btn btn-primary"
+                                style={{ padding: "6px 12px", fontSize: "0.8rem", background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", boxShadow: "0 4px 14px 0 rgba(245, 158, 11, 0.2)" }}
+                              >
+                                🚪 Entrar como Suporte
+                              </button>
+                            ) : (
+                              <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Sua Conta</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </main>
+      </div>
     </div>
   );
 }

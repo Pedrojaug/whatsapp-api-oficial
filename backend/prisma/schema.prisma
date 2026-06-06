@@ -7,17 +7,32 @@ generator client {
   provider = "prisma-client-js"
 }
 
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  password  String    // Hashed password
+  name      String?
+  role      String    @default("USER")
+  accounts  Account[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
 model Account {
   id            String     @id @default(uuid())
-  name          String     @unique
+  name          String
   wabaId        String     // WhatsApp Business Account ID
   phoneNumberId String     // Phone Number ID
   accessToken   String     // System User Token
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt     DateTime   @default(now())
   updatedAt     DateTime   @updatedAt
   templates     Template[]
   messages      Message[]
   contactLists  ContactList[]
+
+  @@unique([userId, name])
 }
 
 model Template {
