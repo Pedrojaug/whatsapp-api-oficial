@@ -1,0 +1,51 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "disparar-whatsapp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        240
+      ],
+      "id": "e98e2197-a7eb-4eb4-bca5-b380ad5d4546",
+      "name": "Webhook Input"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://localhost:3001/api/accounts/INSERIR_SEU_ACCOUNT_ID_AQUI/messages/send",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"to\": \"{{ $json.body.to }}\",\n  \"templateName\": \"{{ $json.body.templateName }}\",\n  \"variables\": {{ JSON.stringify($json.body.variables) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        320,
+        240
+      ],
+      "id": "8939b4b0-a3df-498c-982f-2d7cbfcae8db",
+      "name": "Disparar API Oficial"
+    }
+  ],
+  "connections": {
+    "Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Disparar API Oficial",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {}
+}
