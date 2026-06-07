@@ -1,25 +1,50 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
+import { z } from "zod";
 import { prisma } from "../db";
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || "minha-chave-secreta-super-segura-do-hub";
 
+// Rate Limiter para rotas de autenticação (limite de 5 requisições por minuto por IP)
+const authLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: "Muitas tentativas de login/registro a partir deste IP, por favor tente novamente após 1 minuto." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+router.use(authLimiter);
+
+// Schemas de validação Zod
+const registerSchema = z.object({
+  email: z.string().email("Formato de e-mail inválido.").trim().toLowerCase(),
+  password: z.string().min(6, "A senha deve conter no mínimo 6 caracteres."),
+  name: z.string().trim().optional().nullable(),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Formato de e-mail inválido.").trim().toLowerCase(),
+  password: z.string().min(1, "A senha é obrigatória."),
+});
+
 // REGISTRO DE USUÁRIO
 router.post("/register", async (req: Request, res: Response) => {
-  const { email, password, name } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const errorMsg = parsed.error.issues[0]?.message || "Dados inválidos.";
+    return res.status(400).json({ error: errorMsg });
   }
 
+  const { email, password, name } = parsed.data;
+
   try {
-    const trimmedEmail = email.trim().toLowerCase();
-    
     // Verifica se já existe o e-mail
     const existingUser = await prisma.user.findUnique({
-      where: { email: trimmedEmail }
+      where: { email }
     });
 
     if (existingUser) {
@@ -36,9 +61,9 @@ router.post("/register", async (req: Request, res: Response) => {
     // Cria o usuário
     const user = await prisma.user.create({
       data: {
-        email: trimmedEmail,
+        email,
         password: hashedPassword,
-        name: name?.trim() || null,
+        name: name || null,
         role: role
       }
     });
@@ -63,18 +88,18 @@ router.post("/register", async (req: Request, res: Response) => {
 
 // LOGIN DE USUÁRIO
 router.post("/login", async (req: Request, res: Response) => {
-  const { email, password } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: "E-mail e senha são obrigatórios." });
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    const errorMsg = parsed.error.issues[0]?.message || "Dados inválidos.";
+    return res.status(400).json({ error: errorMsg });
   }
 
-  try {
-    const trimmedEmail = email.trim().toLowerCase();
+  const { email, password } = parsed.data;
 
+  try {
     // Busca o usuário
     const user = await prisma.user.findUnique({
-      where: { email: trimmedEmail }
+      where: { email }
     });
 
     if (!user) {

@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import axios from "axios";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { encryptToken, decryptToken } from "../utils/crypto";
 
 const router = Router();
 
@@ -25,7 +26,14 @@ router.get("/accounts", async (req: Request, res: Response) => {
       where: { userId },
       orderBy: { createdAt: "desc" },
     });
-    res.json(accounts);
+    
+    // Decriptar os tokens para compatibilidade com o frontend
+    const decryptedAccounts = accounts.map(acc => ({
+      ...acc,
+      accessToken: decryptToken(acc.accessToken)
+    }));
+
+    res.json(decryptedAccounts);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -40,6 +48,8 @@ router.post("/accounts", async (req: Request, res: Response) => {
 
   try {
     const userId = (req as AuthenticatedRequest).userId!;
+    const encryptedToken = encryptToken(accessToken.trim());
+
     const account = await prisma.account.upsert({
       where: {
         userId_name: {
@@ -47,10 +57,14 @@ router.post("/accounts", async (req: Request, res: Response) => {
           name,
         },
       },
-      update: { wabaId, phoneNumberId, accessToken },
-      create: { userId, name, wabaId, phoneNumberId, accessToken },
+      update: { wabaId, phoneNumberId, accessToken: encryptedToken },
+      create: { userId, name, wabaId, phoneNumberId, accessToken: encryptedToken },
     });
-    res.status(201).json(account);
+
+    res.status(201).json({
+      ...account,
+      accessToken: decryptToken(account.accessToken)
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -128,10 +142,11 @@ router.get("/accounts/:accountId/templates", async (req: Request, res: Response)
     // Buscar templates direto da Meta apenas se sync=true
     if (sync) {
       try {
+        const decryptedToken = decryptToken(account.accessToken);
         const response = await axios.get(
           `https://graph.facebook.com/v19.0/${account.wabaId}/message_templates`,
           {
-            headers: { Authorization: `Bearer ${account.accessToken}` },
+            headers: { Authorization: `Bearer ${decryptedToken}` },
           }
         );
 
@@ -218,6 +233,7 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
 
     // 2. Enviar para a Meta
     try {
+      const decryptedToken = decryptToken(account.accessToken);
       const response = await axios.post(
         `https://graph.facebook.com/v19.0/${account.wabaId}/message_templates`,
         {
@@ -227,7 +243,7 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
           components,
         },
         {
-          headers: { Authorization: `Bearer ${account.accessToken}` },
+          headers: { Authorization: `Bearer ${decryptedToken}` },
         }
       );
 
@@ -269,9 +285,11 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
     });
     if (!account) return res.status(404).json({ error: "Account not found" });
 
+    const decryptedToken = decryptToken(account.accessToken);
+
     // 1. Obter o App ID do token da Meta
     const appResponse = await axios.get(
-      `https://graph.facebook.com/v19.0/app?access_token=${account.accessToken}`
+      `https://graph.facebook.com/v19.0/app?access_token=${decryptedToken}`
     );
     const appId = appResponse.data.id;
 
@@ -288,7 +306,7 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
           file_name: fileName,
           file_length: fileBuffer.length,
           file_type: fileType,
-          access_token: account.accessToken,
+          access_token: decryptedToken,
         },
       }
     );
@@ -300,7 +318,7 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
       fileBuffer,
       {
         headers: {
-          Authorization: `Bearer ${account.accessToken}`,
+          Authorization: `Bearer ${decryptedToken}`,
           "Content-Type": "application/octet-stream",
         },
       }
@@ -333,6 +351,7 @@ router.delete("/accounts/:accountId/templates/:templateId", async (req: Request,
     // Se o template tem ID da Meta, deleta na Meta
     if (template.metaId) {
       try {
+        const decryptedToken = decryptToken(account.accessToken);
         await axios.delete(
           `https://graph.facebook.com/v19.0/${account.wabaId}/message_templates`,
           {
@@ -340,7 +359,7 @@ router.delete("/accounts/:accountId/templates/:templateId", async (req: Request,
               hsm_id: template.metaId,
               name: template.name,
             },
-            headers: { Authorization: `Bearer ${account.accessToken}` },
+            headers: { Authorization: `Bearer ${decryptedToken}` },
           }
         );
       } catch (metaError: any) {
@@ -521,122 +540,39 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
       ? templateComponents.find((c: any) => c.type === "HEADER")
       : null;
 
-    // Responder 200 OK imediatamente para liberar a UI do cliente
-    res.json({
-      success: true,
-      message: `Disparo em lote iniciado para ${list.contacts.length} contatos.`
+    const messagesData = list.contacts.map(contact => {
+      const resolvedVars = variables.map((v: string) => {
+        if (v === "CONTACT_NAME") return contact.name || "";
+        if (v === "CONTACT_PHONE") return contact.phone;
+        if (v.startsWith("CONTACT_VAR_")) {
+          const idx = parseInt(v.replace("CONTACT_VAR_", "")) - 1;
+          const contactVars = contact.variables as string[];
+          return (contactVars && contactVars[idx]) || "";
+        }
+        return v;
+      });
+
+      return {
+        accountId,
+        to: contact.phone,
+        templateName,
+        variables: resolvedVars ? { variables: resolvedVars, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
+        status: "PENDING"
+      };
     });
 
-    // Processar os envios em background
-    (async () => {
-      for (const contact of list.contacts) {
-        try {
-          // Mapear cada variável dinamicamente com base nas opções selecionadas
-          const resolvedVars = variables.map((v: string) => {
-            if (v === "CONTACT_NAME") return contact.name || "";
-            if (v === "CONTACT_PHONE") return contact.phone;
-            if (v.startsWith("CONTACT_VAR_")) {
-              const idx = parseInt(v.replace("CONTACT_VAR_", "")) - 1;
-              const contactVars = contact.variables as string[];
-              return (contactVars && contactVars[idx]) || "";
-            }
-            return v; // valor estático
-          });
+    // Gravar no banco de dados como PENDING para o worker assíncrono processar
+    await prisma.message.createMany({
+      data: messagesData
+    });
 
-          // Criar log da mensagem como PENDING
-          const dbMessage = await prisma.message.create({
-            data: {
-              accountId,
-              to: contact.phone,
-              templateName,
-              variables: resolvedVars ? { variables: resolvedVars, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
-              status: "PENDING",
-            }
-          });
-
-          const components: any[] = [];
-
-          // 1. Processar cabeçalho de mídia
-          if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
-            const typeLower = headerComp.format.toLowerCase();
-            components.push({
-              type: "header",
-              parameters: [
-                {
-                  type: typeLower,
-                  [typeLower]: {
-                    link: mediaUrl,
-                    ...(typeLower === "document" ? { filename: mediaUrl.split("/").pop() || "document.pdf" } : {})
-                  }
-                }
-              ]
-            });
-          }
-
-          // 2. Processar variáveis do corpo
-          if (resolvedVars && resolvedVars.length > 0) {
-            components.push({
-              type: "body",
-              parameters: resolvedVars.map((v: any) => ({
-                type: "text",
-                text: String(v),
-              })),
-            });
-          }
-
-          // Chamar a Meta API
-          try {
-            const response = await axios.post(
-              `https://graph.facebook.com/v19.0/${account.phoneNumberId}/messages`,
-              {
-                messaging_product: "whatsapp",
-                to: contact.phone,
-                type: "template",
-                template: {
-                  name: templateName,
-                  language: {
-                    code: template?.language || "pt_BR",
-                  },
-                  ...(components.length > 0 ? { components } : {}),
-                },
-              },
-              {
-                headers: { Authorization: `Bearer ${account.accessToken}` },
-              }
-            );
-
-            const wamid = response.data.messages?.[0]?.id;
-
-            // Atualizar status para SENT
-            await prisma.message.update({
-              where: { id: dbMessage.id },
-              data: {
-                wamid,
-                status: "SENT",
-              }
-            });
-          } catch (metaError: any) {
-            console.error(`Erro ao disparar para ${contact.phone}:`, metaError.response?.data || metaError.message);
-            const errMsg = metaError.response?.data?.error?.message || metaError.message;
-            await prisma.message.update({
-              where: { id: dbMessage.id },
-              data: {
-                status: "FAILED",
-                errorMessage: errMsg,
-              }
-            });
-          }
-        } catch (err: any) {
-          console.error(`Erro interno ao processar contato ${contact.phone}:`, err.message);
-        }
-        
-        // Aguarda 200ms entre disparos
-        await new Promise(resolve => setTimeout(resolve, 200));
-      }
-    })();
-
+    res.json({
+      success: true,
+      message: `Disparo em lote enfileirado com sucesso para ${list.contacts.length} contatos.`
+    });
   } catch (error: any) {
     console.error("Erro no disparo em lote:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -711,6 +647,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
     }
 
     try {
+      const decryptedToken = decryptToken(account.accessToken);
       const response = await axios.post(
         `https://graph.facebook.com/v19.0/${account.phoneNumberId}/messages`,
         {
@@ -726,7 +663,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
           },
         },
         {
-          headers: { Authorization: `Bearer ${account.accessToken}` },
+          headers: { Authorization: `Bearer ${decryptedToken}` },
         }
       );
 
@@ -1106,6 +1043,8 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
 
   try {
     const userId = (req as AuthenticatedRequest).userId!;
+    const encryptedToken = encryptToken(accessToken.trim());
+
     const account = await prisma.account.upsert({
       where: {
         userId_name: {
@@ -1113,10 +1052,14 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
           name,
         },
       },
-      update: { wabaId, phoneNumberId, accessToken },
-      create: { userId, name, wabaId, phoneNumberId, accessToken },
+      update: { wabaId, phoneNumberId, accessToken: encryptedToken },
+      create: { userId, name, wabaId, phoneNumberId, accessToken: encryptedToken },
     });
-    res.status(201).json(account);
+
+    res.status(201).json({
+      ...account,
+      accessToken: decryptToken(account.accessToken)
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
