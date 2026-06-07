@@ -284,3 +284,43 @@ select option {
   color: #111827 !important;
   background-color: #ffffff !important;
 }
+
+/* Color specific hover glows */
+.hover-glow-primary:hover {
+  border-color: rgba(0, 194, 107, 0.25) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(0, 194, 107, 0.22) !important;
+}
+.hover-glow-purple:hover {
+  border-color: rgba(129, 140, 248, 0.25) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(129, 140, 248, 0.22) !important;
+}
+.hover-glow-cyan:hover {
+  border-color: rgba(34, 211, 238, 0.25) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(34, 211, 238, 0.22) !important;
+}
+.hover-glow-success:hover {
+  border-color: rgba(16, 185, 129, 0.25) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(16, 185, 129, 0.22) !important;
+}
+.hover-glow-error:hover {
+  border-color: rgba(239, 68, 68, 0.25) !important;
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(239, 68, 68, 0.22) !important;
+}
+
+/* Skeleton Loader with Shimmer Effect */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02) 25%,
+    rgba(255, 255, 255, 0.06) 37%,
+    rgba(255, 255, 255, 0.02) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  display: inline-block;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}

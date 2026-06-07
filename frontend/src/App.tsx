@@ -1228,23 +1228,23 @@ export default function App() {
               <>
                 {/* Metrics cards grid */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
-                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className="glass glass-interactive hover-glow-primary" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Total Disparado</span>
                     <span style={{ fontSize: "2.5rem", fontWeight: "700" }}>{totalAll}</span>
                   </div>
-                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className="glass glass-interactive hover-glow-purple" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <span style={{ color: "#818cf8", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Enviado</span>
                     <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#818cf8" }}>{totalSent}</span>
                   </div>
-                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className="glass glass-interactive hover-glow-cyan" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <span style={{ color: "#22d3ee", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Entregue</span>
                     <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#22d3ee" }}>{totalDelivered}</span>
                   </div>
-                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className="glass glass-interactive hover-glow-success" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <span style={{ color: "var(--success)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Lido</span>
                     <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--success)" }}>{totalRead}</span>
                   </div>
-                  <div className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div className="glass glass-interactive hover-glow-error" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
                     <span style={{ color: "var(--error)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Falhas</span>
                     <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--error)" }}>{totalFailed}</span>
                   </div>
@@ -2017,7 +2017,11 @@ export default function App() {
                   <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Suas Listas</h3>
                   
                   {loadingLists ? (
-                    <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Carregando listas...</p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                      <div className="skeleton" style={{ width: "100%", height: "55px", borderRadius: "12px" }}></div>
+                      <div className="skeleton" style={{ width: "100%", height: "55px", borderRadius: "12px" }}></div>
+                      <div className="skeleton" style={{ width: "100%", height: "55px", borderRadius: "12px" }}></div>
+                    </div>
                   ) : contactLists.length === 0 ? (
                     <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma lista cadastrada. Crie uma nova lista para importar contatos!</p>
                   ) : (
@@ -2766,7 +2770,11 @@ export default function App() {
                   <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Arquivos Disponíveis ({mediaAssets.length})</h3>
                   
                   {loadingMedia ? (
-                    <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>Carregando mídias...</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
+                      <div className="skeleton" style={{ width: "100%", height: "200px", borderRadius: "var(--radius-md)" }}></div>
+                      <div className="skeleton" style={{ width: "100%", height: "200px", borderRadius: "var(--radius-md)" }}></div>
+                      <div className="skeleton" style={{ width: "100%", height: "200px", borderRadius: "var(--radius-md)" }}></div>
+                    </div>
                   ) : mediaAssets.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
                       <span style={{ fontSize: "3rem" }}>🖼️</span>
@@ -2862,7 +2870,11 @@ export default function App() {
               </div>
 
               {loadingAdminUsers ? (
-                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Carregando dados dos clientes...</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div className="skeleton" style={{ width: "100%", height: "40px", borderRadius: "8px" }}></div>
+                  <div className="skeleton" style={{ width: "100%", height: "40px", borderRadius: "8px" }}></div>
+                  <div className="skeleton" style={{ width: "100%", height: "40px", borderRadius: "8px" }}></div>
+                </div>
               ) : adminUsers.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhum usuário cadastrado no sistema.</p>
               ) : (
