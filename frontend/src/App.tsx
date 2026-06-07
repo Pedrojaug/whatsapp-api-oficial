@@ -977,7 +977,11 @@ export default function App() {
   const impersonatorName = decoded?.impersonatorName;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", position: "relative" }}>
+      {/* Background Ambient Glows */}
+      <div className="ambient-glow-1"></div>
+      <div className="ambient-glow-2"></div>
+
       {isImpersonating && (
         <div style={{
           backgroundColor: "#f59e0b",
