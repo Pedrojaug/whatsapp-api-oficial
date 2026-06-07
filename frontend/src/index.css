@@ -105,45 +105,57 @@ body {
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 0.95rem;
-  padding: 10px 20px;
+  padding: 10px 22px;
   border-radius: var(--radius-md);
-  border: none;
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: var(--transition-normal);
+  transition: all var(--transition-normal);
   text-decoration: none;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, #059669 100%);
-  color: #fff;
-  box-shadow: 0 4px 14px 0 rgba(0, 194, 107, 0.3);
+  background: rgba(0, 194, 107, 0.08);
+  border: 1px solid rgba(0, 194, 107, 0.45);
+  color: var(--primary);
+  box-shadow: 0 0 12px rgba(0, 194, 107, 0.15);
 }
 .btn-primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px 0 rgba(0, 194, 107, 0.5);
+  background: rgba(0, 194, 107, 0.18);
+  border-color: var(--primary);
+  color: #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow: 0 0 22px rgba(0, 194, 107, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 .btn-primary:active {
   transform: translateY(0);
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
   border: 1px solid var(--border-color);
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 .btn-secondary:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.20);
+  color: var(--text-primary);
+  transform: translateY(-1.5px);
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, var(--error) 0%, #dc2626 100%);
-  color: #fff;
-  box-shadow: 0 4px 14px 0 rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: var(--error);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
 }
 .btn-danger:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px 0 rgba(239, 68, 68, 0.6);
+  background: rgba(239, 68, 68, 0.18);
+  border-color: var(--error);
+  color: #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
 .badge {
