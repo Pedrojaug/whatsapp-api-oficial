@@ -1,5 +1,7 @@
 import { Router, Request, Response } from "express";
 import axios from "axios";
+import fs from "fs";
+import path from "path";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { encryptToken, decryptToken } from "../utils/crypto";
@@ -510,7 +512,7 @@ router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Re
 // Disparo em lote para uma lista (scoped to user)
 router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res: Response) => {
   const { accountId, listId } = req.params;
-  const { templateName, variables, mediaUrl } = req.body;
+  const { templateName, variables, mediaUrl, scheduledAt } = req.body;
 
   if (!templateName) {
     return res.status(400).json({ error: "Template é obrigatório." });
@@ -530,7 +532,6 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
     if (!list) {
       return res.status(404).json({ error: "Lista de contatos não encontrada." });
     }
-    if (!account) return res.status(404).json({ error: "Conta não encontrada." });
 
     const template = await prisma.template.findFirst({
       where: { accountId, name: templateName }
@@ -539,6 +540,8 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
     const headerComp = templateComponents && Array.isArray(templateComponents)
       ? templateComponents.find((c: any) => c.type === "HEADER")
       : null;
+
+    const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : null;
 
     const messagesData = list.contacts.map(contact => {
       const resolvedVars = variables.map((v: string) => {
@@ -557,7 +560,8 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
         to: contact.phone,
         templateName,
         variables: resolvedVars ? { variables: resolvedVars, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
-        status: "PENDING"
+        status: "PENDING",
+        scheduledAt: scheduledAtDate
       };
     });
 
@@ -568,7 +572,9 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
 
     res.json({
       success: true,
-      message: `Disparo em lote enfileirado com sucesso para ${list.contacts.length} contatos.`
+      message: scheduledAtDate
+        ? `Disparo em lote agendado com sucesso para ${list.contacts.length} contatos para ${scheduledAtDate.toLocaleString()}.`
+        : `Disparo em lote enfileirado com sucesso para ${list.contacts.length} contatos.`
     });
   } catch (error: any) {
     console.error("Erro no disparo em lote:", error);
@@ -583,7 +589,7 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
 // Enviar mensagem via Template (scoped to user)
 router.post("/accounts/:accountId/messages/send", async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { to, templateName, language, variables, mediaUrl } = req.body;
+  const { to, templateName, language, variables, mediaUrl, scheduledAt } = req.body;
 
   if (!to || !templateName) {
     return res.status(400).json({ error: "Missing to or templateName" });
@@ -600,6 +606,9 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
       where: { accountId, name: templateName },
     });
 
+    const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : null;
+    const isFutureScheduled = scheduledAtDate && scheduledAtDate.getTime() > Date.now();
+
     // Criar o log no banco local como PENDING
     const dbMessage = await prisma.message.create({
       data: {
@@ -608,8 +617,17 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
         templateName,
         variables: variables ? { variables, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
         status: "PENDING",
+        scheduledAt: scheduledAtDate,
       },
     });
+
+    // Se a mensagem está agendada para o futuro, não fazemos a chamada direta para a Meta agora
+    if (isFutureScheduled) {
+      return res.status(201).json({
+        ...dbMessage,
+        message: "Mensagem agendada com sucesso para envio posterior."
+      });
+    }
 
     const components: any[] = [];
 
@@ -1060,6 +1078,112 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
       ...account,
       accessToken: decryptToken(account.accessToken)
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// MEDIA ASSETS ROUTES
+// ==========================================
+
+// List media assets (scoped to account/user)
+router.get("/accounts/:accountId/media", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const media = await prisma.mediaAsset.findMany({
+      where: { accountId },
+      orderBy: { createdAt: "desc" }
+    });
+
+    res.json(media);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload media asset (scoped to account/user)
+router.post("/accounts/:accountId/media", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { filename, mimeType, fileBase64 } = req.body;
+
+  if (!filename || !mimeType || !fileBase64) {
+    return res.status(400).json({ error: "Faltam campos obrigatórios: filename, mimeType, fileBase64" });
+  }
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    // Converter base64 para Buffer
+    const base64Data = fileBase64.replace(/^data:.*?;base64,/, "");
+    const fileBuffer = Buffer.from(base64Data, "base64");
+
+    // Gerar um nome único para evitar colisões
+    const uniqueFilename = `${Date.now()}-${filename.replace(/\s+/g, "_")}`;
+    const uploadsDir = path.join(__dirname, "../../uploads");
+    const filePath = path.join(uploadsDir, uniqueFilename);
+
+    // Salvar arquivo físico no disco
+    fs.writeFileSync(filePath, fileBuffer);
+
+    // Gerar URL pública do asset
+    const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
+    const fileUrl = `${backendUrl}/uploads/${uniqueFilename}`;
+
+    const mediaAsset = await prisma.mediaAsset.create({
+      data: {
+        accountId,
+        filename: uniqueFilename,
+        url: fileUrl,
+        mimeType,
+        size: fileBuffer.length,
+      }
+    });
+
+    res.status(201).json(mediaAsset);
+  } catch (error: any) {
+    console.error("Erro no upload de mídia:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete media asset (scoped to account/user)
+router.delete("/accounts/:accountId/media/:mediaId", async (req: Request, res: Response) => {
+  const { accountId, mediaId } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const mediaAsset = await prisma.mediaAsset.findFirst({
+      where: { id: mediaId, accountId }
+    });
+    if (!mediaAsset) return res.status(404).json({ error: "Mídia não encontrada." });
+
+    // Excluir arquivo físico se existir
+    const filePath = path.join(__dirname, "../../uploads", mediaAsset.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    // Excluir do banco
+    await prisma.mediaAsset.delete({
+      where: { id: mediaId }
+    });
+
+    res.json({ success: true, message: "Mídia excluída com sucesso." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

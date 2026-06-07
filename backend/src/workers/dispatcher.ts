@@ -15,9 +15,25 @@ export function startBackgroundDispatcher() {
     isProcessing = true;
 
     try {
-      // 1. Busca até 10 mensagens com status PENDING ordenadas por data
+      const now = new Date();
+
+      // 1. Busca até 10 mensagens PENDING que já passaram da data agendada e da hora de retentativa
       const pendingMessages = await prisma.message.findMany({
-        where: { status: "PENDING" },
+        where: {
+          status: "PENDING",
+          OR: [
+            { scheduledAt: null },
+            { scheduledAt: { lte: now } }
+          ],
+          AND: [
+            {
+              OR: [
+                { nextRetryAt: null },
+                { nextRetryAt: { lte: now } }
+              ]
+            }
+          ]
+        },
         take: 10,
         orderBy: { createdAt: "asc" },
         include: { account: true }
@@ -115,15 +131,41 @@ export function startBackgroundDispatcher() {
           console.log(`[Worker] Mensagem ${msg.id} enviada com sucesso para ${msg.to}. Wamid: ${wamid}`);
         } catch (error: any) {
           console.error(`[Worker] Erro ao enviar mensagem ${msg.id}:`, error.response?.data || error.message);
-          const errMsg = error.response?.data?.error?.message || error.message;
           
-          await prisma.message.update({
-            where: { id: msg.id },
-            data: {
-              status: "FAILED",
-              errorMessage: errMsg,
-            }
-          });
+          const metaError = error.response?.data?.error;
+          const errMsg = metaError?.message || error.message;
+          const errorCode = metaError?.code;
+
+          // Erros não retentáveis (erros de credencial expirada 190 ou erros de parâmetros 100)
+          const isFatalError = errorCode === 190 || errorCode === 100;
+          const nextRetryCount = msg.retryCount + 1;
+
+          if (isFatalError || nextRetryCount > 3) {
+            // Falha permanente
+            await prisma.message.update({
+              where: { id: msg.id },
+              data: {
+                status: "FAILED",
+                errorMessage: `${isFatalError ? "Erro Fatal Meta: " : "Excedeu retentativas: "}${errMsg}`,
+              }
+            });
+            console.log(`[Worker] Mensagem ${msg.id} marcada como FAILED permanentemente. Erro: ${errMsg}`);
+          } else {
+            // Agendar retentativa com backoff exponencial (1min, 5min, 15min)
+            const backoffMinutes = nextRetryCount === 1 ? 1 : nextRetryCount === 2 ? 5 : 15;
+            const nextRetryAtDate = new Date();
+            nextRetryAtDate.setMinutes(nextRetryAtDate.getMinutes() + backoffMinutes);
+
+            await prisma.message.update({
+              where: { id: msg.id },
+              data: {
+                retryCount: nextRetryCount,
+                nextRetryAt: nextRetryAtDate,
+                errorMessage: `Tentativa #${nextRetryCount} falhou: ${errMsg}`
+              }
+            });
+            console.log(`[Worker] Mensagem ${msg.id} falhou temporariamente. Agendada retentativa #${nextRetryCount} para daqui a ${backoffMinutes} minutos (${nextRetryAtDate.toLocaleTimeString()}).`);
+          }
         }
 
         // Delay preventivo de 200ms para respeitar limites de taxa e conexões

@@ -198,12 +198,19 @@ export default function App() {
   const [manualContacts, setManualContacts] = useState<Array<{ name: string; phone: string; variablesStr: string }>>([
     { name: "", phone: "", variablesStr: "" }
   ]);
+  
+  // Media manager states
+  const [mediaAssets, setMediaAssets] = useState<any[]>([]);
+  const [loadingMedia, setLoadingMedia] = useState(false);
+  const [showMediaSelectModal, setShowMediaSelectModal] = useState(false);
+  const [mediaSelectCallback, setMediaSelectCallback] = useState<((url: string) => void) | null>(null);
 
   // Manual Send Message States
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
   const [recipientNumber, setRecipientNumber] = useState("");
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
   const [messageMediaUrl, setMessageMediaUrl] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
 
   // Bulk / single sender states
   const [recipientType, setRecipientType] = useState<"single" | "list">("single");
@@ -287,11 +294,13 @@ export default function App() {
       fetchMessages(selectedAccount.id);
       fetchContactLists(selectedAccount.id);
       fetchMetrics(selectedAccount.id);
+      fetchMedia(selectedAccount.id);
     } else {
       setTemplates([]);
       setMessageLogs([]);
       setContactLists([]);
       setSelectedList(null);
+      setMediaAssets([]);
       setMetricsData({
         totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
         chartData: []
@@ -302,6 +311,9 @@ export default function App() {
   useEffect(() => {
     if (selectedAccount && activeTab === "lists") {
       fetchContactLists(selectedAccount.id);
+    }
+    if (selectedAccount && activeTab === "media") {
+      fetchMedia(selectedAccount.id);
     }
     if (activeTab === "admin") {
       fetchAdminUsers();
@@ -398,6 +410,62 @@ export default function App() {
       console.error("Erro ao buscar listas de contatos:", err);
     } finally {
       setLoadingLists(false);
+    }
+  };
+
+  const fetchMedia = async (accountId: string) => {
+    setLoadingMedia(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/media`);
+      setMediaAssets(res.data);
+    } catch (err: any) {
+      console.error("Erro ao buscar mídias:", err);
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
+
+  const handleUploadMedia = async (file: File) => {
+    if (!selectedAccount) return;
+    setLoadingMedia(true);
+    try {
+      showAlert("Enviando mídia...");
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const fileBase64 = e.target?.result as string;
+        try {
+          await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/media`, {
+            filename: file.name,
+            mimeType: file.type,
+            fileBase64
+          });
+          showAlert("Mídia enviada com sucesso!");
+          fetchMedia(selectedAccount.id);
+        } catch (err: any) {
+          showAlert(err.response?.data?.error || "Erro ao fazer upload.", "error");
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: any) {
+      showAlert(err.message, "error");
+    } finally {
+      setLoadingMedia(false);
+    }
+  };
+
+  const handleDeleteMedia = async (mediaId: string) => {
+    if (!selectedAccount) return;
+    if (!window.confirm("Deseja realmente excluir esta mídia? Esta ação não pode ser desfeita.")) return;
+    setLoadingMedia(true);
+    try {
+      showAlert("Excluindo mídia...");
+      await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/media/${mediaId}`);
+      showAlert("Mídia excluída com sucesso.");
+      fetchMedia(selectedAccount.id);
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao excluir mídia.", "error");
+    } finally {
+      setLoadingMedia(false);
     }
   };
 
@@ -824,13 +892,20 @@ export default function App() {
           templateName: selectedTemplateName,
           variables: templateVariables,
           mediaUrl: messageMediaUrl || undefined,
+          scheduledAt: scheduledAt || undefined,
         });
 
-        showAlert("Mensagem enviada com sucesso!");
+        if (scheduledAt) {
+          showAlert("Mensagem agendada com sucesso!");
+        } else {
+          showAlert("Mensagem enviada com sucesso!");
+        }
+
         setRecipientNumber("");
         setSelectedTemplateName("");
         setTemplateVariables([]);
         setMessageMediaUrl("");
+        setScheduledAt("");
         fetchMessages(selectedAccount.id);
       } catch (err: any) {
         const details = err.response?.data?.details?.error?.message || err.response?.data?.error || "Erro desconhecido";
@@ -860,14 +935,21 @@ export default function App() {
           templateName: selectedTemplateName,
           variables: mappedVars,
           mediaUrl: messageMediaUrl || undefined,
+          scheduledAt: scheduledAt || undefined,
         });
 
-        showAlert("Disparo em lote iniciado com sucesso!");
+        if (scheduledAt) {
+          showAlert("Disparo em lote agendado com sucesso!");
+        } else {
+          showAlert("Disparo em lote iniciado com sucesso!");
+        }
+
         setSelectedTemplateName("");
         setTemplateVariables([]);
         setVariableMappings([]);
         setMessageMediaUrl("");
         setSelectedListId("");
+        setScheduledAt("");
         
         setTimeout(() => fetchMessages(selectedAccount.id), 1000);
       } catch (err: any) {
@@ -996,6 +1078,13 @@ export default function App() {
             style={{ justifyContent: "flex-start", width: "100%" }}
           >
             🚀 Envio & Histórico
+          </button>
+          <button
+            onClick={() => setActiveTab("media")}
+            className={`btn ${activeTab === "media" ? "btn-primary" : "btn-secondary"}`}
+            style={{ justifyContent: "flex-start", width: "100%" }}
+          >
+            🖼️ Galeria de Mídias
           </button>
           <button
             onClick={() => setActiveTab("accounts")}
@@ -2230,6 +2319,73 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Modal de Seleção de Mídia */}
+            {showMediaSelectModal && (
+              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1001 }}>
+                <div className="glass fade-in" style={{ width: "650px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+                  
+                  {/* Header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Selecionar da Galeria</h3>
+                    <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                  </div>
+
+                  <div style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "15px" }}>
+                    <div style={{ maxHeight: "350px", overflowY: "auto" }}>
+                      {mediaAssets.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                          Nenhuma mídia encontrada. Faça upload na aba <strong>Galeria de Mídias</strong> primeiro.
+                        </div>
+                      ) : (
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "15px" }}>
+                          {mediaAssets.map((asset) => (
+                            <div
+                              key={asset.id}
+                              onClick={() => {
+                                if (mediaSelectCallback) {
+                                  mediaSelectCallback(asset.url);
+                                }
+                                setShowMediaSelectModal(false);
+                                setMediaSelectCallback(null);
+                              }}
+                              className="glass-interactive"
+                              style={{
+                                borderRadius: "var(--radius-sm)",
+                                overflow: "hidden",
+                                display: "flex",
+                                flexDirection: "column",
+                                border: "1px solid rgba(255,255,255,0.06)",
+                                background: "rgba(255,255,255,0.02)",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <div style={{ height: "90px", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+                                {asset.mimeType.startsWith("image/") ? (
+                                  <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : asset.mimeType.startsWith("video/") ? (
+                                  <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : (
+                                  <span style={{ fontSize: "2rem" }}>📄</span>
+                                )}
+                              </div>
+                              <div style={{ padding: "8px", fontSize: "0.75rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={asset.filename}>
+                                {asset.filename.slice(14)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
+                      <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} className="btn btn-secondary">Cancelar</button>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2327,13 +2483,26 @@ export default function App() {
                       <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>
                         URL da Mídia ({headerComp.format})
                       </label>
-                      <input
-                        type="text"
-                        placeholder={`https://site.com/media.${headerComp.format === "IMAGE" ? "jpg" : headerComp.format === "VIDEO" ? "mp4" : "pdf"}`}
-                        value={messageMediaUrl}
-                        onChange={(e) => setMessageMediaUrl(e.target.value)}
-                        style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
-                      />
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input
+                          type="text"
+                          placeholder={`https://site.com/media.${headerComp.format === "IMAGE" ? "jpg" : headerComp.format === "VIDEO" ? "mp4" : "pdf"}`}
+                          value={messageMediaUrl}
+                          onChange={(e) => setMessageMediaUrl(e.target.value)}
+                          style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMediaSelectCallback(() => (url: string) => setMessageMediaUrl(url));
+                            setShowMediaSelectModal(true);
+                          }}
+                          className="btn btn-secondary"
+                          style={{ padding: "10px 14px", fontSize: "0.85rem" }}
+                        >
+                          🖼️ Galeria
+                        </button>
+                      </div>
                     </div>
                   );
                 })()}
@@ -2407,8 +2576,55 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Agendamento */}
+                {selectedTemplateName && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px", marginTop: "5px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <input
+                        type="checkbox"
+                        id="enable-scheduling-checkbox"
+                        checked={!!scheduledAt}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            const initDate = new Date();
+                            initDate.setHours(initDate.getHours() + 1);
+                            initDate.setMinutes(0);
+                            const pad = (n: number) => String(n).padStart(2, "0");
+                            const formatted = `${initDate.getFullYear()}-${pad(initDate.getMonth() + 1)}-${pad(initDate.getDate())}T${pad(initDate.getHours())}:${pad(initDate.getMinutes())}`;
+                            setScheduledAt(formatted);
+                          } else {
+                            setScheduledAt("");
+                          }
+                        }}
+                        style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--primary)" }}
+                      />
+                      <label htmlFor="enable-scheduling-checkbox" style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600", cursor: "pointer" }}>
+                        📅 Agendar Envio?
+                      </label>
+                    </div>
+
+                    {scheduledAt && (
+                      <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
+                        <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Data e Hora de Envio</label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledAt}
+                          onChange={(e) => setScheduledAt(e.target.value)}
+                          min={(() => {
+                            const now = new Date();
+                            const pad = (n: number) => String(n).padStart(2, "0");
+                            return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                          })()}
+                          style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button type="submit" disabled={loading || !selectedAccount} className="btn btn-primary" style={{ width: "100%", marginTop: "10px" }}>
-                  {loading ? "Enviando..." : recipientType === "single" ? "Disparar WhatsApp" : "Iniciar Disparo em Lote"}
+                  {loading ? (scheduledAt ? "Agendando..." : "Enviando...") : scheduledAt ? "Agendar Disparo 📅" : (recipientType === "single" ? "Disparar WhatsApp" : "Iniciar Disparo em Lote")}
                 </button>
               </form>
 
@@ -2499,7 +2715,133 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 5: ADMIN (ADMINISTRAÇÃO DE USUÁRIOS) */}
+        {/* Tab 5: MEDIA GALLERY */}
+        {activeTab === "media" && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+            <div>
+              <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Galeria de Mídias</h1>
+              <p style={{ color: "var(--text-secondary)" }}>Faça upload e gerencie arquivos (imagens, vídeos e documentos) para usar nos seus disparos.</p>
+            </div>
+
+            {!selectedAccount ? (
+              <div className="glass" style={{ padding: "40px", borderRadius: "var(--radius-xl)", textAlign: "center", color: "var(--text-muted)" }}>
+                <span style={{ fontSize: "3rem", marginBottom: "15px", display: "block" }}>⚠️</span>
+                Selecione uma conta do WhatsApp comercial no menu superior para acessar a galeria de mídias.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+                
+                {/* Upload Zone */}
+                <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", alignItems: "center", gap: "15px", border: "1px dashed var(--border-color)", background: "rgba(255,255,255,0.01)" }}>
+                  <div style={{ fontSize: "2.5rem" }}>📤</div>
+                  <div style={{ textAlign: "center" }}>
+                    <h3 style={{ fontSize: "1.1rem", fontWeight: "600", marginBottom: "4px" }}>Fazer Upload de Arquivo</h3>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>Formatos suportados: Imagens, MP4, PDF (Máx 16MB)</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*,video/mp4,application/pdf"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleUploadMedia(file);
+                    }}
+                    style={{ display: "none" }}
+                    id="media-file-upload-input"
+                  />
+                  <label
+                    htmlFor="media-file-upload-input"
+                    className="btn btn-primary"
+                    style={{ cursor: "pointer" }}
+                  >
+                    Selecionar Arquivo
+                  </label>
+                </div>
+
+                {/* Gallery Grid */}
+                <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
+                  <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Arquivos Disponíveis ({mediaAssets.length})</h3>
+                  
+                  {loadingMedia ? (
+                    <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>Carregando mídias...</div>
+                  ) : mediaAssets.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "3rem" }}>🖼️</span>
+                      <span>Nenhum arquivo enviado para este canal comercial ainda.</span>
+                    </div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
+                      {mediaAssets.map((asset) => (
+                        <div
+                          key={asset.id}
+                          className="glass"
+                          style={{
+                            borderRadius: "var(--radius-md)",
+                            overflow: "hidden",
+                            display: "flex",
+                            flexDirection: "column",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                            background: "rgba(255,255,255,0.02)",
+                          }}
+                        >
+                          {/* Preview Area */}
+                          <div style={{ height: "130px", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", borderBottom: "1px solid var(--border-color)" }}>
+                            {asset.mimeType.startsWith("image/") ? (
+                              <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            ) : asset.mimeType.startsWith("video/") ? (
+                              <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted />
+                            ) : (
+                              <span style={{ fontSize: "3rem" }}>📄</span>
+                            )}
+                            <div style={{ position: "absolute", bottom: "8px", left: "8px", background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
+                              {asset.mimeType.split("/")[1]?.toUpperCase() || "FILE"}
+                            </div>
+                          </div>
+
+                          {/* Info Area */}
+                          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+                            <div style={{ fontWeight: "600", fontSize: "0.85rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={asset.filename}>
+                              {asset.filename.slice(14)} {/* remove timestamp prefix */}
+                            </div>
+                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                              {(asset.size / 1024 / 1024).toFixed(2)} MB
+                            </div>
+                            
+                            {/* Actions */}
+                            <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(asset.url);
+                                  showAlert("Link copiado para a área de transferência!");
+                                }}
+                                className="btn btn-secondary"
+                                style={{ flex: 1, padding: "6px 8px", fontSize: "0.75rem", gap: "4px" }}
+                              >
+                                🔗 Copiar
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteMedia(asset.id)}
+                                className="btn btn-secondary"
+                                style={{ padding: "6px 10px", fontSize: "0.75rem", color: "var(--error)" }}
+                                title="Excluir"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab 6: ADMIN (ADMINISTRAÇÃO DE USUÁRIOS) */}
         {activeTab === "admin" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
             <div>
