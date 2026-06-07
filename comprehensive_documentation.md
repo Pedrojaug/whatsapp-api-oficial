@@ -449,3 +449,72 @@ Para evitar timeouts em requisições de listas grandes, o envio em lote funcion
     }
     ```
   - Executa a chamada `axios.post` para a Meta e cria um log inicial de `Message` com status `SENT` ou `FAILED` caso a chamada de rede direta falhe.
+
+---
+
+## 📡 6. Novas Especificações de Endpoints
+
+### 📅 Módulo de Agendamentos Futuros (`/api/accounts/:accountId/scheduled`)
+
+#### `GET /api/accounts/:accountId/scheduled`
+Lista todas as mensagens agendadas para o futuro com status `PENDING`.
+- **Response (200 OK):**
+  ```json
+  [
+    {
+      "id": "abc-123-def",
+      "to": "5583986241167",
+      "status": "PENDING",
+      "templateName": "ofertas_junho",
+      "scheduledAt": "2026-06-12T15:00:00.000Z",
+      "createdAt": "2026-06-07T12:00:00.000Z"
+    }
+  ]
+  ```
+
+#### `DELETE /api/accounts/:accountId/scheduled/:messageId`
+Cancela um agendamento futuro excluindo o registro do banco de dados e enviando uma notificação via SSE com status `CANCELLED`.
+- **Response (200 OK):**
+  ```json
+  {
+    "success": true,
+    "message": "Agendamento cancelado com sucesso."
+  }
+  ```
+
+#### `POST /api/accounts/:accountId/scheduled/:messageId/reschedule`
+Reagenda um disparo pendente para uma nova data futura, resetando os contadores de retentativa.
+- **Request Body:**
+  ```json
+  {
+    "scheduledAt": "2026-06-15T18:30:00.000Z"
+  }
+  ```
+- **Response (200 OK):** Retorna o objeto `Message` com o novo timestamp atualizado.
+
+---
+
+### 👥 Módulo de Edição de Listas de Contatos (`/api/accounts/:accountId/lists/:listId`)
+
+#### `PUT /api/accounts/:accountId/lists/:listId`
+Atualiza o nome da lista e sincroniza a relação de contatos (adiciona novos, atualiza existentes e remove ausentes) em lote.
+- **Request Body:**
+  ```json
+  {
+    "name": "Clientes VIP Nordeste",
+    "contacts": [
+      {
+        "id": "contato-id-existente-1",
+        "name": "Pedro Teste Modificado",
+        "phone": "5583986241167",
+        "variables": ["VIP", "Desconto 30%"]
+      },
+      {
+        "name": "Contato Novo Inserido",
+        "phone": "5511999999999",
+        "variables": ["Standard"]
+      }
+    ]
+  }
+  ```
+- **Response (200 OK):** Retorna a lista atualizada com a nova contagem total de contatos.

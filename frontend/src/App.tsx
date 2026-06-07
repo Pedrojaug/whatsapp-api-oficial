@@ -1,9 +1,16 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import axios from "axios";
 import "./App.css";
 import SetupWizard from "./components/SetupWizard";
 import PhoneSimulator from "./components/PhoneSimulator";
 import AuthPages from "./components/AuthPages";
+
+/** Renders children directly in document.body, escaping any overflow/stacking-context ancestor */
+function ModalPortal({ children }: { children: React.ReactNode }) {
+  return createPortal(children, document.body);
+}
+
 
 const API_BASE_URL = "http://localhost:3001/api";
 
@@ -53,17 +60,37 @@ interface TemplateButton {
 
 export default function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [user, setUser] = useState<{ id: string; email: string; name: string | null } | null>(
+  const [user, setUser] = useState<{ id: string; email: string; name: string | null; role?: string } | null>(
     localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null
   );
 
-  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists" | "admin">("metrics");
+  // Theme state — default dark, persisted in localStorage
+  const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
+    localStorage.getItem("theme") !== "light"
+  );
+  useEffect(() => {
+    if (isDarkTheme) {
+      document.body.classList.remove("light-theme");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.body.classList.add("light-theme");
+      localStorage.setItem("theme", "light");
+    }
+  }, [isDarkTheme]);
+
+  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists" | "admin" | "media">("metrics");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
   // Form states
   const [templates, setTemplates] = useState<Template[]>([]);
   const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
+  const [messagesSearch, setMessagesSearch] = useState("");
+  const [messagesStatus, setMessagesStatus] = useState("");
+  const [messagesTemplateFilter, setMessagesTemplateFilter] = useState("");
+  const [messagesPage, setMessagesPage] = useState(1);
+  const [messagesLimit] = useState(50);
+  const [totalMessages, setTotalMessages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [syncingTemplates, setSyncingTemplates] = useState(false);
 
@@ -78,10 +105,20 @@ export default function App() {
   const [metricsData, setMetricsData] = useState<{
     totals: { sent: number; delivered: number; read: number; failed: number; total: number };
     chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
+    templateMetrics?: Array<{ templateName: string; sent: number; read: number; failed: number; total: number }>;
   }>({
     totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
-    chartData: []
+    chartData: [],
+    templateMetrics: []
   });
+
+  // XLSX and Scheduled Messages states
+  const [xlsxContacts, setXlsxContacts] = useState<any[]>([]);
+  const [logsView, setLogsView] = useState<"recent" | "scheduled">("recent");
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+  const [loadingScheduled, setLoadingScheduled] = useState(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState<string | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState("");
 
   const handleLoginSuccess = (newToken: string, newUser: any) => {
     localStorage.setItem("token", newToken);
@@ -198,6 +235,10 @@ export default function App() {
   const [manualContacts, setManualContacts] = useState<Array<{ name: string; phone: string; variablesStr: string }>>([
     { name: "", phone: "", variablesStr: "" }
   ]);
+  const [showEditListModal, setShowEditListModal] = useState<any | null>(null);
+  const [editListName, setEditListName] = useState("");
+  const [editContacts, setEditContacts] = useState<Array<{ id?: string; name: string; phone: string; variablesStr: string }>>([]);
+  const [loadingEdit, setLoadingEdit] = useState(false);
   
   // Media manager states
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
@@ -295,18 +336,70 @@ export default function App() {
       fetchContactLists(selectedAccount.id);
       fetchMetrics(selectedAccount.id);
       fetchMedia(selectedAccount.id);
+      fetchScheduledMessages(selectedAccount.id);
     } else {
       setTemplates([]);
       setMessageLogs([]);
       setContactLists([]);
       setSelectedList(null);
       setMediaAssets([]);
+      setScheduledMessages([]);
       setMetricsData({
         totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
-        chartData: []
+        chartData: [],
+        templateMetrics: []
       });
     }
   }, [selectedAccount]);
+
+  // Sincronização de status das mensagens em tempo real (SSE)
+  useEffect(() => {
+    if (!selectedAccount || !token) return;
+
+    const sseUrl = `${API_BASE_URL.replace("/api", "")}/api/accounts/${selectedAccount.id}/messages/events?token=${encodeURIComponent(token)}`;
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "messageUpdated") {
+          setMessageLogs((prevLogs) => {
+            const index = prevLogs.findIndex((log) => log.id === data.messageId);
+            if (index !== -1) {
+              const updated = [...prevLogs];
+              updated[index] = {
+                ...updated[index],
+                status: data.status,
+                wamid: data.wamid !== undefined ? data.wamid : updated[index].wamid,
+                errorMessage: data.errorMessage !== undefined ? data.errorMessage : updated[index].errorMessage,
+              };
+              return updated;
+            }
+            // Se for um log novo (ex: acabou de ser enviado via API), recarrega a página atual para exibir
+            // Mas limitamos recarregamentos para evitar gargalos em lotes grandes.
+            // Para maior robustez, faremos o fetch manual de mensagens se não encontrar
+            return prevLogs;
+          });
+
+          // Atualiza as métricas do painel de controle
+          fetchMetrics(selectedAccount.id);
+          // Atualiza agendamentos futuros
+          fetchScheduledMessages(selectedAccount.id);
+        }
+      } catch (err) {
+        console.error("Erro ao processar atualização em tempo real:", err);
+      }
+    };
+
+    eventSource.onerror = (err) => {
+      console.error("Erro na conexão com SSE de eventos. Reconectando...", err);
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [selectedAccount, token]);
 
   useEffect(() => {
     if (selectedAccount && activeTab === "lists") {
@@ -392,12 +485,173 @@ export default function App() {
     }
   };
 
-  const fetchMessages = async (accountId: string) => {
+  const fetchMessages = async (
+    accountId: string,
+    page = 1,
+    search = "",
+    status = "",
+    template = ""
+  ) => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/messages`);
-      setMessageLogs(res.data);
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/messages`, {
+        params: {
+          page,
+          limit: messagesLimit,
+          search,
+          status,
+          templateName: template,
+        },
+      });
+
+      if (res.data && Array.isArray(res.data.messages)) {
+        setMessageLogs(res.data.messages);
+        setTotalMessages(res.data.total);
+      } else {
+        setMessageLogs(res.data);
+        setTotalMessages(res.data.length);
+      }
     } catch (err: any) {
       console.error(err);
+    }
+  };
+
+  const loadSheetJS = (): Promise<any> => {
+    return new Promise((resolve, reject) => {
+      if ((window as any).XLSX) {
+        resolve((window as any).XLSX);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+      script.onload = () => resolve((window as any).XLSX);
+      script.onerror = (err) => reject(err);
+      document.body.appendChild(script);
+    });
+  };
+
+  const handleXlsxUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      showAlert("Carregando leitor de planilhas...");
+      const XLSX = await loadSheetJS();
+      showAlert("Processando arquivo Excel...");
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const bstr = evt.target?.result;
+          const workbook = XLSX.read(bstr, { type: "binary" });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+
+          if (data.length === 0) {
+            showAlert("O arquivo Excel está vazio.", "error");
+            return;
+          }
+
+          const headers = data[0].map(h => String(h || "").trim().toLowerCase());
+          
+          let phoneIdx = headers.findIndex(h => h.includes("tel") || h.includes("phone") || h.includes("celular") || h.includes("contato"));
+          let nameIdx = headers.findIndex(h => h.includes("nome") || h.includes("name") || h.includes("cliente"));
+
+          if (phoneIdx === -1) {
+            if (headers.length === 1) {
+              phoneIdx = 0;
+              nameIdx = -1;
+            } else {
+              phoneIdx = 1;
+              nameIdx = 0;
+            }
+          }
+
+          const parsedContacts: any[] = [];
+          for (let i = 1; i < data.length; i++) {
+            const row = data[i];
+            if (!row || row.length === 0) continue;
+
+            const phone = String(row[phoneIdx] || "").trim().replace(/\D/g, "");
+            if (!phone || phone.length < 8) continue;
+
+            const name = nameIdx !== -1 ? String(row[nameIdx] || "").trim() : "";
+            
+            const variables: string[] = [];
+            row.forEach((cell, idx) => {
+              if (idx !== phoneIdx && idx !== nameIdx) {
+                if (cell !== undefined && cell !== null) {
+                  variables.push(String(cell).trim());
+                }
+              }
+            });
+
+            parsedContacts.push({
+              name: name || undefined,
+              phone,
+              variables
+            });
+          }
+
+          if (parsedContacts.length === 0) {
+            showAlert("Nenhum contato com telefone válido foi encontrado (mínimo 8 dígitos).", "error");
+            return;
+          }
+
+          setXlsxContacts(parsedContacts);
+          showAlert(`${parsedContacts.length} contatos lidos do Excel com sucesso!`, "success");
+        } catch (err: any) {
+          showAlert(`Erro ao ler Excel: ${err.message}`, "error");
+        }
+      };
+      reader.readAsBinaryString(file);
+    } catch (err: any) {
+      console.error(err);
+      showAlert("Falha ao carregar leitor de Excel de CDN externo.", "error");
+    }
+  };
+
+  const fetchScheduledMessages = async (accountId: string) => {
+    setLoadingScheduled(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/scheduled`);
+      setScheduledMessages(res.data);
+    } catch (err) {
+      console.error("Erro ao buscar mensagens agendadas:", err);
+    } finally {
+      setLoadingScheduled(false);
+    }
+  };
+
+  const handleCancelScheduled = async (messageId: string) => {
+    if (!selectedAccount) return;
+    if (!window.confirm("Tem certeza que deseja cancelar e excluir este agendamento?")) return;
+
+    try {
+      showAlert("Cancelando agendamento...");
+      await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/scheduled/${messageId}`);
+      showAlert("Agendamento cancelado com sucesso!", "success");
+      fetchScheduledMessages(selectedAccount.id);
+      fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao cancelar agendamento", "error");
+    }
+  };
+
+  const handleReschedule = async (messageId: string) => {
+    if (!selectedAccount || !rescheduleDate) return;
+    try {
+      showAlert("Reagendando...");
+      await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/scheduled/${messageId}/reschedule`, {
+        scheduledAt: rescheduleDate
+      });
+      showAlert("Mensagem reagendada com sucesso!", "success");
+      setShowRescheduleModal(null);
+      setRescheduleDate("");
+      fetchScheduledMessages(selectedAccount.id);
+      fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao reagendar mensagem", "error");
     }
   };
 
@@ -427,9 +681,24 @@ export default function App() {
 
   const handleUploadMedia = async (file: File) => {
     if (!selectedAccount) return;
+
+    // Validar tipo de arquivo
+    const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "video/mp4", "video/3gpp", "application/pdf"];
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      showAlert(`Tipo de arquivo não suportado: ${file.type}. Use JPEG, PNG, WebP, MP4, 3GPP ou PDF.`, "error");
+      return;
+    }
+
+    // Validar tamanho: 50 MB
+    const MAX_MB = 50;
+    if (file.size > MAX_MB * 1024 * 1024) {
+      showAlert(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(1)} MB). Limite: ${MAX_MB} MB.`, "error");
+      return;
+    }
+
     setLoadingMedia(true);
     try {
-      showAlert("Enviando mídia...");
+      showAlert(`Enviando ${file.type.startsWith("video/") ? "vídeo" : "mídia"}... aguarde.`);
       const reader = new FileReader();
       reader.onload = async (e) => {
         const fileBase64 = e.target?.result as string;
@@ -439,7 +708,7 @@ export default function App() {
             mimeType: file.type,
             fileBase64
           });
-          showAlert("Mídia enviada com sucesso!");
+          showAlert("Mídia enviada com sucesso! ✅");
           fetchMedia(selectedAccount.id);
         } catch (err: any) {
           showAlert(err.response?.data?.error || "Erro ao fazer upload.", "error");
@@ -452,6 +721,7 @@ export default function App() {
       setLoadingMedia(false);
     }
   };
+
 
   const handleDeleteMedia = async (mediaId: string) => {
     if (!selectedAccount) return;
@@ -603,6 +873,12 @@ export default function App() {
         return;
       }
       parsedContacts = parseRawContacts(newListRawContacts);
+    } else if (importMode === "xlsx") {
+      if (xlsxContacts.length === 0) {
+        showAlert("Selecione um arquivo Excel válido e aguarde o processamento.", "error");
+        return;
+      }
+      parsedContacts = xlsxContacts;
     } else {
       parsedContacts = manualContacts
         .map(c => ({
@@ -610,7 +886,7 @@ export default function App() {
           phone: c.phone.trim().replace(/\D/g, ""),
           variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
         }))
-        .filter(c => c.phone.length >= 8); // phone min length check
+        .filter(c => c.phone.length >= 8);
       
       if (parsedContacts.length === 0) {
         showAlert("Insira ao menos um contato com telefone válido (mínimo 8 dígitos).", "error");
@@ -638,6 +914,7 @@ export default function App() {
       setNewListName("");
       setNewListRawContacts("");
       setManualContacts([{ name: "", phone: "", variablesStr: "" }]);
+      setXlsxContacts([]);
       setImportMode("csv");
       setShowNewListModal(false);
       fetchContactLists(selectedAccount.id);
@@ -664,6 +941,58 @@ export default function App() {
     } catch (err: any) {
       const details = err.response?.data?.error || err.message;
       showAlert(`Erro ao excluir lista: ${details}`, "error");
+    }
+  };
+
+  const handleEditContactList = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedAccount || !showEditListModal) return;
+    if (!editListName.trim()) {
+      showAlert("O nome da lista é obrigatório.", "error");
+      return;
+    }
+
+    const parsedContacts = editContacts
+      .map(c => ({
+        id: c.id || undefined,
+        name: c.name.trim() || undefined,
+        phone: c.phone.trim().replace(/\D/g, ""),
+        variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
+      }))
+      .filter(c => c.phone.length >= 8);
+
+    if (parsedContacts.length === 0) {
+      showAlert("Insira ao menos um contato com telefone válido (mínimo 8 dígitos).", "error");
+      return;
+    }
+    if (parsedContacts.length > 1000) {
+      showAlert("O limite de contatos por lista é de 1.000 registros.", "error");
+      return;
+    }
+
+    setLoadingEdit(true);
+    try {
+      showAlert("Salvando alterações da lista...");
+      await axios.put(`${API_BASE_URL}/accounts/${selectedAccount.id}/lists/${showEditListModal.id}`, {
+        name: editListName,
+        contacts: parsedContacts
+      });
+      showAlert("Lista de contatos atualizada com sucesso!");
+      
+      // Update selected list details if active
+      if (selectedList?.id === showEditListModal.id) {
+        handleViewListDetails(showEditListModal);
+      }
+
+      setShowEditListModal(null);
+      setEditListName("");
+      setEditContacts([]);
+      fetchContactLists(selectedAccount.id);
+    } catch (err: any) {
+      const details = err.response?.data?.error || err.message;
+      showAlert(`Erro ao atualizar lista: ${details}`, "error");
+    } finally {
+      setLoadingEdit(false);
     }
   };
 
@@ -1017,20 +1346,20 @@ export default function App() {
       )}
       <div style={{ display: "flex", flex: 1 }}>
         {/* Sidebar */}
-      <aside className="glass" style={{ width: "280px", padding: "30px 20px", display: "flex", flexDirection: "column", gap: "30px", borderRight: "1px solid var(--border-color)" }}>
-        <div>
+        <aside className="glass" style={{ width: "280px", padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px", borderRight: "1px solid var(--border-color)", height: "100vh", position: "sticky", top: 0, overflowY: "auto" }}>
+          <div>
           <h2 style={{ fontSize: "1.6rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", fontFamily: "var(--font-sans)" }}>
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)", flexShrink: 0 }}>
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
             </svg>
-            <span style={{ color: "#fff" }}>Send</span>
+            <span style={{ color: "var(--text-primary)" }}>Send</span>
             <span style={{ background: "linear-gradient(135deg, var(--primary) 0%, #10b981 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Inteligentte</span>
           </h2>
           <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "500" }}>por Inteligentte Lab</p>
         </div>
 
         {/* Account Switcher */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Conta Ativa</label>
           <select
             value={selectedAccount?.id || ""}
@@ -1039,7 +1368,7 @@ export default function App() {
               if (acc) setSelectedAccount(acc);
             }}
             className="glass"
-            style={{ width: "100%", padding: "12px", borderRadius: "var(--radius-md)", color: "var(--text-primary)", outline: "none", cursor: "pointer", border: "1px solid var(--border-color)" }}
+            style={{ width: "100%", padding: "10px", borderRadius: "var(--radius-md)", color: "var(--text-primary)", outline: "none", cursor: "pointer", border: "1px solid var(--border-color)", fontSize: "0.9rem" }}
           >
             {accounts.length === 0 ? (
               <option value="">Sem contas cadastradas</option>
@@ -1054,46 +1383,46 @@ export default function App() {
         </div>
 
         {/* Navigation Menu */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+        <nav style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
           <button
             onClick={() => setActiveTab("metrics")}
             className={`btn ${activeTab === "metrics" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             📊 Métricas
           </button>
           <button
             onClick={() => setActiveTab("templates")}
             className={`btn ${activeTab === "templates" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             📝 Templates Meta
           </button>
           <button
             onClick={() => setActiveTab("lists")}
             className={`btn ${activeTab === "lists" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             👥 Listas de Contatos
           </button>
           <button
             onClick={() => setActiveTab("messages")}
             className={`btn ${activeTab === "messages" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             🚀 Envio & Histórico
           </button>
           <button
             onClick={() => setActiveTab("media")}
             className={`btn ${activeTab === "media" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             🖼️ Galeria de Mídias
           </button>
           <button
             onClick={() => setActiveTab("accounts")}
             className={`btn ${activeTab === "accounts" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%" }}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             ⚙️ Contas Meta API
           </button>
@@ -1101,60 +1430,98 @@ export default function App() {
             <button
               onClick={() => setActiveTab("admin")}
               className={`btn ${activeTab === "admin" ? "btn-primary" : "btn-secondary"}`}
-              style={{ justifyContent: "flex-start", width: "100%" }}
+              style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
             >
               🛠️ Administração
             </button>
           )}
         </nav>
 
-        {user && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-              <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#fff", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                👤 {user.name || user.email}
-              </span>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                {user.email}
-              </span>
+        {/* Bottom Section */}
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "14px", borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
+          {user && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-primary)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                  👤 {user.name || user.email}
+                </span>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                  {user.email}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="btn btn-secondary"
+                style={{
+                  width: "100%",
+                  background: "rgba(239, 68, 68, 0.08)",
+                  color: "var(--error)",
+                  borderColor: "rgba(239, 68, 68, 0.15)",
+                  justifyContent: "flex-start",
+                  padding: "8px 12px",
+                  fontSize: "0.85rem",
+                }}
+              >
+                🚪 Sair da Conta
+              </button>
             </div>
+          )}
+
+          {/* Theme Toggle */}
+          <div style={{ display: "flex", justifyContent: "center" }}>
             <button
-              onClick={handleLogout}
-              className="btn btn-secondary"
+              id="theme-toggle-btn"
+              onClick={() => setIsDarkTheme(!isDarkTheme)}
+              title={isDarkTheme ? "Mudar para tema claro" : "Mudar para tema escuro"}
               style={{
-                width: "100%",
-                background: "rgba(239, 68, 68, 0.08)",
-                color: "var(--error)",
-                borderColor: "rgba(239, 68, 68, 0.15)",
-                justifyContent: "flex-start",
-                padding: "8px 12px",
-                fontSize: "0.85rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "transparent",
+                border: "1px solid var(--border-color)",
+                borderRadius: "999px",
+                padding: "5px 14px",
+                cursor: "pointer",
+                fontSize: "0.78rem",
+                color: "var(--text-muted)",
+                transition: "all 0.25s ease",
+                backdropFilter: "blur(4px)",
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--primary)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-color)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
               }}
             >
-              🚪 Sair da Conta
+              {isDarkTheme ? "☀️ Tema Claro" : "🌙 Tema Escuro"}
             </button>
           </div>
-        )}
 
-        <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
-          Desenvolvido com ❤️ | v1.0.0
+          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
+            Desenvolvido por Inteligentte Lab | v1.0.0
+          </div>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: "40px", overflowY: "auto", position: "relative" }}>
+      <main style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
         
         {/* Alert Notifications */}
         {alert && (
           <div className="fade-in" style={{
-            position: "absolute", top: "20px", right: "40px", zIndex: 100,
+            position: "fixed", top: "24px", right: "32px", zIndex: 2000,
             padding: "16px 24px", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", gap: "10px",
-            background: alert.type === "success" ? "rgba(16, 185, 129, 0.9)" : "rgba(239, 68, 68, 0.9)",
-            color: "#fff", backdropFilter: "blur(8px)", boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)"
+            background: alert.type === "success" ? "rgba(16, 185, 129, 0.92)" : "rgba(239, 68, 68, 0.92)",
+            color: "#fff", backdropFilter: "blur(8px)", boxShadow: "0 10px 30px rgba(0, 0, 0, 0.35)",
+            maxWidth: "420px",
           }}>
             {alert.type === "success" ? "✅" : "⚠️"} {alert.text}
           </div>
         )}
+
 
         {/* Tab 1: METRICS */}
         {activeTab === "metrics" && (
@@ -1366,7 +1733,6 @@ export default function App() {
                                   const heightPercent = dayMax > 0 ? (dayMax / maxVal) * 100 : 0;
                                   const readPercent = d.sent > 0 ? (d.read / d.sent) * 100 : 0;
 
-                                  const formattedDate = new Date(d.date + "T00:00:00").toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
                                   const tooltip = `${new Date(d.date + "T00:00:00").toLocaleDateString()}:\n• Enviados/Entregues: ${d.sent}\n• Lidos: ${d.read}\n• Falhas: ${d.failed}`;
 
                                   return (
@@ -1464,6 +1830,51 @@ export default function App() {
                       );
                     })()}
                   </div>
+                </div>
+
+                {/* Desempenho por Template */}
+                <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px", marginTop: "25px" }}>
+                  <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Desempenho por Template</h3>
+                  {!metricsData.templateMetrics || metricsData.templateMetrics.length === 0 ? (
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma métrica de template registrada neste período.</p>
+                  ) : (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                        <thead>
+                          <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                            <th style={{ padding: "12px 8px" }}>Nome do Template</th>
+                            <th style={{ padding: "12px 8px" }}>Disparados</th>
+                            <th style={{ padding: "12px 8px" }}>Enviados</th>
+                            <th style={{ padding: "12px 8px" }}>Lidos</th>
+                            <th style={{ padding: "12px 8px" }}>Falhas</th>
+                            <th style={{ padding: "12px 8px" }}>Taxa de Leitura</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {metricsData.templateMetrics.map((t, idx) => {
+                            const readRate = t.sent > 0 ? Math.round((t.read / t.sent) * 100) : 0;
+                            return (
+                              <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                <td style={{ padding: "12px 8px", fontWeight: "600" }}>{t.templateName}</td>
+                                <td style={{ padding: "12px 8px" }}>{t.total}</td>
+                                <td style={{ padding: "12px 8px", color: "#818cf8" }}>{t.sent}</td>
+                                <td style={{ padding: "12px 8px", color: "var(--success)" }}>{t.read}</td>
+                                <td style={{ padding: "12px 8px", color: "var(--error)" }}>{t.failed}</td>
+                                <td style={{ padding: "12px 8px" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <span style={{ fontWeight: "600" }}>{readRate}%</span>
+                                    <div style={{ width: "60px", height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
+                                      <div style={{ height: "100%", width: `${readRate}%`, background: "var(--success)", borderRadius: "3px" }}></div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -1590,7 +2001,7 @@ export default function App() {
               </div>
             )}
 
-            {deleteConfirmTemplate && (
+            {deleteConfirmTemplate && (<ModalPortal>
               <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
                 <div className="glass fade-in" style={{ width: "450px", maxWidth: "90vw", padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
                   <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Confirmar Exclusão</h3>
@@ -1613,10 +2024,10 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            )}
+            </ModalPortal>)}
 
             {/* Modal de Criação de Template (Template Builder Premium) */}
-            {showNewTemplateModal && (
+            {showNewTemplateModal && (<ModalPortal>
               <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
                 <div className="glass fade-in" style={{ width: "950px", maxWidth: "95vw", height: "90vh", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
                   
@@ -1988,7 +2399,7 @@ export default function App() {
 
                 </div>
               </div>
-            )}
+            </ModalPortal>)}
           </div>
         )}
 
@@ -2076,9 +2487,30 @@ export default function App() {
                           <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>{selectedList.name}</h3>
                           <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Detalhamento de contatos importados</span>
                         </div>
-                        <span style={{ background: "var(--primary)", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "600" }}>
-                          {selectedList.contacts?.length || 0} contatos
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditListName(selectedList.name);
+                              setEditContacts(
+                                (selectedList.contacts || []).map((c: any) => ({
+                                  id: c.id,
+                                  name: c.name || "",
+                                  phone: c.phone,
+                                  variablesStr: c.variables ? c.variables.join(", ") : ""
+                                }))
+                              );
+                              setShowEditListModal(selectedList);
+                            }}
+                            className="btn btn-secondary"
+                            style={{ padding: "6px 12px", fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                          >
+                            ✏️ Editar Lista
+                          </button>
+                          <span style={{ background: "var(--primary)", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "600" }}>
+                            {selectedList.contacts?.length || 0} contatos
+                          </span>
+                        </div>
                       </div>
 
                       {selectedList.contacts?.length === 0 ? (
@@ -2130,14 +2562,14 @@ export default function App() {
             )}
 
             {/* Modal de Nova Lista */}
-            {showNewListModal && (
+            {showNewListModal && (<ModalPortal>
               <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
                 <div className="glass fade-in" style={{ width: "750px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
                   
                   {/* Header */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
                     <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Criar Nova Lista de Contatos</h3>
-                    <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setManualContacts([{ name: "", phone: "", variablesStr: "" }]); setImportMode("csv"); setShowNewListModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                    <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setManualContacts([{ name: "", phone: "", variablesStr: "" }]); setXlsxContacts([]); setImportMode("csv"); setShowNewListModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
                   </div>
 
                   <form onSubmit={handleCreateContactList} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
@@ -2161,7 +2593,15 @@ export default function App() {
                         className={`btn ${importMode === "csv" ? "btn-primary" : "btn-secondary"}`}
                         style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", gap: "6px" }}
                       >
-                        📄 Importar CSV / Planilha
+                        📄 Importar CSV
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportMode("xlsx")}
+                        className={`btn ${importMode === "xlsx" ? "btn-primary" : "btn-secondary"}`}
+                        style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", gap: "6px" }}
+                      >
+                        📊 Importar Excel (.xlsx)
                       </button>
                       <button
                         type="button"
@@ -2169,11 +2609,11 @@ export default function App() {
                         className={`btn ${importMode === "manual" ? "btn-primary" : "btn-secondary"}`}
                         style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", gap: "6px" }}
                       >
-                        ✍️ Cadastro Manual (Formulário)
+                        ✍️ Cadastro Manual
                       </button>
                     </div>
 
-                    {importMode === "csv" ? (
+                    {importMode === "csv" && (
                       <>
                         <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                           <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Importar de Planilha (.csv)</label>
@@ -2224,7 +2664,40 @@ export default function App() {
                           <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Limite máximo de 1.000 contatos por lote de importação. As linhas de cabeçalho da planilha serão ignoradas automaticamente.</span>
                         </div>
                       </>
-                    ) : (
+                    )}
+
+                    {importMode === "xlsx" && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Importar de Planilha (.xlsx)</label>
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
+                            Selecione um arquivo Excel (.xlsx). A primeira linha será interpretada como o cabeçalho.<br />
+                            Procuramos colunas contendo <strong>telefone/celular</strong> para o número e <strong>nome/name</strong> para o nome.
+                          </div>
+                          <input
+                            type="file"
+                            accept=".xlsx"
+                            onChange={handleXlsxUpload}
+                            style={{
+                              padding: "10px",
+                              borderRadius: "var(--radius-md)",
+                              background: "rgba(255,255,255,0.02)",
+                              border: "1px dashed var(--border-color)",
+                              color: "var(--text-secondary)",
+                              fontSize: "0.85rem",
+                              cursor: "pointer"
+                            }}
+                          />
+                        </div>
+                        {xlsxContacts.length > 0 && (
+                          <div style={{ background: "rgba(0,194,107,0.05)", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid rgba(0,194,107,0.2)", fontSize: "0.85rem", color: "var(--primary)" }}>
+                            ✅ <strong>{xlsxContacts.length} contatos lidos com sucesso!</strong> Clique em "Criar Lista" para salvar.
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {importMode === "manual" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                           <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Inserir Contatos Manuais</label>
@@ -2318,7 +2791,7 @@ export default function App() {
 
                     {/* Footer Actions */}
                     <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px", marginTop: "10px" }}>
-                      <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setManualContacts([{ name: "", phone: "", variablesStr: "" }]); setImportMode("csv"); setShowNewListModal(false); }} className="btn btn-secondary">Cancelar</button>
+                      <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setManualContacts([{ name: "", phone: "", variablesStr: "" }]); setXlsxContacts([]); setImportMode("csv"); setShowNewListModal(false); }} className="btn btn-secondary">Cancelar</button>
                       <button type="submit" disabled={loading} className="btn btn-primary" style={{ minWidth: "150px" }}>
                         {loading ? "Criando..." : "Criar Lista"}
                       </button>
@@ -2326,74 +2799,253 @@ export default function App() {
                   </form>
                 </div>
               </div>
+            </ModalPortal>)}
+
+            {/* Modal de Editar Lista */}
+            {showEditListModal !== null && (
+              <ModalPortal>
+                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+                  <div className="glass fade-in" style={{ width: "750px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+                    
+                    {/* Header */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                      <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Editar Lista de Contatos</h3>
+                      <button type="button" onClick={() => { setShowEditListModal(null); setEditListName(""); setEditContacts([]); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                    </div>
+
+                    <form onSubmit={handleEditContactList} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Nome da Lista</label>
+                        <input
+                          type="text"
+                          value={editListName}
+                          onChange={(e) => setEditListName(e.target.value)}
+                          style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                          required
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Gerenciar Contatos</label>
+                          <button
+                            type="button"
+                            onClick={() => setEditContacts([...editContacts, { name: "", phone: "", variablesStr: "" }])}
+                            className="btn btn-secondary"
+                            style={{ padding: "6px 12px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          >
+                            ➕ Adicionar Contato
+                          </button>
+                        </div>
+                        
+                        <div style={{ maxHeight: "300px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "10px", background: "rgba(0,0,0,0.15)" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                            <thead>
+                              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)", textAlign: "left" }}>
+                                <th style={{ padding: "8px 6px", fontWeight: "600" }}>Nome</th>
+                                <th style={{ padding: "8px 6px", fontWeight: "600" }}>Telefone (com DDD)</th>
+                                <th style={{ padding: "8px 6px", fontWeight: "600" }}>Variáveis (separadas por vírgula)</th>
+                                <th style={{ padding: "8px 6px", width: "40px" }}></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {editContacts.map((contact, idx) => (
+                                <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                                  <td style={{ padding: "4px" }}>
+                                    <input
+                                      type="text"
+                                      placeholder="Ex: Pedro"
+                                      value={contact.name}
+                                      onChange={(e) => {
+                                        const updated = [...editContacts];
+                                        updated[idx].name = e.target.value;
+                                        setEditContacts(updated);
+                                      }}
+                                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "4px" }}>
+                                    <input
+                                      type="text"
+                                      placeholder="Ex: 5583986241167"
+                                      value={contact.phone}
+                                      onChange={(e) => {
+                                        const updated = [...editContacts];
+                                        updated[idx].phone = e.target.value;
+                                        setEditContacts(updated);
+                                      }}
+                                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                                      required
+                                    />
+                                  </td>
+                                  <td style={{ padding: "4px" }}>
+                                    <input
+                                      type="text"
+                                      placeholder="Ex: VIP, 20%"
+                                      value={contact.variablesStr}
+                                      onChange={(e) => {
+                                        const updated = [...editContacts];
+                                        updated[idx].variablesStr = e.target.value;
+                                        setEditContacts(updated);
+                                      }}
+                                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "4px", textAlign: "center" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (editContacts.length === 1) {
+                                          setEditContacts([{ name: "", phone: "", variablesStr: "" }]);
+                                        } else {
+                                          setEditContacts(editContacts.filter((_, i) => i !== idx));
+                                        }
+                                      }}
+                                      style={{ background: "none", border: "none", color: "var(--error)", cursor: "pointer", fontSize: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px" }}
+                                      title="Excluir contato"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Todos os telefones devem conter o código do país (ex: 55 para o Brasil) e DDD.</span>
+                      </div>
+
+                      {/* Footer Actions */}
+                      <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px", marginTop: "10px" }}>
+                        <button type="button" onClick={() => { setShowEditListModal(null); setEditListName(""); setEditContacts([]); }} className="btn btn-secondary">Cancelar</button>
+                        <button type="submit" disabled={loadingEdit} className="btn btn-primary" style={{ minWidth: "150px" }}>
+                          {loadingEdit ? "Salvando..." : "Salvar Alterações"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </ModalPortal>
             )}
 
             {/* Modal de Seleção de Mídia */}
-            {showMediaSelectModal && (
-              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1001 }}>
-                <div className="glass fade-in" style={{ width: "650px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
-                  
+            {showMediaSelectModal && (<ModalPortal>
+              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1001 }}>
+                <div className="glass fade-in" style={{ width: "720px", maxWidth: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+
                   {/* Header */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
-                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Selecionar da Galeria</h3>
-                    <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>🎞️ Selecionar da Galeria</h3>
+                    <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} style={{ background: "none", border: "none", color: "var(--text-primary)", fontSize: "1.3rem", cursor: "pointer", opacity: 0.7 }}>✕</button>
                   </div>
 
-                  <div style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "15px" }}>
-                    <div style={{ maxHeight: "350px", overflowY: "auto" }}>
-                      {mediaAssets.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                          Nenhuma mídia encontrada. Faça upload na aba <strong>Galeria de Mídias</strong> primeiro.
+                  {/* Filter tabs */}
+                  <div style={{ display: "flex", gap: "8px", padding: "14px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.05)" }}>
+                    {(["all", "image", "video", "document"] as const).map((f) => {
+                      const labels: Record<string, string> = { all: "🗂️ Todos", image: "🖼️ Imagens", video: "🎬 Vídeos", document: "📄 Docs" };
+                      const activeF = (window as any).__modalMediaFilter || "all";
+                      return (
+                        <button
+                          key={f}
+                          type="button"
+                          className={`btn ${activeF === f ? "btn-primary" : "btn-secondary"}`}
+                          style={{ padding: "5px 14px", fontSize: "0.8rem" }}
+                          onClick={() => {
+                            (window as any).__modalMediaFilter = f;
+                            setLoadingMedia(() => { setTimeout(() => setLoadingMedia(false), 10); return true; });
+                          }}
+                        >
+                          {labels[f]}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: "15px", overflowY: "auto", flex: 1 }}>
+                    {mediaAssets.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                        Nenhuma mídia encontrada. Faça upload na aba <strong>Galeria de Mídias</strong> primeiro.
+                      </div>
+                    ) : (() => {
+                      const mf = (window as any).__modalMediaFilter || "all";
+                      const filteredModal = mediaAssets.filter((a: any) =>
+                        mf === "all" ? true :
+                        mf === "image" ? a.mimeType?.startsWith("image/") :
+                        mf === "video" ? a.mimeType?.startsWith("video/") :
+                        a.mimeType === "application/pdf"
+                      );
+                      return filteredModal.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>
+                          Nenhum arquivo deste tipo disponível.
                         </div>
                       ) : (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: "15px" }}>
-                          {mediaAssets.map((asset) => (
-                            <div
-                              key={asset.id}
-                              onClick={() => {
-                                if (mediaSelectCallback) {
-                                  mediaSelectCallback(asset.url);
-                                }
-                                setShowMediaSelectModal(false);
-                                setMediaSelectCallback(null);
-                              }}
-                              className="glass-interactive"
-                              style={{
-                                borderRadius: "var(--radius-sm)",
-                                overflow: "hidden",
-                                display: "flex",
-                                flexDirection: "column",
-                                border: "1px solid rgba(255,255,255,0.06)",
-                                background: "rgba(255,255,255,0.02)",
-                                cursor: "pointer"
-                              }}
-                            >
-                              <div style={{ height: "90px", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-                                {asset.mimeType.startsWith("image/") ? (
-                                  <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                ) : asset.mimeType.startsWith("video/") ? (
-                                  <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                ) : (
-                                  <span style={{ fontSize: "2rem" }}>📄</span>
-                                )}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: "14px" }}>
+                          {filteredModal.map((asset: any) => {
+                            const isVideo = asset.mimeType?.startsWith("video/");
+                            const isImage = asset.mimeType?.startsWith("image/");
+                            const typeBg = isVideo ? "rgba(139,92,246,0.75)" : isImage ? "rgba(16,185,129,0.75)" : "rgba(245,158,11,0.75)";
+                            const typeLabel = isVideo ? "🎬" : isImage ? "🖼️" : "📄";
+                            return (
+                              <div
+                                key={asset.id}
+                                onClick={() => {
+                                  if (mediaSelectCallback) mediaSelectCallback(asset.url);
+                                  setShowMediaSelectModal(false);
+                                  setMediaSelectCallback(null);
+                                }}
+                                className="glass-interactive"
+                                style={{
+                                  borderRadius: "var(--radius-sm)",
+                                  overflow: "hidden",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  border: "1px solid var(--border-color)",
+                                  cursor: "pointer",
+                                  transition: "transform 0.15s ease, border-color 0.15s ease",
+                                }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--primary)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLDivElement).style.transform = ""; }}
+                              >
+                                {/* Preview */}
+                                <div style={{ height: "100px", background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
+                                  {isImage ? (
+                                    <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                  ) : isVideo ? (
+                                    <>
+                                      <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" playsInline />
+                                      {/* Play overlay */}
+                                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.25)", pointerEvents: "none" }}>
+                                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem" }}>▶</div>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <span style={{ fontSize: "2.5rem" }}>📄</span>
+                                  )}
+                                  {/* Type badge */}
+                                  <div style={{ position: "absolute", top: "6px", left: "6px", background: typeBg, backdropFilter: "blur(4px)", padding: "2px 7px", borderRadius: "20px", fontSize: "0.65rem", fontWeight: "700", color: "#fff", pointerEvents: "none" }}>
+                                    {typeLabel} {asset.mimeType?.split("/")[1]?.toUpperCase()}
+                                  </div>
+                                </div>
+                                {/* Name */}
+                                <div style={{ padding: "8px 10px", fontSize: "0.72rem", fontWeight: "500", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={asset.filename}>
+                                  {asset.filename.replace(/^\d+-/, "")}
+                                </div>
                               </div>
-                              <div style={{ padding: "8px", fontSize: "0.75rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={asset.filename}>
-                                {asset.filename.slice(14)}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
-                      )}
-                    </div>
+                      );
+                    })()}
+                  </div>
 
-                    <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
-                      <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} className="btn btn-secondary">Cancelar</button>
-                    </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", padding: "14px 28px", background: "rgba(0,0,0,0.05)" }}>
+                    <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} className="btn btn-secondary">Cancelar</button>
                   </div>
 
                 </div>
               </div>
-            )}
+            </ModalPortal>)}
+
           </div>
         )}
 
@@ -2648,13 +3300,28 @@ export default function App() {
                   const footerComp = tmpl.components.find((c: any) => c.type === "FOOTER");
                   const buttonsComp = tmpl.components.find((c: any) => c.type === "BUTTONS");
 
+                  const resolvedPreviewVars = recipientType === "list"
+                    ? templateVariables.map((_, idx) => {
+                        const mapping = variableMappings[idx] || "STATIC_VALUE";
+                        if (mapping.startsWith("STATIC:")) {
+                          return mapping.replace("STATIC:", "");
+                        }
+                        if (mapping === "CONTACT_NAME") return "[Nome]";
+                        if (mapping === "CONTACT_PHONE") return "[Telefone]";
+                        if (mapping === "CONTACT_VAR_1") return "[Var 1]";
+                        if (mapping === "CONTACT_VAR_2") return "[Var 2]";
+                        if (mapping === "CONTACT_VAR_3") return "[Var 3]";
+                        return `{{${idx + 1}}}`;
+                      })
+                    : templateVariables;
+
                   return (
                     <PhoneSimulator
                       headerFormat={headerComp ? headerComp.format : "NONE"}
                       headerText={headerComp ? headerComp.text : ""}
                       mediaUrl={messageMediaUrl}
                       bodyText={bodyComp ? bodyComp.text : ""}
-                      variables={templateVariables}
+                      variables={resolvedPreviewVars}
                       footerText={footerComp ? footerComp.text : ""}
                       buttons={buttonsComp ? buttonsComp.buttons : []}
                     />
@@ -2669,57 +3336,319 @@ export default function App() {
 
               {/* Logs de Mensagens */}
               <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Histórico Recente</h3>
-                  <button onClick={() => selectedAccount && fetchMessages(selectedAccount.id)} className="btn btn-secondary" style={{ padding: "8px 14px", fontSize: "0.8rem" }}>
-                    🔄 Atualizar Logs
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
+                  <div style={{ display: "flex", gap: "6px", background: "rgba(255,255,255,0.03)", padding: "4px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
+                    <button
+                      type="button"
+                      onClick={() => setLogsView("recent")}
+                      className={`btn ${logsView === "recent" ? "btn-primary" : "btn-secondary"}`}
+                      style={{ padding: "6px 14px", fontSize: "0.8rem", border: "none" }}
+                    >
+                      📋 Histórico Recente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLogsView("scheduled");
+                        if (selectedAccount) fetchScheduledMessages(selectedAccount.id);
+                      }}
+                      className={`btn ${logsView === "scheduled" ? "btn-primary" : "btn-secondary"}`}
+                      style={{ padding: "6px 14px", fontSize: "0.8rem", border: "none" }}
+                    >
+                      📅 Agendamentos Futuros
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (selectedAccount) {
+                        if (logsView === "recent") {
+                          fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+                        } else {
+                          fetchScheduledMessages(selectedAccount.id);
+                        }
+                      }
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "8px 14px", fontSize: "0.8rem" }}
+                  >
+                    🔄 {logsView === "recent" ? "Atualizar Logs" : "Atualizar Agendamentos"}
                   </button>
                 </div>
 
-                {messageLogs.length === 0 ? (
-                  <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma mensagem enviada por esta conta.</p>
-                ) : (
-                  <div style={{ overflowX: "auto" }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
-                      <thead>
-                        <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                          <th style={{ padding: "12px 8px" }}>Destinatário</th>
-                          <th style={{ padding: "12px 8px" }}>Template</th>
-                          <th style={{ padding: "12px 8px" }}>Data/Hora</th>
-                          <th style={{ padding: "12px 8px" }}>Status</th>
-                          <th style={{ padding: "12px 8px" }}>Detalhes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {messageLogs.map((log) => (
-                          <tr key={log.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                            <td style={{ padding: "12px 8px", fontWeight: "500" }}>{log.to}</td>
-                            <td style={{ padding: "12px 8px" }}>{log.templateName}</td>
-                            <td style={{ padding: "12px 8px", color: "var(--text-secondary)", fontSize: "0.8rem" }}>
-                              {new Date(log.createdAt).toLocaleString()}
-                            </td>
-                            <td style={{ padding: "12px 8px" }}>
-                              <span className={`badge badge-${log.status.toLowerCase()}`}>
-                                {log.status}
+                {logsView === "recent" ? (
+                  <>
+                    {/* Filtros e Busca */}
+                    <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end", background: "rgba(255,255,255,0.02)", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minWidth: "180px" }}>
+                        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "600" }}>Buscar por Contato / Template</label>
+                        <input
+                          type="text"
+                          placeholder="Pesquisar..."
+                          value={messagesSearch}
+                          onChange={(e) => {
+                            setMessagesSearch(e.target.value);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && selectedAccount) {
+                              setMessagesPage(1);
+                              fetchMessages(selectedAccount.id, 1, messagesSearch, messagesStatus, messagesTemplateFilter);
+                            }
+                          }}
+                          style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "130px" }}>
+                        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "600" }}>Filtrar Status</label>
+                        <select
+                          value={messagesStatus}
+                          onChange={(e) => {
+                            setMessagesStatus(e.target.value);
+                          }}
+                          style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                        >
+                          <option value="">Todos</option>
+                          <option value="PENDING">PENDING</option>
+                          <option value="SENT">SENT</option>
+                          <option value="DELIVERED">DELIVERED</option>
+                          <option value="READ">READ</option>
+                          <option value="FAILED">FAILED</option>
+                        </select>
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "170px" }}>
+                        <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "600" }}>Filtrar Template</label>
+                        <select
+                          value={messagesTemplateFilter}
+                          onChange={(e) => {
+                            setMessagesTemplateFilter(e.target.value);
+                          }}
+                          style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                        >
+                          <option value="">Todos</option>
+                          {templates.map(t => (
+                            <option key={t.id} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          onClick={() => {
+                            if (selectedAccount) {
+                              setMessagesPage(1);
+                              fetchMessages(selectedAccount.id, 1, messagesSearch, messagesStatus, messagesTemplateFilter);
+                            }
+                          }}
+                          className="btn btn-primary"
+                          style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+                        >
+                          🔍 Filtrar
+                        </button>
+                        <button
+                          onClick={() => {
+                            setMessagesSearch("");
+                            setMessagesStatus("");
+                            setMessagesTemplateFilter("");
+                            setMessagesPage(1);
+                            if (selectedAccount) {
+                              fetchMessages(selectedAccount.id, 1, "", "", "");
+                            }
+                          }}
+                          className="btn btn-secondary"
+                          style={{ padding: "8px 12px", fontSize: "0.85rem" }}
+                        >
+                          Limpar
+                        </button>
+                      </div>
+                    </div>
+
+                    {messageLogs.length === 0 ? (
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma mensagem enviada por esta conta.</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                        <div style={{ overflowX: "auto" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                            <thead>
+                              <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                                <th style={{ padding: "12px 8px" }}>Destinatário</th>
+                                <th style={{ padding: "12px 8px" }}>Template</th>
+                                <th style={{ padding: "12px 8px" }}>Data/Hora</th>
+                                <th style={{ padding: "12px 8px" }}>Status</th>
+                                <th style={{ padding: "12px 8px" }}>Detalhes</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {messageLogs.map((log) => (
+                                <tr key={log.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                  <td style={{ padding: "12px 8px", fontWeight: "500" }}>{log.to}</td>
+                                  <td style={{ padding: "12px 8px" }}>{log.templateName}</td>
+                                  <td style={{ padding: "12px 8px", color: "var(--text-secondary)", fontSize: "0.8rem" }}>
+                                    {new Date(log.createdAt).toLocaleString()}
+                                  </td>
+                                  <td style={{ padding: "12px 8px" }}>
+                                    <span className={`badge badge-${log.status.toLowerCase()}`}>
+                                      {log.status}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: "12px 8px", color: "var(--text-muted)", fontSize: "0.8rem", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {log.errorMessage ? (
+                                      <span style={{ color: "var(--error)" }} title={log.errorMessage}>
+                                        ⚠️ {log.errorMessage}
+                                      </span>
+                                    ) : (
+                                      <span title={log.wamid || ""}>{log.wamid ? `${log.wamid.slice(0, 15)}...` : "-"}</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Paginação */}
+                        {totalMessages > messagesLimit && (
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "16px", marginTop: "10px" }}>
+                            <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                              Mostrando {((messagesPage - 1) * messagesLimit) + 1} - {Math.min(messagesPage * messagesLimit, totalMessages)} de {totalMessages} logs
+                            </span>
+                            <div style={{ display: "flex", gap: "8px" }}>
+                              <button
+                                disabled={messagesPage === 1}
+                                onClick={() => {
+                                  const prev = messagesPage - 1;
+                                  setMessagesPage(prev);
+                                  if (selectedAccount) fetchMessages(selectedAccount.id, prev, messagesSearch, messagesStatus, messagesTemplateFilter);
+                                }}
+                                className="btn btn-secondary"
+                                style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                              >
+                                ◀ Anterior
+                              </button>
+                              <span style={{ display: "flex", alignItems: "center", padding: "0 10px", fontSize: "0.85rem", fontWeight: "600", color: "#fff" }}>
+                                Página {messagesPage} de {Math.ceil(totalMessages / messagesLimit)}
                               </span>
-                            </td>
-                            <td style={{ padding: "12px 8px", color: "var(--text-muted)", fontSize: "0.8rem", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {log.errorMessage ? (
-                                <span style={{ color: "var(--error)" }} title={log.errorMessage}>
-                                  ⚠️ {log.errorMessage}
-                                </span>
-                              ) : (
-                                <span title={log.wamid || ""}>{log.wamid ? `${log.wamid.slice(0, 15)}...` : "-"}</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                              <button
+                                disabled={messagesPage >= Math.ceil(totalMessages / messagesLimit)}
+                                onClick={() => {
+                                  const next = messagesPage + 1;
+                                  setMessagesPage(next);
+                                  if (selectedAccount) fetchMessages(selectedAccount.id, next, messagesSearch, messagesStatus, messagesTemplateFilter);
+                                }}
+                                className="btn btn-secondary"
+                                style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                              >
+                                Próxima ▶
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {loadingScheduled ? (
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Carregando agendamentos futuros...</p>
+                    ) : scheduledMessages.length === 0 ? (
+                      <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhum agendamento futuro encontrado para esta conta.</p>
+                    ) : (
+                      <div style={{ overflowX: "auto" }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                          <thead>
+                            <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
+                              <th style={{ padding: "12px 8px" }}>Destinatário</th>
+                              <th style={{ padding: "12px 8px" }}>Template</th>
+                              <th style={{ padding: "12px 8px" }}>Data/Hora de Envio</th>
+                              <th style={{ padding: "12px 8px" }}>Status</th>
+                              <th style={{ padding: "12px 8px", textAlign: "right" }}>Ações</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scheduledMessages.map((msg) => (
+                              <tr key={msg.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                                <td style={{ padding: "12px 8px", fontWeight: "500" }}>{msg.to}</td>
+                                <td style={{ padding: "12px 8px" }}>{msg.templateName}</td>
+                                <td style={{ padding: "12px 8px", color: "var(--text-secondary)", fontSize: "0.8rem" }}>
+                                  {new Date(msg.scheduledAt).toLocaleString()}
+                                </td>
+                                <td style={{ padding: "12px 8px" }}>
+                                  <span className="badge badge-pending">PENDING</span>
+                                </td>
+                                <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                                  <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const date = new Date(msg.scheduledAt);
+                                        const pad = (n: number) => String(n).padStart(2, "0");
+                                        const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+                                        setRescheduleDate(formatted);
+                                        setShowRescheduleModal(msg.id);
+                                      }}
+                                      className="btn btn-secondary"
+                                      style={{ padding: "6px 12px", fontSize: "0.78rem", background: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.2)", color: "#3b82f6", cursor: "pointer" }}
+                                    >
+                                      📅 Reagendar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelScheduled(msg.id)}
+                                      className="btn btn-secondary"
+                                      style={{ padding: "6px 12px", fontSize: "0.78rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "var(--error)", cursor: "pointer" }}
+                                    >
+                                      🗑️ Cancelar
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
+
+            {/* Reschedule Modal */}
+            {showRescheduleModal !== null && (
+              <ModalPortal>
+                <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+                  <div className="glass fade-in" style={{ width: "420px", maxWidth: "90vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                      <h3 style={{ fontSize: "1.2rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span>📅</span> Reagendar Mensagem
+                      </h3>
+                      <button type="button" onClick={() => { setShowRescheduleModal(null); setRescheduleDate(""); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer", opacity: 0.7 }}>✕</button>
+                    </div>
+
+                    <form onSubmit={(e) => { e.preventDefault(); if (showRescheduleModal) handleReschedule(showRescheduleModal); }} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Nova Data e Hora de Envio</label>
+                        <input
+                          type="datetime-local"
+                          value={rescheduleDate}
+                          onChange={(e) => setRescheduleDate(e.target.value)}
+                          min={(() => {
+                            const now = new Date();
+                            const pad = (n: number) => String(n).padStart(2, "0");
+                            return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+                          })()}
+                          style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                          required
+                        />
+                      </div>
+
+                      <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px", marginTop: "10px" }}>
+                        <button type="button" onClick={() => { setShowRescheduleModal(null); setRescheduleDate(""); }} className="btn btn-secondary">Cancelar</button>
+                        <button type="submit" disabled={loadingScheduled} className="btn btn-primary" style={{ minWidth: "120px" }}>
+                          {loadingScheduled ? "Salvando..." : "Confirmar"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </ModalPortal>
+            )}
           </div>
         )}
 
@@ -2728,7 +3657,7 @@ export default function App() {
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
             <div>
               <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Galeria de Mídias</h1>
-              <p style={{ color: "var(--text-secondary)" }}>Faça upload e gerencie arquivos (imagens, vídeos e documentos) para usar nos seus disparos.</p>
+              <p style={{ color: "var(--text-secondary)" }}>Faça upload e gerencie imagens, vídeos e documentos para usar nos seus disparos de templates.</p>
             </div>
 
             {!selectedAccount ? (
@@ -2738,20 +3667,44 @@ export default function App() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-                
+
                 {/* Upload Zone */}
-                <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", alignItems: "center", gap: "15px", border: "1px dashed var(--border-color)", background: "rgba(255,255,255,0.01)" }}>
-                  <div style={{ fontSize: "2.5rem" }}>📤</div>
+                <div
+                  className="glass"
+                  style={{
+                    padding: "36px 30px",
+                    borderRadius: "var(--radius-xl)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "16px",
+                    border: "2px dashed var(--border-color)",
+                    background: "rgba(255,255,255,0.01)",
+                    transition: "border-color 0.2s",
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = "var(--primary)"; }}
+                  onDragLeave={(e) => { e.currentTarget.style.borderColor = "var(--border-color)"; }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.style.borderColor = "var(--border-color)";
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) handleUploadMedia(file);
+                  }}
+                >
+                  <div style={{ fontSize: "2.8rem" }}>📤</div>
                   <div style={{ textAlign: "center" }}>
                     <h3 style={{ fontSize: "1.1rem", fontWeight: "600", marginBottom: "4px" }}>Fazer Upload de Arquivo</h3>
-                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>Formatos suportados: Imagens, MP4, PDF (Máx 16MB)</p>
+                    <p style={{ color: "var(--text-secondary)", fontSize: "0.85rem" }}>
+                      Arraste ou selecione · JPEG, PNG, WebP, <strong>MP4</strong>, 3GPP, PDF · Máx. <strong>50 MB</strong>
+                    </p>
                   </div>
                   <input
                     type="file"
-                    accept="image/*,video/mp4,application/pdf"
+                    accept="image/jpeg,image/png,image/webp,video/mp4,video/3gpp,application/pdf"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) handleUploadMedia(file);
+                      e.target.value = "";
                     }}
                     style={{ display: "none" }}
                     id="media-file-upload-input"
@@ -2761,97 +3714,168 @@ export default function App() {
                     className="btn btn-primary"
                     style={{ cursor: "pointer" }}
                   >
-                    Selecionar Arquivo
+                    📂 Selecionar Arquivo
                   </label>
                 </div>
 
                 {/* Gallery Grid */}
                 <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-                  <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Arquivos Disponíveis ({mediaAssets.length})</h3>
-                  
+                  {/* Header with filter */}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+                    <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>
+                      Arquivos Disponíveis ({mediaAssets.length})
+                    </h3>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      {(["all", "image", "video", "document"] as const).map((f) => {
+                        const labels: Record<string, string> = { all: "Todos", image: "🖼️ Imagens", video: "🎬 Vídeos", document: "📄 Docs" };
+                        const isActive = (window as any).__mediaFilter === f || (!((window as any).__mediaFilter) && f === "all");
+                        return (
+                          <button
+                            key={f}
+                            type="button"
+                            className={`btn ${isActive ? "btn-primary" : "btn-secondary"}`}
+                            style={{ padding: "6px 14px", fontSize: "0.8rem" }}
+                            onClick={() => {
+                              (window as any).__mediaFilter = f;
+                              // force re-render via a dummy state toggle
+                              setLoadingMedia(() => { setTimeout(() => setLoadingMedia(false), 10); return true; });
+                            }}
+                          >
+                            {labels[f]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   {loadingMedia ? (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
-                      <div className="skeleton" style={{ width: "100%", height: "200px", borderRadius: "var(--radius-md)" }}></div>
-                      <div className="skeleton" style={{ width: "100%", height: "200px", borderRadius: "var(--radius-md)" }}></div>
-                      <div className="skeleton" style={{ width: "100%", height: "200px", borderRadius: "var(--radius-md)" }}></div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: "20px" }}>
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="skeleton" style={{ width: "100%", height: "230px", borderRadius: "var(--radius-md)" }} />
+                      ))}
                     </div>
                   ) : mediaAssets.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "60px", color: "var(--text-muted)", display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "3rem" }}>🖼️</span>
+                      <span style={{ fontSize: "3rem" }}>🎞️</span>
                       <span>Nenhum arquivo enviado para este canal comercial ainda.</span>
                     </div>
-                  ) : (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "20px" }}>
-                      {mediaAssets.map((asset) => (
-                        <div
-                          key={asset.id}
-                          className="glass"
-                          style={{
-                            borderRadius: "var(--radius-md)",
-                            overflow: "hidden",
-                            display: "flex",
-                            flexDirection: "column",
-                            border: "1px solid rgba(255,255,255,0.06)",
-                            background: "rgba(255,255,255,0.02)",
-                          }}
-                        >
-                          {/* Preview Area */}
-                          <div style={{ height: "130px", background: "rgba(0,0,0,0.2)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", borderBottom: "1px solid var(--border-color)" }}>
-                            {asset.mimeType.startsWith("image/") ? (
-                              <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            ) : asset.mimeType.startsWith("video/") ? (
-                              <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted />
-                            ) : (
-                              <span style={{ fontSize: "3rem" }}>📄</span>
-                            )}
-                            <div style={{ position: "absolute", bottom: "8px", left: "8px", background: "rgba(0,0,0,0.6)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.7rem", color: "var(--text-secondary)" }}>
-                              {asset.mimeType.split("/")[1]?.toUpperCase() || "FILE"}
-                            </div>
-                          </div>
+                  ) : (() => {
+                    const activeFilter = (window as any).__mediaFilter || "all";
+                    const filtered = mediaAssets.filter((a: any) =>
+                      activeFilter === "all" ? true :
+                      activeFilter === "image" ? a.mimeType?.startsWith("image/") :
+                      activeFilter === "video" ? a.mimeType?.startsWith("video/") :
+                      a.mimeType === "application/pdf"
+                    );
+                    return filtered.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                        Nenhum arquivo deste tipo encontrado.
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))", gap: "20px" }}>
+                        {filtered.map((asset: any) => {
+                          const isVideo = asset.mimeType?.startsWith("video/");
+                          const isImage = asset.mimeType?.startsWith("image/");
+                          const typeLabel = isVideo ? "🎬 Vídeo" : isImage ? "🖼️ Imagem" : "📄 Doc";
+                          const typeBg = isVideo ? "rgba(139,92,246,0.7)" : isImage ? "rgba(16,185,129,0.7)" : "rgba(245,158,11,0.7)";
+                          return (
+                            <div
+                              key={asset.id}
+                              className="glass glass-interactive"
+                              style={{
+                                borderRadius: "var(--radius-md)",
+                                overflow: "hidden",
+                                display: "flex",
+                                flexDirection: "column",
+                                border: "1px solid var(--border-color)",
+                              }}
+                            >
+                              {/* Preview Area */}
+                              <div style={{ height: "150px", background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative", borderBottom: "1px solid var(--border-color)" }}>
+                                {isImage ? (
+                                  <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                ) : isVideo ? (
+                                  <video
+                                    src={asset.url}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                    controls
+                                    muted
+                                    preload="metadata"
+                                    playsInline
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: "3.5rem" }}>📄</span>
+                                )}
+                                {/* Type badge */}
+                                <div style={{
+                                  position: "absolute", top: "8px", left: "8px",
+                                  background: typeBg,
+                                  backdropFilter: "blur(4px)",
+                                  padding: "3px 8px", borderRadius: "20px",
+                                  fontSize: "0.7rem", fontWeight: "600", color: "#fff",
+                                  pointerEvents: "none",
+                                }}>
+                                  {typeLabel}
+                                </div>
+                              </div>
 
-                          {/* Info Area */}
-                          <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
-                            <div style={{ fontWeight: "600", fontSize: "0.85rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={asset.filename}>
-                              {asset.filename.slice(14)} {/* remove timestamp prefix */}
+                              {/* Info Area */}
+                              <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
+                                <div style={{ fontWeight: "600", fontSize: "0.82rem", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }} title={asset.filename}>
+                                  {asset.filename.replace(/^\d+-/, "")}
+                                </div>
+                                <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                                  {(asset.size / 1024 / 1024).toFixed(2)} MB · {asset.mimeType?.split("/")[1]?.toUpperCase()}
+                                </div>
+
+                                {/* Actions */}
+                                <div style={{ display: "flex", gap: "6px", marginTop: "auto", paddingTop: "6px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(asset.url);
+                                      showAlert("Link copiado! 🔗");
+                                    }}
+                                    className="btn btn-secondary"
+                                    style={{ flex: 1, padding: "6px 8px", fontSize: "0.75rem" }}
+                                    title="Copiar URL"
+                                  >
+                                    🔗 Copiar URL
+                                  </button>
+                                  <a
+                                    href={asset.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="btn btn-secondary"
+                                    style={{ padding: "6px 10px", fontSize: "0.75rem", textDecoration: "none" }}
+                                    title="Abrir em nova aba"
+                                  >
+                                    ↗
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteMedia(asset.id)}
+                                    className="btn btn-secondary"
+                                    style={{ padding: "6px 10px", fontSize: "0.75rem", color: "var(--error)" }}
+                                    title="Excluir"
+                                  >
+                                    🗑️
+                                  </button>
+                                </div>
+                              </div>
                             </div>
-                            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                              {(asset.size / 1024 / 1024).toFixed(2)} MB
-                            </div>
-                            
-                            {/* Actions */}
-                            <div style={{ display: "flex", gap: "8px", marginTop: "auto" }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(asset.url);
-                                  showAlert("Link copiado para a área de transferência!");
-                                }}
-                                className="btn btn-secondary"
-                                style={{ flex: 1, padding: "6px 8px", fontSize: "0.75rem", gap: "4px" }}
-                              >
-                                🔗 Copiar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteMedia(asset.id)}
-                                className="btn btn-secondary"
-                                style={{ padding: "6px 10px", fontSize: "0.75rem", color: "var(--error)" }}
-                                title="Excluir"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
 
               </div>
             )}
           </div>
         )}
+
 
         {/* Tab 6: ADMIN (ADMINISTRAÇÃO DE USUÁRIOS) */}
         {activeTab === "admin" && (

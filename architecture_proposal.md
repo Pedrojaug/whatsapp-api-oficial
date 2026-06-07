@@ -132,8 +132,27 @@ Existem duas formas principais de conectar o seu novo produto com o n8n:
        }
      ```
 2. **n8n como Receptor de Eventos (Webhooks Retornos)**:
-   * Se você quiser que o n8n tome ações baseado no status da mensagem (ex: se der `failed` enviar um SMS ou notificar o vendedor), você pode configurar em sua plataforma uma URL de Webhook do n8n para cada conta de cliente.
-   * Quando o backend receber o status da Meta, ele faz um repasse (webhook forwarding) para o n8n.
+    * Se você quiser que o n8n tome ações baseado no status da mensagem (ex: se der `failed` enviar um SMS ou notificar o vendedor), você pode configurar em sua plataforma uma URL de Webhook do n8n para cada conta de cliente.
+    * Quando o backend receber o status da Meta, ele faz um repasse (webhook forwarding) para o n8n.
+
+---
+
+## 📈 Extensões e Melhorias Arquiteturais (Fase de Produção)
+
+### A. Carregamento sob Demanda de Bibliotecas Extras (Excel/SheetJS)
+Para manter o bundle React inicial leve, o processamento de planilhas Excel `.xlsx` ocorre no frontend carregando a biblioteca do CDN de forma assíncrona. Quando o usuário ativa a importação via Excel, o frontend aciona um injetor dinâmico de script que adiciona a biblioteca ao DOM e resolve a Promise com o leitor XLSX em tempo de execução.
+
+### B. Gestão de Agendamentos Futuros com SSE (Server-Sent Events)
+Disparos agendados no futuro são salvos com status `PENDING` e `scheduledAt` correspondente.
+- O backend expõe endpoints REST para listagem (`GET /accounts/:accountId/scheduled`), cancelamento (`DELETE`) e reagendamento (`POST .../reschedule`).
+- Quando um agendamento é alterado ou cancelado, o backend emite eventos via barramento de eventos local (`messageEventEmitter`). A conexão aberta de **Server-Sent Events (SSE)** encaminha o status atualizado em tempo real para os navegadores dos clientes, que recarregam a lista automaticamente de forma reativa.
+
+### C. Sincronização Unificada de Listas e Contatos (PUT RESTful)
+Para viabilizar a edição e gerenciamento completo de listas de contatos sem gerar dezenas de requisições de rede individuais, a arquitetura utiliza um endpoint transacional unificado:
+`PUT /accounts/:accountId/lists/:listId`
+1. O backend atualiza o nome da lista de contatos.
+2. Compara os contatos recebidos com os já persistidos no banco.
+3. Executa em lote: exclusões de contatos ausentes (`deleteMany`), criações de contatos inéditos (`createMany`) e atualizações de registros alterados (`update`).
 
 ---
 

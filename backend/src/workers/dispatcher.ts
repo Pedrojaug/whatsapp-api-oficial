@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import axios from "axios";
 import { decryptToken } from "../utils/crypto";
+import { messageEventEmitter } from "../utils/emitter";
 
 let isProcessing = false;
 
@@ -119,7 +120,7 @@ export function startBackgroundDispatcher() {
           const wamid = response.data.messages?.[0]?.id;
 
           // Atualizar para SENT no banco
-          await prisma.message.update({
+          const updatedMsg = await prisma.message.update({
             where: { id: msg.id },
             data: {
               wamid,
@@ -129,6 +130,16 @@ export function startBackgroundDispatcher() {
           });
 
           console.log(`[Worker] Mensagem ${msg.id} enviada com sucesso para ${msg.to}. Wamid: ${wamid}`);
+
+          // Emitir evento em tempo real para SSE
+          messageEventEmitter.emit("messageUpdated", {
+            accountId: updatedMsg.accountId,
+            messageId: updatedMsg.id,
+            status: updatedMsg.status,
+            wamid: updatedMsg.wamid,
+            errorMessage: updatedMsg.errorMessage,
+            updatedAt: updatedMsg.updatedAt,
+          });
         } catch (error: any) {
           console.error(`[Worker] Erro ao enviar mensagem ${msg.id}:`, error.response?.data || error.message);
           
@@ -142,7 +153,7 @@ export function startBackgroundDispatcher() {
 
           if (isFatalError || nextRetryCount > 3) {
             // Falha permanente
-            await prisma.message.update({
+            const updatedMsg = await prisma.message.update({
               where: { id: msg.id },
               data: {
                 status: "FAILED",
@@ -150,13 +161,23 @@ export function startBackgroundDispatcher() {
               }
             });
             console.log(`[Worker] Mensagem ${msg.id} marcada como FAILED permanentemente. Erro: ${errMsg}`);
+
+            // Emitir evento em tempo real para SSE
+            messageEventEmitter.emit("messageUpdated", {
+              accountId: updatedMsg.accountId,
+              messageId: updatedMsg.id,
+              status: updatedMsg.status,
+              wamid: updatedMsg.wamid,
+              errorMessage: updatedMsg.errorMessage,
+              updatedAt: updatedMsg.updatedAt,
+            });
           } else {
             // Agendar retentativa com backoff exponencial (1min, 5min, 15min)
             const backoffMinutes = nextRetryCount === 1 ? 1 : nextRetryCount === 2 ? 5 : 15;
             const nextRetryAtDate = new Date();
             nextRetryAtDate.setMinutes(nextRetryAtDate.getMinutes() + backoffMinutes);
 
-            await prisma.message.update({
+            const updatedMsg = await prisma.message.update({
               where: { id: msg.id },
               data: {
                 retryCount: nextRetryCount,
@@ -165,6 +186,16 @@ export function startBackgroundDispatcher() {
               }
             });
             console.log(`[Worker] Mensagem ${msg.id} falhou temporariamente. Agendada retentativa #${nextRetryCount} para daqui a ${backoffMinutes} minutos (${nextRetryAtDate.toLocaleTimeString()}).`);
+
+            // Emitir evento em tempo real para SSE
+            messageEventEmitter.emit("messageUpdated", {
+              accountId: updatedMsg.accountId,
+              messageId: updatedMsg.id,
+              status: updatedMsg.status,
+              wamid: updatedMsg.wamid,
+              errorMessage: updatedMsg.errorMessage,
+              updatedAt: updatedMsg.updatedAt,
+            });
           }
         }
 

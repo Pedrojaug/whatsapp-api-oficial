@@ -5,6 +5,7 @@ import path from "path";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { encryptToken, decryptToken } from "../utils/crypto";
+import { messageEventEmitter } from "../utils/emitter";
 
 const router = Router();
 
@@ -509,6 +510,90 @@ router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Re
   }
 });
 
+// Editar lista e gerenciar seus contatos (scoped to user)
+router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Response) => {
+  const { accountId, listId } = req.params;
+  const { name, contacts } = req.body; // contacts: Array<{ id?: string, name?: string, phone: string, variables?: string[] }>
+
+  if (!name || !contacts || !Array.isArray(contacts)) {
+    return res.status(400).json({ error: "Nome da lista e contatos são obrigatórios." });
+  }
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const list = await prisma.contactList.findFirst({
+      where: { id: listId, accountId }
+    });
+    if (!list) return res.status(404).json({ error: "Lista não encontrada" });
+
+    // Atualizar nome da lista
+    await prisma.contactList.update({
+      where: { id: listId },
+      data: { name }
+    });
+
+    const existingContacts = await prisma.contact.findMany({
+      where: { contactListId: listId }
+    });
+    const existingIds = existingContacts.map(c => c.id);
+
+    const incomingIds = contacts.map(c => c.id).filter(Boolean) as string[];
+    const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
+
+    // Excluir contatos removidos
+    if (idsToDelete.length > 0) {
+      await prisma.contact.deleteMany({
+        where: { id: { in: idsToDelete } }
+      });
+    }
+
+    // Criar novos contatos (sem id)
+    const contactsToCreate = contacts.filter(c => !c.id);
+    if (contactsToCreate.length > 0) {
+      await prisma.contact.createMany({
+        data: contactsToCreate.map(c => ({
+          contactListId: listId,
+          name: c.name || null,
+          phone: c.phone.trim().replace(/\D/g, ""),
+          variables: c.variables || [],
+        }))
+      });
+    }
+
+    // Atualizar contatos existentes modificados
+    const contactsToUpdate = contacts.filter(c => c.id && existingIds.includes(c.id));
+    for (const c of contactsToUpdate) {
+      await prisma.contact.update({
+        where: { id: c.id },
+        data: {
+          name: c.name || null,
+          phone: c.phone.trim().replace(/\D/g, ""),
+          variables: c.variables || [],
+        }
+      });
+    }
+
+    // Retornar lista atualizada com contagem de contatos
+    const updatedList = await prisma.contactList.findUnique({
+      where: { id: listId },
+      include: {
+        _count: {
+          select: { contacts: true }
+        }
+      }
+    });
+
+    res.json(updatedList);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Disparo em lote para uma lista (scoped to user)
 router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res: Response) => {
   const { accountId, listId } = req.params;
@@ -719,9 +804,11 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
   }
 });
 
-// List messages logs (scoped to user)
+// List messages logs (scoped to user) with filters and pagination
 router.get("/accounts/:accountId/messages", async (req: Request, res: Response) => {
   const { accountId } = req.params;
+  const { search, status, templateName, page = "1", limit = "50" } = req.query;
+
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const account = await prisma.account.findFirst({
@@ -729,14 +816,90 @@ router.get("/accounts/:accountId/messages", async (req: Request, res: Response) 
     });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
 
-    const messages = await prisma.message.findMany({
-      where: { accountId },
-      orderBy: { createdAt: "desc" },
-      take: 200, // Limite de 200 logs
+    const p = parseInt(page as string) || 1;
+    const l = parseInt(limit as string) || 50;
+    const skip = (p - 1) * l;
+
+    const whereClause: any = {
+      accountId,
+    };
+
+    if (status) {
+      whereClause.status = status as string;
+    }
+
+    if (templateName) {
+      whereClause.templateName = templateName as string;
+    }
+
+    if (search) {
+      whereClause.OR = [
+        { to: { contains: search as string } },
+        { templateName: { contains: search as string, mode: "insensitive" } },
+      ];
+    }
+
+    const [messages, total] = await prisma.$transaction([
+      prisma.message.findMany({
+        where: whereClause,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: l,
+      }),
+      prisma.message.count({
+        where: whereClause,
+      }),
+    ]);
+
+    res.json({
+      messages,
+      total,
+      page: p,
+      limit: l,
     });
-    res.json(messages);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// SSE events route to stream real-time updates for messages (scoped to user)
+router.get("/accounts/:accountId/messages/events", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const userId = (req as AuthenticatedRequest).userId;
+
+  try {
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    // Configurar cabeçalhos para Server-Sent Events (SSE)
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders(); // Envia os cabeçalhos imediatamente
+
+    // Enviar mensagem de conexão estabelecida
+    res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+    const onMessageUpdated = (data: any) => {
+      if (data.accountId === accountId) {
+        res.write(`data: ${JSON.stringify({ type: "messageUpdated", ...data })}\n\n`);
+      }
+    };
+
+    messageEventEmitter.on("messageUpdated", onMessageUpdated);
+
+    // Limpar listener quando a conexão fechar
+    req.on("close", () => {
+      messageEventEmitter.off("messageUpdated", onMessageUpdated);
+    });
+
+  } catch (error: any) {
+    console.error("Erro no SSE de mensagens:", error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message });
+    }
   }
 });
 
@@ -800,7 +963,8 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       },
       select: {
         status: true,
-        createdAt: true
+        createdAt: true,
+        templateName: true
       }
     });
 
@@ -854,10 +1018,157 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
 
     const chartData = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
+    // Agrupar por nome do template para tabela de performance
+    const templateMap = new Map<string, { templateName: string; sent: number; read: number; failed: number; total: number }>();
+
+    messages.forEach(msg => {
+      const tName = msg.templateName || "Envio Direto";
+      if (!templateMap.has(tName)) {
+        templateMap.set(tName, { templateName: tName, sent: 0, read: 0, failed: 0, total: 0 });
+      }
+      const tData = templateMap.get(tName)!;
+      tData.total++;
+      if (msg.status === "READ") {
+        tData.read++;
+        tData.sent++;
+      } else if (msg.status === "DELIVERED" || msg.status === "SENT") {
+        tData.sent++;
+      } else if (msg.status === "FAILED") {
+        tData.failed++;
+      }
+    });
+
+    const templateMetrics = Array.from(templateMap.values()).sort((a, b) => b.total - a.total);
+
     res.json({
       totals: { sent, delivered, read, failed, total },
-      chartData
+      chartData,
+      templateMetrics
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ==========================================
+// SCHEDULED MESSAGES ROUTER
+// ==========================================
+
+// Obter mensagens agendadas para o futuro (scoped to user)
+router.get("/accounts/:accountId/scheduled", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const now = new Date();
+    const scheduledMessages = await prisma.message.findMany({
+      where: {
+        accountId,
+        status: "PENDING",
+        scheduledAt: { gt: now }
+      },
+      orderBy: { scheduledAt: "asc" }
+    });
+
+    res.json(scheduledMessages);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Cancelar agendamento individual (scoped to user)
+router.delete("/accounts/:accountId/scheduled/:messageId", async (req: Request, res: Response) => {
+  const { accountId, messageId } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const msg = await prisma.message.findFirst({
+      where: { id: messageId, accountId }
+    });
+    if (!msg) return res.status(404).json({ error: "Mensagem agendada não encontrada" });
+
+    if (msg.status !== "PENDING") {
+      return res.status(400).json({ error: "Esta mensagem já foi processada ou está em andamento e não pode ser cancelada" });
+    }
+
+    await prisma.message.delete({
+      where: { id: messageId }
+    });
+
+    // Notificar SSE
+    messageEventEmitter.emit("messageUpdated", {
+      accountId,
+      messageId,
+      status: "CANCELLED",
+      wamid: null,
+      errorMessage: "Cancelada pelo usuário",
+      updatedAt: new Date(),
+    });
+
+    res.json({ success: true, message: "Agendamento cancelado com sucesso." });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reagendar mensagem (scoped to user)
+router.post("/accounts/:accountId/scheduled/:messageId/reschedule", async (req: Request, res: Response) => {
+  const { accountId, messageId } = req.params;
+  const { scheduledAt } = req.body;
+
+  if (!scheduledAt) {
+    return res.status(400).json({ error: "Nova data/hora de agendamento é obrigatória." });
+  }
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const msg = await prisma.message.findFirst({
+      where: { id: messageId, accountId }
+    });
+    if (!msg) return res.status(404).json({ error: "Mensagem agendada não encontrada" });
+
+    if (msg.status !== "PENDING") {
+      return res.status(400).json({ error: "Esta mensagem já foi processada e não pode ser reagendada." });
+    }
+
+    const newDate = new Date(scheduledAt);
+    if (isNaN(newDate.getTime()) || newDate <= new Date()) {
+      return res.status(400).json({ error: "A data de agendamento deve ser uma data válida e futura." });
+    }
+
+    const updatedMsg = await prisma.message.update({
+      where: { id: messageId },
+      data: {
+        scheduledAt: newDate,
+        nextRetryAt: null,
+        retryCount: 0,
+      }
+    });
+
+    // Notificar SSE
+    messageEventEmitter.emit("messageUpdated", {
+      accountId,
+      messageId: updatedMsg.id,
+      status: updatedMsg.status,
+      wamid: null,
+      errorMessage: null,
+      updatedAt: updatedMsg.updatedAt,
+    });
+
+    res.json({ success: true, message: "Mensagem reagendada com sucesso.", data: updatedMsg });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -917,7 +1228,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                 // Procurar mensagem por wamid e atualizar status
                 const msg = await prisma.message.findUnique({ where: { wamid } });
                 if (msg) {
-                  await prisma.message.update({
+                  const updatedMsg = await prisma.message.update({
                     where: { wamid },
                     data: {
                       status,
@@ -925,6 +1236,16 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                     },
                   });
                   console.log(`Mensagem ${wamid} atualizada para o status: ${status}`);
+
+                  // Emitir evento em tempo real para SSE
+                  messageEventEmitter.emit("messageUpdated", {
+                    accountId: updatedMsg.accountId,
+                    messageId: updatedMsg.id,
+                    status: updatedMsg.status,
+                    wamid: updatedMsg.wamid,
+                    errorMessage: updatedMsg.errorMessage,
+                    updatedAt: updatedMsg.updatedAt,
+                  });
                 }
               }
             }
@@ -1117,6 +1438,24 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
     return res.status(400).json({ error: "Faltam campos obrigatórios: filename, mimeType, fileBase64" });
   }
 
+  // Tipos de arquivo permitidos (alinhado com limites da Meta WhatsApp)
+  const ALLOWED_MIME_TYPES: Record<string, string> = {
+    "image/jpeg": "image",
+    "image/png": "image",
+    "image/webp": "image",
+    "video/mp4": "video",
+    "video/3gpp": "video",
+    "application/pdf": "document",
+  };
+
+  if (!ALLOWED_MIME_TYPES[mimeType]) {
+    return res.status(400).json({
+      error: `Tipo de arquivo não suportado: ${mimeType}. Aceitos: JPEG, PNG, WebP, MP4, 3GPP, PDF.`
+    });
+  }
+
+  const MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const account = await prisma.account.findFirst({
@@ -1127,6 +1466,13 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
     // Converter base64 para Buffer
     const base64Data = fileBase64.replace(/^data:.*?;base64,/, "");
     const fileBuffer = Buffer.from(base64Data, "base64");
+
+    // Verificar tamanho
+    if (fileBuffer.length > MAX_SIZE_BYTES) {
+      return res.status(400).json({
+        error: `Arquivo muito grande (${(fileBuffer.length / 1024 / 1024).toFixed(1)} MB). Limite máximo: 50 MB.`
+      });
+    }
 
     // Gerar um nome único para evitar colisões
     const uniqueFilename = `${Date.now()}-${filename.replace(/\s+/g, "_")}`;
@@ -1156,6 +1502,7 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
     res.status(500).json({ error: error.message });
   }
 });
+
 
 // Delete media asset (scoped to account/user)
 router.delete("/accounts/:accountId/media/:mediaId", async (req: Request, res: Response) => {

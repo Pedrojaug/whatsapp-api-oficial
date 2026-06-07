@@ -8,19 +8,20 @@ export interface AuthenticatedRequest extends Request {
 }
 
 export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  let token = "";
   const authHeader = req.headers.authorization;
-  if (!authHeader) {
+
+  if (authHeader) {
+    const parts = authHeader.split(" ");
+    if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
+      token = parts[1];
+    }
+  } else if (req.query.token) {
+    token = req.query.token as string;
+  }
+
+  if (!token) {
     return res.status(401).json({ error: "Token não fornecido. Acesso não autorizado." });
-  }
-
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2) {
-    return res.status(401).json({ error: "Erro no token. Formato inválido." });
-  }
-
-  const [scheme, token] = parts;
-  if (!/^Bearer$/i.test(scheme)) {
-    return res.status(401).json({ error: "Erro no token. Formato malformado." });
   }
 
   try {
