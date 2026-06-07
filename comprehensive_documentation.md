@@ -547,3 +547,28 @@ Qualquer erro inesperado ou exceção não tratada na execução de middlewares/
   }
   ```
 - Oculta o stack trace da resposta quando em ambiente que não seja de desenvolvimento (NODE_ENV !== "development").```
+
+---
+
+## 👥 8. Conta Superadmin e Sessão de Suporte (Impersonate)
+
+Para facilitar o suporte aos clientes no modelo *White Label* sem comprometer a segurança das senhas, a plataforma implementa uma funcionalidade de impersonação segura de usuários.
+
+### 🛡️ Permissão Administrativa (`SUPERUSER`)
+No banco de dados, os usuários que possuem a permissão `role: "SUPERUSER"` são identificados como administradores gerais do sistema. Essa permissão habilita:
+- A exibição da aba **`🛠️ Administração`** na barra lateral do frontend.
+- O acesso a rotas protegidas sob a rota `/api/admin/*`.
+
+### 🚪 Mecanismo de Impersonate (Entrar como Suporte)
+A funcionalidade de suporte permite ao administrador navegar na conta de qualquer cliente com um único clique, sem que seja necessário conhecer ou expor a senha do usuário:
+
+1. **Listagem de Usuários (`GET /api/admin/users`):**
+   * Retorna os dados cadastrais básicos de todos os clientes e a quantidade de linhas Meta conectadas. Por motivos de segurança, a rota **nunca expõe as senhas** (que são armazenadas como hash seguro via `bcrypt`).
+2. **Troca de Identidade (`POST /api/admin/impersonate`):**
+   * O administrador escolhe o cliente e o backend gera um token JWT especial em nome do cliente com validade de 24 horas.
+   * O token de suporte inclui os campos `impersonatorId` e `impersonatorName` (para auditoria técnica de acessos).
+3. **Fluxo do Frontend:**
+   * O frontend armazena as credenciais originais de administrador (`admin_token` e `admin_user`) no `localStorage` e substitui o token ativo pelo token temporário do cliente.
+   * A tela recarrega sob a perspectiva do cliente, e um banner persistente no topo indica que a sessão de suporte está ativa.
+4. **Retorno ao Painel:**
+   * Ao clicar em "Encerrar Suporte", o frontend limpa o token do cliente e restaura o token de administrador original que estava guardado no `localStorage`, retornando o admin ao painel de administração geral.
