@@ -185,6 +185,3 @@ Para tirarmos esse projeto do papel, podemos começar de forma ágil com a segui
 
 ---
 
-> [!TIP]
-> **Dica de Monetização / Produto (SaaS):**
-> Se no futuro você quiser vender este produto como um SaaS (Software as a Service) multitenant, o backend já desenhado com a tabela `accounts` permitirá que cada cliente configure suas próprias credenciais da Meta, permitindo que você cobre uma assinatura deles pelo uso do painel e controle de disparos.
