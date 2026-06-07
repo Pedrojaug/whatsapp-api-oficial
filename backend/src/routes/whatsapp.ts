@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import axios from "axios";
 import fs from "fs";
 import path from "path";
+import crypto from "crypto";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { encryptToken, decryptToken } from "../utils/crypto";
@@ -677,7 +678,12 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
   const { to, templateName, language, variables, mediaUrl, scheduledAt } = req.body;
 
   if (!to || !templateName) {
-    return res.status(400).json({ error: "Missing to or templateName" });
+    return res.status(400).json({ error: "Destinatário (to) e Template são obrigatórios." });
+  }
+
+  const sanitizedTo = to.trim().replace(/\D/g, "");
+  if (sanitizedTo.length < 8) {
+    return res.status(400).json({ error: "Número de telefone destinatário inválido." });
   }
 
   try {
@@ -685,7 +691,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
     const account = await prisma.account.findFirst({
       where: { id: accountId, userId }
     });
-    if (!account) return res.status(404).json({ error: "Account not found" });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada." });
 
     const template = await prisma.template.findFirst({
       where: { accountId, name: templateName },
@@ -698,7 +704,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
     const dbMessage = await prisma.message.create({
       data: {
         accountId,
-        to,
+        to: sanitizedTo,
         templateName,
         variables: variables ? { variables, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
         status: "PENDING",
@@ -755,7 +761,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
         `https://graph.facebook.com/v19.0/${account.phoneNumberId}/messages`,
         {
           messaging_product: "whatsapp",
-          to,
+          to: sanitizedTo,
           type: "template",
           template: {
             name: templateName,
@@ -1199,6 +1205,49 @@ router.get("/webhooks", (req: Request, res: Response) => {
 
 // Webhook Receiver (POST)
 router.post("/webhooks", async (req: Request, res: Response) => {
+  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  const signature = req.headers["x-hub-signature-256"] as string;
+
+  if (appSecret) {
+    if (!signature) {
+      console.warn("[Webhook] Assinatura ausente (x-hub-signature-256).");
+      return res.status(401).send("Signature missing");
+    }
+
+    const parts = signature.split("=");
+    if (parts[0] !== "sha256" || !parts[1]) {
+      console.warn("[Webhook] Formato de assinatura inválido.");
+      return res.status(400).send("Invalid signature format");
+    }
+
+    const signatureHash = parts[1];
+    const rawBody = (req as any).rawBody;
+
+    if (!rawBody) {
+      console.warn("[Webhook] Corpo bruto da requisição indisponível.");
+      return res.status(400).send("Raw body not available");
+    }
+
+    const expectedHash = crypto
+      .createHmac("sha256", appSecret)
+      .update(rawBody)
+      .digest("hex");
+
+    try {
+      const isMatch = crypto.timingSafeEqual(
+        Buffer.from(signatureHash, "hex"),
+        Buffer.from(expectedHash, "hex")
+      );
+      if (!isMatch) {
+        console.warn("[Webhook] Assinatura inválida.");
+        return res.status(403).send("Signature mismatch");
+      }
+    } catch (err) {
+      console.error("[Webhook] Erro ao validar assinatura do webhook:", err);
+      return res.status(403).send("Signature verification error");
+    }
+  }
+
   const body = req.body;
 
   // Responder 200 OK imediatamente para a Meta não ficar reenviando

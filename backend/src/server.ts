@@ -26,7 +26,12 @@ app.use(cors({
   origin: allowedOrigin,
   credentials: true
 }));
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({
+  limit: "50mb",
+  verify: (req: any, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 
@@ -41,6 +46,15 @@ app.use("/api", whatsappRouter);
 // Rota de Status
 app.get("/status", (req, res) => {
   res.json({ status: "ok", time: new Date() });
+});
+
+// Middleware de tratamento de erro global
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error("Erro não tratado na aplicação:", err);
+  res.status(err.status || 500).json({
+    error: "Ocorreu um erro interno no servidor.",
+    message: process.env.NODE_ENV === "development" ? err.message : undefined,
+  });
 });
 
 // Iniciar worker de background

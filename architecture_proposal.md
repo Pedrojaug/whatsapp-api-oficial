@@ -154,6 +154,12 @@ Para viabilizar a edição e gerenciamento completo de listas de contatos sem ge
 2. Compara os contatos recebidos com os já persistidos no banco.
 3. Executa em lote: exclusões de contatos ausentes (`deleteMany`), criações de contatos inéditos (`createMany`) e atualizações de registros alterados (`update`).
 
+### D. Segurança e Robustez Técnica (Validação de Webhooks e Sanitização de Entradas)
+Para blindar o backend de inconsistências de dados e proteger as integrações públicas:
+1. **Validação de Assinatura do Webhook (HMAC-SHA256)**: O endpoint `POST /webhooks` valida a autenticidade das requisições recebidas da Meta através do cabeçalho `x-hub-signature-256`. Usando a biblioteca de criptografia do Node e `crypto.timingSafeEqual` com o `FACEBOOK_APP_SECRET`, garantimos imunidade contra spoofing e timing attacks.
+2. **Sanitização Universal de Números**: A inserção de novos destinatários e contatos em lote passa por uma limpeza rigorosa `.replace(/\D/g, "")`, removendo traços, parênteses, espaços e o caractere `+`, deixando apenas os dígitos numéricos exigidos pela Meta.
+3. **Tratamento Global de Exceções**: O middleware de tratamento de erro no Express impede o vazamento de stack traces e informações internas, retornando mensagens padronizadas em formato JSON.
+
 ---
 
 ## 🚀 Próximos Passos para o Desenvolvimento

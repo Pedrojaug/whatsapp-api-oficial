@@ -518,3 +518,32 @@ Atualiza o nome da lista e sincroniza a relação de contatos (adiciona novos, a
   }
   ```
 - **Response (200 OK):** Retorna a lista atualizada com a nova contagem total de contatos.
+
+---
+
+## 🛡️ 7. Segurança e Robustez
+
+### 🔑 Validação de Assinatura nos Webhooks da Meta
+Para evitar spoofing e garantir que as atualizações de mensagens do webhook originaram-se efetivamente da Meta, o endpoint `POST /api/webhooks` valida a assinatura digital:
+- **Cabeçalho:** `x-hub-signature-256` (contém `sha256=<hash_hmac>`).
+- **Verificação:** É calculado o HMAC SHA-256 do corpo bruto (`req.rawBody`) utilizando o `FACEBOOK_APP_SECRET` da aplicação como chave.
+- **Comparação Segura:** A comparação de hashes utiliza `crypto.timingSafeEqual` para prevenir ataques de análise de tempo (timing attacks).
+- **Fallback:** Se o `FACEBOOK_APP_SECRET` não for definido no `.env`, a rota ignora a validação para facilitar o desenvolvimento local.
+
+### 🧹 Sanitização de Números de Telefone
+Tanto no envio individual quanto no bulk, os telefones de destino são higienizados removendo todos os caracteres não numéricos:
+```typescript
+const sanitizedTo = to.trim().replace(/\D/g, "");
+```
+Se o número higienizado resultante possuir menos de 8 caracteres, a API rejeita a requisição imediatamente com `400 Bad Request`.
+
+### 🚨 Tratamento de Erros Centralizado
+Qualquer erro inesperado ou exceção não tratada na execução de middlewares/controllers do Express é interceptado por um Error Handler Middleware global:
+- Responde ao cliente com status apropriado (ou `500 Internal Server Error`).
+- Retorna um payload JSON uniforme:
+  ```json
+  {
+    "error": "Ocorreu um erro interno no servidor."
+  }
+  ```
+- Oculta o stack trace da resposta quando em ambiente que não seja de desenvolvimento (NODE_ENV !== "development").```
