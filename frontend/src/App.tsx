@@ -194,6 +194,10 @@ export default function App() {
   const [newListName, setNewListName] = useState("");
   const [newListRawContacts, setNewListRawContacts] = useState("");
   const [selectedList, setSelectedList] = useState<any | null>(null);
+  const [importMode, setImportMode] = useState<"csv" | "manual">("csv");
+  const [manualContacts, setManualContacts] = useState<Array<{ name: string; phone: string; variablesStr: string }>>([
+    { name: "", phone: "", variablesStr: "" }
+  ]);
 
   // Manual Send Message States
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
@@ -523,12 +527,29 @@ export default function App() {
       showAlert("O nome da lista é obrigatório.", "error");
       return;
     }
-    if (!newListRawContacts.trim()) {
-      showAlert("Insira ao menos um contato.", "error");
-      return;
+
+    let parsedContacts: any[] = [];
+    if (importMode === "csv") {
+      if (!newListRawContacts.trim()) {
+        showAlert("Insira ao menos um contato.", "error");
+        return;
+      }
+      parsedContacts = parseRawContacts(newListRawContacts);
+    } else {
+      parsedContacts = manualContacts
+        .map(c => ({
+          name: c.name.trim() || undefined,
+          phone: c.phone.trim().replace(/\D/g, ""),
+          variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
+        }))
+        .filter(c => c.phone.length >= 8); // phone min length check
+      
+      if (parsedContacts.length === 0) {
+        showAlert("Insira ao menos um contato com telefone válido (mínimo 8 dígitos).", "error");
+        return;
+      }
     }
 
-    const parsedContacts = parseRawContacts(newListRawContacts);
     if (parsedContacts.length === 0) {
       showAlert("Nenhum contato válido encontrado.", "error");
       return;
@@ -540,7 +561,7 @@ export default function App() {
 
     setLoading(true);
     try {
-      showAlert("Importando contatos e criando lista...");
+      showAlert("Criando lista de contatos...");
       await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/lists`, {
         name: newListName,
         contacts: parsedContacts
@@ -548,6 +569,8 @@ export default function App() {
       showAlert("Lista de contatos criada com sucesso!");
       setNewListName("");
       setNewListRawContacts("");
+      setManualContacts([{ name: "", phone: "", variablesStr: "" }]);
+      setImportMode("csv");
       setShowNewListModal(false);
       fetchContactLists(selectedAccount.id);
     } catch (err: any) {
@@ -2012,12 +2035,12 @@ export default function App() {
             {/* Modal de Nova Lista */}
             {showNewListModal && (
               <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-                <div className="glass fade-in" style={{ width: "600px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+                <div className="glass fade-in" style={{ width: "750px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
                   
                   {/* Header */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 30px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
-                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Importar Nova Lista de Contatos</h3>
-                    <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setShowNewListModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>Criar Nova Lista de Contatos</h3>
+                    <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setManualContacts([{ name: "", phone: "", variablesStr: "" }]); setImportMode("csv"); setShowNewListModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
                   </div>
 
                   <form onSubmit={handleCreateContactList} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
@@ -2033,60 +2056,174 @@ export default function App() {
                       />
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "15px" }}>
-                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Importar de Planilha (.csv)</label>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-                        Selecione um arquivo de planilha exportado como CSV. Suporta separação por vírgula ou ponto-e-vírgula.
-                      </div>
-                      <input
-                        type="file"
-                        accept=".csv"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const text = event.target?.result as string;
-                            setNewListRawContacts(text);
-                            showAlert("Planilha CSV carregada com sucesso!");
-                          };
-                          reader.readAsText(file);
-                        }}
-                        style={{
-                          padding: "10px",
-                          borderRadius: "var(--radius-md)",
-                          background: "rgba(255,255,255,0.02)",
-                          border: "1px dashed var(--border-color)",
-                          color: "var(--text-secondary)",
-                          fontSize: "0.85rem",
-                          cursor: "pointer"
-                        }}
-                      />
+                    {/* Seletor de Modo de Importação */}
+                    <div style={{ display: "flex", gap: "10px", borderBottom: "1px solid rgba(255,255,255,0.06)", paddingBottom: "12px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setImportMode("csv")}
+                        className={`btn ${importMode === "csv" ? "btn-primary" : "btn-secondary"}`}
+                        style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", gap: "6px" }}
+                      >
+                        📄 Importar CSV / Planilha
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportMode("manual")}
+                        className={`btn ${importMode === "manual" ? "btn-primary" : "btn-secondary"}`}
+                        style={{ flex: 1, padding: "8px 12px", fontSize: "0.85rem", gap: "6px" }}
+                      >
+                        ✍️ Cadastro Manual (Formulário)
+                      </button>
                     </div>
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                      <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Contatos Carregados / Copiar & Colar</label>
-                      <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
-                        Edite abaixo ou cole novos contatos diretamente. Formatos aceitos:<br />
-                        • Telefone simples: <code>5583986241167</code><br />
-                        • Planilha CSV: <code>5583986241167, Pedro, VIP, 20%</code> (Telefone, Nome, Var 1, Var 2...)
+                    {importMode === "csv" ? (
+                      <>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Importar de Planilha (.csv)</label>
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
+                            Selecione um arquivo de planilha exportado como CSV. Suporta separação por vírgula ou ponto-e-vírgula.
+                          </div>
+                          <input
+                            type="file"
+                            accept=".csv"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const text = event.target?.result as string;
+                                setNewListRawContacts(text);
+                                showAlert("Planilha CSV carregada com sucesso!");
+                              };
+                              reader.readAsText(file);
+                            }}
+                            style={{
+                              padding: "10px",
+                              borderRadius: "var(--radius-md)",
+                              background: "rgba(255,255,255,0.02)",
+                              border: "1px dashed var(--border-color)",
+                              color: "var(--text-secondary)",
+                              fontSize: "0.85rem",
+                              cursor: "pointer"
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Contatos Carregados / Copiar & Colar</label>
+                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "4px" }}>
+                            Edite abaixo ou cole novos contatos diretamente. Formatos aceitos:<br />
+                            • Telefone simples: <code>5583986241167</code><br />
+                            • Planilha CSV: <code>5583986241167, Pedro, VIP, 20%</code> (Telefone, Nome, Var 1, Var 2...)
+                          </div>
+                          <textarea
+                            placeholder={`5583986241167, Pedro, VIP, Desconto de 20%\n5511999999999, João, Standard, Frete Grátis`}
+                            value={newListRawContacts}
+                            onChange={(e) => setNewListRawContacts(e.target.value)}
+                            rows={6}
+                            style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", resize: "none", fontFamily: "monospace", fontSize: "0.85rem", outline: "none" }}
+                            required={importMode === "csv"}
+                          />
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Limite máximo de 1.000 contatos por lote de importação. As linhas de cabeçalho da planilha serão ignoradas automaticamente.</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Inserir Contatos Manuais</label>
+                          <button
+                            type="button"
+                            onClick={() => setManualContacts([...manualContacts, { name: "", phone: "", variablesStr: "" }])}
+                            className="btn btn-secondary"
+                            style={{ padding: "6px 12px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
+                          >
+                            ➕ Adicionar Contato
+                          </button>
+                        </div>
+                        
+                        <div style={{ maxHeight: "250px", overflowY: "auto", border: "1px solid var(--border-color)", borderRadius: "var(--radius-md)", padding: "10px", background: "rgba(0,0,0,0.15)" }}>
+                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                            <thead>
+                              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", color: "var(--text-secondary)", textAlign: "left" }}>
+                                <th style={{ padding: "8px 6px", fontWeight: "600" }}>Nome</th>
+                                <th style={{ padding: "8px 6px", fontWeight: "600" }}>Telefone (com DDD)</th>
+                                <th style={{ padding: "8px 6px", fontWeight: "600" }}>Variáveis (separadas por vírgula)</th>
+                                <th style={{ padding: "8px 6px", width: "40px" }}></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {manualContacts.map((contact, idx) => (
+                                <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
+                                  <td style={{ padding: "4px" }}>
+                                    <input
+                                      type="text"
+                                      placeholder="Ex: Pedro"
+                                      value={contact.name}
+                                      onChange={(e) => {
+                                        const updated = [...manualContacts];
+                                        updated[idx].name = e.target.value;
+                                        setManualContacts(updated);
+                                      }}
+                                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "4px" }}>
+                                    <input
+                                      type="text"
+                                      placeholder="Ex: 5583986241167"
+                                      value={contact.phone}
+                                      onChange={(e) => {
+                                        const updated = [...manualContacts];
+                                        updated[idx].phone = e.target.value;
+                                        setManualContacts(updated);
+                                      }}
+                                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                                      required={importMode === "manual"}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "4px" }}>
+                                    <input
+                                      type="text"
+                                      placeholder="Ex: VIP, 20%"
+                                      value={contact.variablesStr}
+                                      onChange={(e) => {
+                                        const updated = [...manualContacts];
+                                        updated[idx].variablesStr = e.target.value;
+                                        setManualContacts(updated);
+                                      }}
+                                      style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                                    />
+                                  </td>
+                                  <td style={{ padding: "4px", textAlign: "center" }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (manualContacts.length === 1) {
+                                          setManualContacts([{ name: "", phone: "", variablesStr: "" }]);
+                                        } else {
+                                          setManualContacts(manualContacts.filter((_, i) => i !== idx));
+                                        }
+                                      }}
+                                      style={{ background: "none", border: "none", color: "var(--error)", cursor: "pointer", fontSize: "1rem", display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "4px" }}
+                                      title="Excluir contato"
+                                    >
+                                      🗑️
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Todos os telefones devem conter o código do país (ex: 55 para o Brasil) e DDD.</span>
                       </div>
-                      <textarea
-                        placeholder={`5583986241167, Pedro, VIP, Desconto de 20%\n5511999999999, João, Standard, Frete Grátis`}
-                        value={newListRawContacts}
-                        onChange={(e) => setNewListRawContacts(e.target.value)}
-                        rows={8}
-                        style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", resize: "none", fontFamily: "monospace", fontSize: "0.85rem", outline: "none" }}
-                        required
-                      />
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Limite máximo de 1.000 contatos por lote de importação. As linhas de cabeçalho da planilha serão ignoradas automaticamente.</span>
-                    </div>
+                    )}
 
                     {/* Footer Actions */}
                     <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "15px", marginTop: "10px" }}>
-                      <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setShowNewListModal(false); }} className="btn btn-secondary">Cancelar</button>
+                      <button type="button" onClick={() => { setNewListName(""); setNewListRawContacts(""); setManualContacts([{ name: "", phone: "", variablesStr: "" }]); setImportMode("csv"); setShowNewListModal(false); }} className="btn btn-secondary">Cancelar</button>
                       <button type="submit" disabled={loading} className="btn btn-primary" style={{ minWidth: "150px" }}>
-                        {loading ? "Importando..." : "Criar Lista & Importar"}
+                        {loading ? "Criando..." : "Criar Lista"}
                       </button>
                     </div>
                   </form>
