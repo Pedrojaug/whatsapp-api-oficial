@@ -10,6 +10,7 @@ interface SetupWizardProps {
 
 export default function SetupWizard({ onSave }: SetupWizardProps) {
   const [step, setStep] = useState(1);
+  const oauthIntervalRef = React.useRef<any>(null);
   
   // Manual form states
   const [form, setForm] = useState({
@@ -90,6 +91,13 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
       // Garantir que a mensagem vem da nossa própria origem
       if (event.origin !== window.location.origin) return;
 
+      if (event.data?.type === "FACEBOOK_OAUTH_SUCCESS" || event.data?.type === "FACEBOOK_OAUTH_FAILED") {
+        if (oauthIntervalRef.current) {
+          clearInterval(oauthIntervalRef.current);
+          oauthIntervalRef.current = null;
+        }
+      }
+
       if (event.data?.type === "FACEBOOK_OAUTH_SUCCESS") {
         const token = event.data.token;
         await handleTokenExchange(token);
@@ -102,6 +110,9 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     window.addEventListener("message", handleOAuthMessage);
     return () => {
       window.removeEventListener("message", handleOAuthMessage);
+      if (oauthIntervalRef.current) {
+        clearInterval(oauthIntervalRef.current);
+      }
     };
   }, []);
 
@@ -124,11 +135,25 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     const left = window.screen.width / 2 - width / 2;
     const top = window.screen.height / 2 - height / 2;
 
-    window.open(
+    if (oauthIntervalRef.current) {
+      clearInterval(oauthIntervalRef.current);
+    }
+
+    const popup = window.open(
       authUrl,
       "facebook-login-popup",
       `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,status=no,location=no,scrollbars=yes`
     );
+
+    if (popup) {
+      oauthIntervalRef.current = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(oauthIntervalRef.current);
+          oauthIntervalRef.current = null;
+          setOnboardLoading(false);
+        }
+      }, 1000);
+    }
   };
 
   const handleTokenExchange = async (shortLivedToken: string) => {
