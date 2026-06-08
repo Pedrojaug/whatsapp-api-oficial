@@ -13,6 +13,9 @@ function ModalPortal({ children }: { children: React.ReactNode }) {
 
 
 const getApiUrl = () => {
+  if (window.location.hostname.endsWith("vercel.app")) {
+    return "https://whatsapp-api-oficial-nls9.onrender.com/api";
+  }
   const envUrl = import.meta.env.VITE_API_BASE_URL;
   if (envUrl && envUrl.startsWith("http")) {
     return envUrl;
