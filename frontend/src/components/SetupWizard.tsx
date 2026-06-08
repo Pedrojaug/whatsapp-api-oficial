@@ -4,6 +4,11 @@ import axios from "axios";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
 const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "";
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 interface SetupWizardProps {
   onSave: (newAccount: any) => void;
 }
@@ -63,7 +68,7 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
         wabaId: form.wabaId.trim(),
         phoneNumberId: form.phoneNumberId.trim(),
         accessToken: form.accessToken.trim(),
-      });
+      }, { headers: getAuthHeaders() });
 
       if (verifyRes.data.success) {
         // 2. Salvar no banco local se validado
@@ -72,7 +77,7 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
           wabaId: form.wabaId.trim(),
           phoneNumberId: form.phoneNumberId.trim(),
           accessToken: form.accessToken.trim(),
-        });
+        }, { headers: getAuthHeaders() });
         
         onSave(saveRes.data);
         setStep(4); // Vai para a etapa de Sucesso
@@ -161,7 +166,7 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
       setOnboardLoading(true);
       const res = await axios.post(`${API_BASE_URL}/accounts/facebook-onboard/exchange`, {
         shortLivedToken
-      });
+      }, { headers: getAuthHeaders() });
 
       const { longLivedToken, wabas } = res.data;
       setLongLivedToken(longLivedToken);
@@ -205,7 +210,7 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
         wabaId: selectedWaba.id,
         phoneNumberId: selectedPhoneId,
         accessToken: longLivedToken,
-      });
+      }, { headers: getAuthHeaders() });
 
       // Atualiza o estado na tela principal
       onSave(saveRes.data);
