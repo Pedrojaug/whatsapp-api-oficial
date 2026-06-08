@@ -12,7 +12,7 @@ function ModalPortal({ children }: { children: React.ReactNode }) {
 }
 
 
-const API_BASE_URL = "http://localhost:3001/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
 
 const parseJwt = (token: string) => {
   try {
@@ -141,7 +141,7 @@ export default function App() {
   const fetchAdminUsers = async () => {
     setLoadingAdminUsers(true);
     try {
-      const res = await axios.get("http://localhost:3001/api/admin/users");
+      const res = await axios.get(`${API_BASE_URL}/admin/users`);
       setAdminUsers(res.data);
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -160,7 +160,7 @@ export default function App() {
       const currentToken = localStorage.getItem("token")!;
       const currentUser = localStorage.getItem("user")!;
       
-      const res = await axios.post("http://localhost:3001/api/admin/impersonate", { targetUserId });
+      const res = await axios.post(`${API_BASE_URL}/admin/impersonate`, { targetUserId });
       
       // Save original admin details
       localStorage.setItem("admin_token", currentToken);
@@ -231,7 +231,7 @@ export default function App() {
   const [newListName, setNewListName] = useState("");
   const [newListRawContacts, setNewListRawContacts] = useState("");
   const [selectedList, setSelectedList] = useState<any | null>(null);
-  const [importMode, setImportMode] = useState<"csv" | "manual">("csv");
+  const [importMode, setImportMode] = useState<"csv" | "manual" | "xlsx">("csv");
   const [manualContacts, setManualContacts] = useState<Array<{ name: string; phone: string; variablesStr: string }>>([
     { name: "", phone: "", variablesStr: "" }
   ]);

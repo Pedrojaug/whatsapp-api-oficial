@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
+const BASE_API_URL = import.meta.env.VITE_API_BASE_URL 
+  ? import.meta.env.VITE_API_BASE_URL.replace("/api", "") 
+  : "http://localhost:3001";
+
 interface AuthPagesProps {
   onLoginSuccess: (token: string, user: { id: string; email: string; name: string | null }) => void;
 }
@@ -175,7 +179,7 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
       const payload = isLogin ? { email, password } : { email, password, name };
-      const response = await axios.post(`http://localhost:3001${endpoint}`, payload);
+      const response = await axios.post(`${BASE_API_URL}${endpoint}`, payload);
       const { token, user } = response.data;
       onLoginSuccess(token, user);
     } catch (err: any) {
