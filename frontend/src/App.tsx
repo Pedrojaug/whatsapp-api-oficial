@@ -12,11 +12,34 @@ function ModalPortal({ children }: { children: React.ReactNode }) {
 }
 
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3001/api";
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && envUrl.startsWith("http")) {
+    return envUrl;
+  }
+  return "https://whatsapp-api-oficial-nls9.onrender.com/api";
+};
+const API_BASE_URL = getApiUrl();
 
 const parseJwt = (token: string) => {
   try {
     return JSON.parse(atob(token.split('.')[1]));
+  } catch (e) {
+    return null;
+  }
+};
+
+const getSafeToken = (): string | null => {
+  const t = localStorage.getItem("token");
+  if (!t || t === "undefined" || t === "null") return null;
+  return t;
+};
+
+const getSafeUser = (): { id: string; email: string; name: string | null; role?: string } | null => {
+  const u = localStorage.getItem("user");
+  if (!u || u === "undefined" || u === "null") return null;
+  try {
+    return JSON.parse(u);
   } catch (e) {
     return null;
   }
@@ -59,10 +82,8 @@ interface TemplateButton {
 }
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(localStorage.getItem("token"));
-  const [user, setUser] = useState<{ id: string; email: string; name: string | null; role?: string } | null>(
-    localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")!) : null
-  );
+  const [token, setToken] = useState<string | null>(getSafeToken());
+  const [user, setUser] = useState<{ id: string; email: string; name: string | null; role?: string } | null>(getSafeUser());
 
   // Theme state — default dark, persisted in localStorage
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
@@ -121,6 +142,10 @@ export default function App() {
   const [rescheduleDate, setRescheduleDate] = useState("");
 
   const handleLoginSuccess = (newToken: string, newUser: any) => {
+    if (!newToken || !newUser) {
+      showAlert("Erro ao processar login do servidor.", "error");
+      return;
+    }
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
     setToken(newToken);

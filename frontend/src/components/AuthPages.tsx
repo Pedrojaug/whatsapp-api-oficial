@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
-const BASE_API_URL = import.meta.env.VITE_API_BASE_URL 
-  ? import.meta.env.VITE_API_BASE_URL.replace("/api", "") 
-  : "http://localhost:3001";
+const getApiUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && envUrl.startsWith("http")) {
+    return envUrl.replace("/api", "");
+  }
+  return "https://whatsapp-api-oficial-nls9.onrender.com";
+};
+const BASE_API_URL = getApiUrl();
 
 interface AuthPagesProps {
   onLoginSuccess: (token: string, user: { id: string; email: string; name: string | null }) => void;
@@ -180,11 +185,16 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
       const payload = isLogin ? { email, password } : { email, password, name };
       const response = await axios.post(`${BASE_API_URL}${endpoint}`, payload);
-      const { token, user } = response.data;
-      onLoginSuccess(token, user);
+      
+      if (response.data && typeof response.data === "object" && "token" in response.data) {
+        const { token, user } = response.data;
+        onLoginSuccess(token, user);
+      } else {
+        throw new Error("Resposta inválida do servidor. Verifique a URL do backend.");
+      }
     } catch (err: any) {
       console.error(err);
-      setError(err.response?.data?.error || "Ocorreu um erro. Verifique suas credenciais.");
+      setError(err.response?.data?.error || err.message || "Ocorreu um erro. Verifique suas credenciais.");
     } finally {
       setLoading(false);
     }
