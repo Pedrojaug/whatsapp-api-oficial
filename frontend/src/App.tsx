@@ -153,6 +153,7 @@ export default function App() {
     localStorage.setItem("user", JSON.stringify(newUser));
     setToken(newToken);
     setUser(newUser);
+    setActiveTab("metrics");
   };
 
   const handleLogout = () => {
