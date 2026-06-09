@@ -83,7 +83,17 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
         setStep(4); // Vai para a etapa de Sucesso
       }
     } catch (err: any) {
-      const errorMsg = err.response?.data?.error || "Falha na conexão com a Meta. Verifique as credenciais.";
+      const backendError = err.response?.data?.error;
+      const networkError = err.message;
+      const statusCode = err.response?.status;
+      let errorMsg = "Falha na conexão com a Meta. Verifique as credenciais.";
+      if (statusCode === 401) {
+        errorMsg = "Sessão expirada. Faça logout e login novamente.";
+      } else if (backendError) {
+        errorMsg = backendError;
+      } else if (networkError === "Network Error") {
+        errorMsg = "Erro de rede: o servidor está offline ou demorando para responder. Aguarde 1 minuto e tente novamente.";
+      }
       setValidationError(errorMsg);
     } finally {
       setIsValidating(false);
