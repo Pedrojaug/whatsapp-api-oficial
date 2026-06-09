@@ -21,9 +21,24 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 // Middlewares
-const allowedOrigin = process.env.FRONTEND_URL || "http://localhost:5173";
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim().replace(/\/$/, ""));
+
 app.use(cors({
-  origin: allowedOrigin,
+  origin: (origin, callback) => {
+    // Allow requests with no Origin (server-to-server, curl, mobile)
+    if (!origin) return callback(null, true);
+    const trimmed = origin.replace(/\/$/, "");
+    if (
+      allowedOrigins.includes(trimmed) ||
+      /^https:\/\/[a-z0-9-]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/.test(trimmed) ||
+      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(trimmed)
+    ) {
+      return callback(null, true);
+    }
+    callback(new Error(`CORS: origin not allowed — ${origin}`));
+  },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],

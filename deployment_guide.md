@@ -26,7 +26,7 @@ O frontend (Vercel) e o backend (Render) terão domínios próprios autogerados.
    - **Instance Type:** `Free`
 5. **Configurar as Variáveis de Ambiente:**
    Vá até a aba **Environment** e clique em **Add Environment Variable** para cadastrar:
-   - `DATABASE_URL`: `postgresql://neondb_owner:npg_Q3o9nipeRYwv@ep-cool-star-acnfeopf-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require`
+   - `DATABASE_URL`: `postgresql://<usuario>:<senha>@<host>.neon.tech/<banco>?sslmode=require&channel_binding=require`
    - `JWT_SECRET`: Insira uma chave de segurança aleatória (ex: uma frase longa e segura).
    - `FACEBOOK_APP_SECRET`: Segredo do App da Meta.
    - `WEBHOOK_VERIFY_TOKEN`: Token de validação do webhook.
