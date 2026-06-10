@@ -1338,86 +1338,77 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 // FACEBOOK OAUTH ONBOARDING ROUTES
 // ==========================================
 
-// Trocar token curto por token de longa duração e buscar WABAs e Telefones
+// Embedded Signup: trocar code por token de longa duração
+// O waba_id e phone_number_id já vêm diretamente do callback do SDK
 router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Response) => {
-  const { shortLivedToken } = req.body;
-  if (!shortLivedToken) {
-    return res.status(400).json({ error: "Token temporário é obrigatório." });
+  const { code, wabaId, phoneNumberId, redirectUri } = req.body;
+  if (!code || !wabaId || !phoneNumberId) {
+    return res.status(400).json({ error: "code, wabaId e phoneNumberId são obrigatórios." });
   }
 
   const appId = process.env.FACEBOOK_APP_ID;
   const appSecret = process.env.FACEBOOK_APP_SECRET;
 
   if (!appId || !appSecret) {
-    return res.status(500).json({ error: "Credenciais do aplicativo do Facebook (App ID ou App Secret) não configuradas no servidor." });
+    return res.status(500).json({ error: "Credenciais do aplicativo do Facebook não configuradas no servidor." });
   }
 
   try {
-    // 1. Trocar por token de longa duração
+    // 1. Trocar code por token de acesso de longa duração
     const tokenResponse = await axios.get(
-      `https://graph.facebook.com/v19.0/oauth/access_token`,
+      `https://graph.facebook.com/v21.0/oauth/access_token`,
+      {
+        params: {
+          client_id: appId,
+          client_secret: appSecret,
+          code,
+          redirect_uri: redirectUri || "",
+        },
+      }
+    );
+
+    const shortToken = tokenResponse.data.access_token;
+
+    // 2. Trocar por token de longa duração (60 dias)
+    const longTokenResponse = await axios.get(
+      `https://graph.facebook.com/v21.0/oauth/access_token`,
       {
         params: {
           grant_type: "fb_exchange_token",
           client_id: appId,
           client_secret: appSecret,
-          fb_exchange_token: shortLivedToken,
+          fb_exchange_token: shortToken,
         },
       }
     );
 
-    const longLivedToken = tokenResponse.data.access_token;
+    const longLivedToken = longTokenResponse.data.access_token;
 
-    // 2. Buscar WABAs vinculadas
-    const wabasResponse = await axios.get(
-      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts`,
-      {
-        headers: { Authorization: `Bearer ${longLivedToken}` },
-      }
-    );
+    // 3. Buscar nome da WABA e número de telefone para exibição
+    let wabaName = `WABA ${wabaId}`;
+    let phoneDisplay = phoneNumberId;
 
-    const wabasData = wabasResponse.data.data || [];
-    const wabasWithPhones: any[] = [];
+    try {
+      const wabaRes = await axios.get(
+        `https://graph.facebook.com/v21.0/${wabaId}`,
+        { params: { fields: "name", access_token: longLivedToken } }
+      );
+      if (wabaRes.data.name) wabaName = wabaRes.data.name;
+    } catch (_) {}
 
-    // 3. Buscar números de telefone para cada WABA
-    for (const waba of wabasData) {
-      try {
-        const phonesResponse = await axios.get(
-          `https://graph.facebook.com/v19.0/${waba.id}/phone_numbers`,
-          {
-            headers: { Authorization: `Bearer ${longLivedToken}` },
-          }
-        );
+    try {
+      const phoneRes = await axios.get(
+        `https://graph.facebook.com/v21.0/${phoneNumberId}`,
+        { params: { fields: "display_phone_number", access_token: longLivedToken } }
+      );
+      if (phoneRes.data.display_phone_number) phoneDisplay = phoneRes.data.display_phone_number;
+    } catch (_) {}
 
-        const phoneNumbers = (phonesResponse.data.data || []).map((phone: any) => ({
-          id: phone.id,
-          displayPhoneNumber: phone.display_phone_number,
-          verifiedName: phone.verified_name,
-        }));
-
-        wabasWithPhones.push({
-          id: waba.id,
-          name: waba.name || `WABA - ${waba.id}`,
-          phoneNumbers,
-        });
-      } catch (phoneError: any) {
-        console.error(`Erro ao buscar números para WABA ${waba.id}:`, phoneError.response?.data || phoneError.message);
-        wabasWithPhones.push({
-          id: waba.id,
-          name: waba.name || `WABA - ${waba.id}`,
-          phoneNumbers: [],
-        });
-      }
-    }
-
-    res.json({
-      longLivedToken,
-      wabas: wabasWithPhones,
-    });
+    res.json({ longLivedToken, wabaName, phoneDisplay });
   } catch (error: any) {
-    console.error("Erro no onboarding do Facebook:", error.response?.data || error.message);
+    console.error("Erro no Embedded Signup exchange:", error.response?.data || error.message);
     const details = error.response?.data?.error?.message || error.message;
-    res.status(400).json({ error: "Falha ao processar token e buscar contas na Meta.", details });
+    res.status(400).json({ error: "Falha ao processar código do Embedded Signup.", details });
   }
 });
 

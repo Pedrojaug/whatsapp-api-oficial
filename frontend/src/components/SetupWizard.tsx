@@ -100,34 +100,41 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     }
   };
 
-  // Escutar mensagens do popup de OAuth
+  // Embedded Signup: escutar mensagens do SDK do Facebook
   useEffect(() => {
-    const handleOAuthMessage = async (event: MessageEvent) => {
-      // Garantir que a mensagem vem da nossa própria origem
-      if (event.origin !== window.location.origin) return;
+    const handleEmbeddedSignupMessage = async (event: MessageEvent) => {
+      // A Meta envia mensagens de origem facebook.com
+      if (!event.origin.includes("facebook.com") && event.origin !== window.location.origin) return;
 
-      if (event.data?.type === "FACEBOOK_OAUTH_SUCCESS" || event.data?.type === "FACEBOOK_OAUTH_FAILED") {
-        if (oauthIntervalRef.current) {
-          clearInterval(oauthIntervalRef.current);
-          oauthIntervalRef.current = null;
+      const data = event.data;
+      if (typeof data !== "object" || !data) return;
+
+      // Mensagem de sucesso do Embedded Signup: contém code + waba_id + phone_number_id
+      if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "FINISH") {
+        const { code, waba_id, phone_number_id } = data.data || {};
+        if (code && waba_id && phone_number_id) {
+          await handleEmbeddedSignupExchange(code, waba_id, phone_number_id);
+        } else {
+          setOnboardError("Dados incompletos retornados pelo Facebook. Tente novamente.");
+          setOnboardLoading(false);
         }
       }
 
-      if (event.data?.type === "FACEBOOK_OAUTH_SUCCESS") {
-        const token = event.data.token;
-        await handleTokenExchange(token);
-      } else if (event.data?.type === "FACEBOOK_OAUTH_FAILED") {
-        setOnboardError(`Erro no login do Facebook: ${event.data.error}`);
+      if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "CANCEL") {
+        setOnboardError("Conexão cancelada pelo usuário.");
+        setOnboardLoading(false);
+      }
+
+      if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "ERROR") {
+        setOnboardError(`Erro no Embedded Signup: ${data.data?.error_message || "desconhecido"}`);
         setOnboardLoading(false);
       }
     };
 
-    window.addEventListener("message", handleOAuthMessage);
+    window.addEventListener("message", handleEmbeddedSignupMessage);
     return () => {
-      window.removeEventListener("message", handleOAuthMessage);
-      if (oauthIntervalRef.current) {
-        clearInterval(oauthIntervalRef.current);
-      }
+      window.removeEventListener("message", handleEmbeddedSignupMessage);
+      if (oauthIntervalRef.current) clearInterval(oauthIntervalRef.current);
     };
   }, []);
 
@@ -140,56 +147,75 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     setOnboardLoading(true);
     setOnboardError(null);
 
-    const redirectUri = encodeURIComponent(`${window.location.origin}/oauth_callback.html`);
-    const scope = "whatsapp_business_management,whatsapp_business_messaging,public_profile";
-    const authUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${redirectUri}&scope=${scope}&response_type=token`;
-
-    // Abrir o popup centralizado
-    const width = 600;
-    const height = 650;
-    const left = window.screen.width / 2 - width / 2;
-    const top = window.screen.height / 2 - height / 2;
-
-    if (oauthIntervalRef.current) {
-      clearInterval(oauthIntervalRef.current);
-    }
-
-    const popup = window.open(
-      authUrl,
-      "facebook-login-popup",
-      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,status=no,location=no,scrollbars=yes`
-    );
-
-    if (popup) {
-      oauthIntervalRef.current = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(oauthIntervalRef.current);
-          oauthIntervalRef.current = null;
-          setOnboardLoading(false);
+    // Carregar o SDK do Facebook dinamicamente se ainda não estiver carregado
+    const launchEmbeddedSignup = () => {
+      (window as any).FB.login(
+        (response: any) => {
+          if (response.authResponse?.code) {
+            // O code será processado via postMessage (evento WA_EMBEDDED_SIGNUP FINISH)
+            // mas caso o SDK retorne direto, tratamos aqui também
+          } else if (!response.authResponse) {
+            setOnboardError("Login cancelado ou não autorizado.");
+            setOnboardLoading(false);
+          }
+        },
+        {
+          config_id: FACEBOOK_APP_ID,
+          response_type: "code",
+          override_default_response_type: true,
+          extras: {
+            feature: "whatsapp_embedded_signup",
+            sessionInfoVersion: 3,
+          },
         }
-      }, 1000);
+      );
+    };
+
+    if ((window as any).FB) {
+      launchEmbeddedSignup();
+    } else {
+      // Injetar o SDK do Facebook
+      const script = document.createElement("script");
+      script.src = "https://connect.facebook.net/pt_BR/sdk.js";
+      script.onload = () => {
+        (window as any).FB.init({
+          appId: FACEBOOK_APP_ID,
+          autoLogAppEvents: true,
+          xfbml: true,
+          version: "v21.0",
+        });
+        launchEmbeddedSignup();
+      };
+      document.body.appendChild(script);
+
+      // Fallback: monitorar fechamento do popup
+      oauthIntervalRef.current = setInterval(() => {
+        if (!(window as any).FB) return;
+        clearInterval(oauthIntervalRef.current);
+      }, 500);
     }
   };
 
-  const handleTokenExchange = async (shortLivedToken: string) => {
+  const handleEmbeddedSignupExchange = async (code: string, wabaId: string, phoneNumberId: string) => {
     try {
       setOnboardLoading(true);
       const res = await axios.post(`${API_BASE_URL}/accounts/facebook-onboard/exchange`, {
-        shortLivedToken
+        code,
+        wabaId,
+        phoneNumberId,
+        redirectUri: window.location.origin,
       }, { headers: getAuthHeaders() });
 
-      const { longLivedToken, wabas } = res.data;
-      setLongLivedToken(longLivedToken);
-      setWabas(wabas);
-
-      if (wabas.length > 0) {
-        setStep(5); // Ir para o passo de seleção das contas
-      } else {
-        setOnboardError("Nenhuma conta do WhatsApp Business encontrada no seu perfil do Facebook.");
-      }
+      const { longLivedToken: llt, wabaName, phoneDisplay } = res.data;
+      setLongLivedToken(llt);
+      // Pré-preencher e ir direto para seleção/confirmação
+      setWabas([{ id: wabaId, name: wabaName || `WABA ${wabaId}`, phoneNumbers: [{ id: phoneNumberId, displayPhoneNumber: phoneDisplay || phoneNumberId }] }]);
+      setSelectedWabaIndex(0);
+      setSelectedPhoneId(phoneNumberId);
+      setStep(5);
     } catch (err: any) {
       const errMsg = err.response?.data?.details || err.response?.data?.error || err.message;
-      setOnboardError(`Falha ao carregar contas da Meta: ${errMsg}`);
+      setOnboardError(`Falha ao processar conexão com a Meta: ${errMsg}`);
     } finally {
       setOnboardLoading(false);
     }
