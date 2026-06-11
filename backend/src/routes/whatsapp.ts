@@ -277,12 +277,14 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
 
       res.status(201).json(updatedTemplate);
     } catch (metaError: any) {
-      console.error("Meta API Template Error:", metaError.response?.data || metaError.message);
-      const metaErr = metaError.response?.data?.error;
+      const fullError = metaError.response?.data;
+      console.error("Meta API Template Error (full):", JSON.stringify(fullError, null, 2));
+      const metaErr = fullError?.error;
       const friendlyError = translateMetaTemplateError(metaErr);
       res.status(400).json({
         error: friendlyError,
         details: metaErr || metaError.message,
+        full: fullError,
       });
     }
   } catch (error: any) {

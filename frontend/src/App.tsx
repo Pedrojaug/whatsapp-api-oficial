@@ -1188,10 +1188,11 @@ export default function App() {
       setShowNewTemplateModal(false);
       fetchTemplates(selectedAccount.id);
     } catch (err: any) {
-      const friendly = err.response?.data?.error;
-      const raw = err.response?.data?.details?.message || err.response?.data?.details?.error?.message;
-      const msg = friendly || err.message;
-      showAlert(`${msg}${raw ? `\n\nDetalhe técnico: ${raw}` : ""}`, "error");
+      const friendly = err.response?.data?.error || err.message;
+      const metaFull = err.response?.data?.full?.error;
+      const raw = metaFull?.error_user_msg || metaFull?.message || err.response?.data?.details?.message;
+      const subcode = metaFull?.error_subcode ? ` (subcode ${metaFull.error_subcode})` : "";
+      showAlert(`${friendly}${raw ? `\n\nDetalhe Meta: ${raw}${subcode}` : ""}`, "error");
     } finally {
       setLoading(false);
     }
