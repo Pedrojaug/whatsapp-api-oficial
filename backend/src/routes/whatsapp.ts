@@ -154,7 +154,22 @@ router.get("/accounts/:accountId/templates", async (req: Request, res: Response)
           }
         );
 
-        const metaTemplates = response.data.data;
+        const META_DEFAULT_TEMPLATES = ["hello_world", "sample_issue_resolution", "sample_shipping_confirmation", "sample_movie_ticket_confirmation", "sample_flight_confirmation", "sample_purchase_feedback", "sample_happy_hour_announcement", "sample_business_updates"];
+        const metaTemplates = (response.data.data as any[]).filter(
+          (t) => !META_DEFAULT_TEMPLATES.includes(t.name) && !t.name.startsWith("sample_")
+        );
+
+        // Remover templates padrão já importados anteriormente
+        await prisma.template.deleteMany({
+          where: {
+            accountId,
+            OR: [
+              { name: { in: META_DEFAULT_TEMPLATES } },
+              { name: { startsWith: "sample_" } },
+              { name: "hello_world" },
+            ],
+          },
+        });
 
         // Upsert templates locais
         for (const t of metaTemplates) {
