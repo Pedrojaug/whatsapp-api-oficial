@@ -263,15 +263,67 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
       res.status(201).json(updatedTemplate);
     } catch (metaError: any) {
       console.error("Meta API Template Error:", metaError.response?.data || metaError.message);
+      const metaErr = metaError.response?.data?.error;
+      const friendlyError = translateMetaTemplateError(metaErr);
       res.status(400).json({
-        error: "Erro retornado pela Meta ao tentar criar template",
-        details: metaError.response?.data || metaError.message,
+        error: friendlyError,
+        details: metaErr || metaError.message,
       });
     }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Salvar template como rascunho (sem enviar para a Meta)
+router.post("/accounts/:accountId/templates/draft", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { name, language, category, components } = req.body;
+
+  if (!name || !category || !components) {
+    return res.status(400).json({ error: "Missing name, category, or components" });
+  }
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    if (!account) return res.status(404).json({ error: "Account not found" });
+
+    const templateNameFormatted = name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+
+    const draft = await prisma.template.upsert({
+      where: { accountId_name: { accountId, name: templateNameFormatted } },
+      update: { language: language || "pt_BR", category, components, status: "DRAFT" },
+      create: { accountId, name: templateNameFormatted, language: language || "pt_BR", category, components, status: "DRAFT" },
+    });
+
+    res.status(201).json(draft);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function translateMetaTemplateError(metaErr: any): string {
+  if (!metaErr) return "Erro desconhecido ao criar template na Meta.";
+  const code = metaErr.code;
+  const msg: string = metaErr.message || "";
+
+  if (code === 100) {
+    if (msg.includes("header_handle")) return "Arquivo de exemplo inválido ou expirado. Faça o upload novamente.";
+    if (msg.includes("name")) return "Nome do template inválido. Use apenas letras minúsculas, números e underscore.";
+    if (msg.includes("url")) return "URL do botão inválida. Use uma URL completa com https://.";
+    if (msg.includes("example")) return "Campo 'example' inválido. Verifique os exemplos de variáveis.";
+    if (msg.includes("category")) return "Categoria inválida para este tipo de template.";
+    return `Parâmetro inválido: ${msg}`;
+  }
+  if (code === 80004) return "Limite de templates atingido para esta conta.";
+  if (code === 368) return "Conta temporariamente bloqueada pela Meta. Tente mais tarde.";
+  if (code === 2388114) return "Template com este nome já existe. Escolha outro nome.";
+  if (code === 2388076) return "Conteúdo do template rejeitado pela política da Meta.";
+  if (msg.includes("already exists")) return "Já existe um template com esse nome. Escolha outro nome.";
+  if (msg.includes("permission")) return "Token sem permissão para criar templates. Verifique as permissões do System User.";
+  return `Erro Meta (${code}): ${msg}`;
+}
 
 // Upload de arquivo de exemplo para obter o header_handle da Meta (scoped to user)
 router.post("/accounts/:accountId/templates/upload-sample", async (req: Request, res: Response) => {

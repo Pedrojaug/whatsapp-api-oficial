@@ -1181,15 +1181,49 @@ export default function App() {
         category: newTemplateCategory,
         language: newTemplateLanguage,
         components,
-      });
+      }, { headers: getAuthHeaders() });
 
       showAlert("Template enviado para aprovação com sucesso!");
       resetTemplateForm();
       setShowNewTemplateModal(false);
       fetchTemplates(selectedAccount.id);
     } catch (err: any) {
-      const details = err.response?.data?.details?.error?.message || err.response?.data?.error || err.message;
-      showAlert(`Erro: ${details}`, "error");
+      const friendly = err.response?.data?.error;
+      const raw = err.response?.data?.details?.message || err.response?.data?.details?.error?.message;
+      const msg = friendly || err.message;
+      showAlert(`${msg}${raw ? `\n\nDetalhe técnico: ${raw}` : ""}`, "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (!selectedAccount) return;
+    if (!newTemplateName) { showAlert("Nome do template é obrigatório.", "error"); return; }
+    if (!newTemplateBodyText) { showAlert("Corpo da mensagem é obrigatório.", "error"); return; }
+
+    const components: any[] = [];
+    if (newTemplateHeaderFormat === "TEXT" && newTemplateHeaderText) {
+      components.push({ type: "HEADER", format: "TEXT", text: newTemplateHeaderText });
+    } else if (["IMAGE", "VIDEO", "DOCUMENT"].includes(newTemplateHeaderFormat)) {
+      components.push({ type: "HEADER", format: newTemplateHeaderFormat, example: { header_handle: ["DRAFT_PLACEHOLDER"] } });
+    }
+    components.push({ type: "BODY", text: newTemplateBodyText });
+    if (newTemplateFooterText) components.push({ type: "FOOTER", text: newTemplateFooterText });
+
+    setLoading(true);
+    try {
+      await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/templates/draft`, {
+        name: newTemplateName,
+        category: newTemplateCategory,
+        language: newTemplateLanguage,
+        components,
+      }, { headers: getAuthHeaders() });
+      showAlert("Rascunho salvo com sucesso!");
+      setShowNewTemplateModal(false);
+      fetchTemplates(selectedAccount.id);
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao salvar rascunho.", "error");
     } finally {
       setLoading(false);
     }
@@ -1266,8 +1300,10 @@ export default function App() {
         setScheduledAt("");
         fetchMessages(selectedAccount.id);
       } catch (err: any) {
-        const details = err.response?.data?.details?.error?.message || err.response?.data?.error || "Erro desconhecido";
-        showAlert(`Falha no envio: ${details}`, "error");
+        const metaMsg = err.response?.data?.details?.error?.message || err.response?.data?.details?.message;
+        const friendly = err.response?.data?.error || "Falha no envio.";
+        const detail = metaMsg ? `\n\nDetalhe da Meta: ${metaMsg}` : "";
+        showAlert(`${friendly}${detail}`, "error");
         fetchMessages(selectedAccount.id);
       } finally {
         setLoading(false);
@@ -2419,11 +2455,16 @@ export default function App() {
                   </div>
 
                   {/* Footer Actions */}
-                  <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", padding: "20px 30px", borderTop: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                  <div style={{ display: "flex", gap: "12px", justifyContent: "space-between", padding: "20px 30px", borderTop: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
                     <button type="button" onClick={() => { resetTemplateForm(); setShowNewTemplateModal(false); }} className="btn btn-secondary">Cancelar</button>
-                    <button type="button" onClick={handleCreateTemplate} disabled={loading} className="btn btn-primary" style={{ minWidth: "150px" }}>
-                      {loading ? "Processando..." : "Enviar para Meta"}
-                    </button>
+                    <div style={{ display: "flex", gap: "12px" }}>
+                      <button type="button" onClick={handleSaveDraft} disabled={loading} className="btn btn-secondary" style={{ minWidth: "150px" }}>
+                        {loading ? "Salvando..." : "💾 Salvar Rascunho"}
+                      </button>
+                      <button type="button" onClick={handleCreateTemplate} disabled={loading} className="btn btn-primary" style={{ minWidth: "150px" }}>
+                        {loading ? "Processando..." : "Enviar para Meta"}
+                      </button>
+                    </div>
                   </div>
 
                 </div>
