@@ -1181,7 +1181,7 @@ export default function App() {
         category: newTemplateCategory,
         language: newTemplateLanguage,
         components,
-      }, { headers: getAuthHeaders() });
+      });
 
       showAlert("Template enviado para aprovação com sucesso!");
       resetTemplateForm();
@@ -1218,7 +1218,7 @@ export default function App() {
         category: newTemplateCategory,
         language: newTemplateLanguage,
         components,
-      }, { headers: getAuthHeaders() });
+      });
       showAlert("Rascunho salvo com sucesso!");
       setShowNewTemplateModal(false);
       fetchTemplates(selectedAccount.id);
