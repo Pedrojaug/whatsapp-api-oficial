@@ -291,11 +291,11 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
 
     const decryptedToken = decryptToken(account.accessToken);
 
-    // 1. Obter o App ID do token da Meta
-    const appResponse = await axios.get(
-      `https://graph.facebook.com/v19.0/app?access_token=${decryptedToken}`
-    );
-    const appId = appResponse.data.id;
+    // 1. Usar o App ID configurado no servidor
+    const appId = process.env.FACEBOOK_APP_ID;
+    if (!appId) {
+      return res.status(500).json({ error: "FACEBOOK_APP_ID não configurado no servidor." });
+    }
 
     // Converter base64 para Buffer
     const base64Data = fileBase64.replace(/^data:.*?;base64,/, "");
