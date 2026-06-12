@@ -21,7 +21,7 @@ export function startBackgroundDispatcher() {
       // 1. Busca até 10 mensagens PENDING que já passaram da data agendada e da hora de retentativa
       const pendingMessages = await prisma.message.findMany({
         where: {
-          status: "PENDING",
+          status: { in: ["PENDING"] },
           OR: [
             { scheduledAt: null },
             { scheduledAt: { lte: now } }

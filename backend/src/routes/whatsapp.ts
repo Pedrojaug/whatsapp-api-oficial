@@ -781,13 +781,19 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
       },
     });
 
-    // Se a mensagem está agendada para o futuro, não fazemos a chamada direta para a Meta agora
+    // Se a mensagem está agendada para o futuro, o dispatcher vai processá-la depois
     if (isFutureScheduled) {
       return res.status(201).json({
         ...dbMessage,
         message: "Mensagem agendada com sucesso para envio posterior."
       });
     }
+
+    // Marcar como PROCESSING para o dispatcher não pegar antes de terminar o envio direto
+    await prisma.message.update({
+      where: { id: dbMessage.id },
+      data: { status: "PROCESSING" },
+    });
 
     const components: any[] = [];
 
@@ -864,8 +870,9 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
       await prisma.message.update({
         where: { id: dbMessage.id },
         data: {
-          status: "FAILED",
+          status: "PENDING",
           errorMessage: errMsg,
+          nextRetryAt: new Date(Date.now() + 60_000),
         },
       });
 
