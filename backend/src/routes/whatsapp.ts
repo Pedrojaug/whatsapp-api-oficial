@@ -1446,6 +1446,9 @@ router.get("/webhooks", (req: Request, res: Response) => {
 
 // Webhook Receiver (POST)
 router.post("/webhooks", async (req: Request, res: Response) => {
+  const body = req.body;
+  console.log("[Webhook] POST recebido de Meta:", JSON.stringify(body, null, 2));
+
   const appSecret = process.env.FACEBOOK_APP_SECRET;
   const signature = req.headers["x-hub-signature-256"] as string;
 
@@ -1480,16 +1483,14 @@ router.post("/webhooks", async (req: Request, res: Response) => {
         Buffer.from(expectedHash, "hex")
       );
       if (!isMatch) {
-        console.warn("[Webhook] Assinatura inválida.");
+        console.warn(`[Webhook] Assinatura inválida. Recebida: ${signatureHash}, Esperada: ${expectedHash}`);
         return res.status(403).send("Signature mismatch");
       }
-    } catch (err) {
-      console.error("[Webhook] Erro ao validar assinatura do webhook:", err);
+    } catch (err: any) {
+      console.error("[Webhook] Erro ao validar assinatura do webhook:", err.message);
       return res.status(403).send("Signature verification error");
     }
   }
-
-  const body = req.body;
 
   // Responder 200 OK imediatamente para a Meta não ficar reenviando
   res.sendStatus(200);
@@ -1575,12 +1576,14 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
                 // Encontrar conta do WhatsApp correspondente pelo phoneNumberId que recebeu
                 const phoneId = value.metadata?.phone_number_id;
+                console.log(`[Webhook] Processando mensagem recebida. Remetente (from): ${from}, phoneNumberId da Meta: ${phoneId}`);
                 if (phoneId) {
                   const account = await prisma.account.findFirst({
                     where: { phoneNumberId: phoneId }
                   });
 
                   if (account) {
+                    console.log(`[Webhook] Conta encontrada no banco: ${account.name} (ID: ${account.id})`);
                     // Evitar duplicações caso a Meta reenvie o webhook
                     const existingMsg = await prisma.message.findUnique({ where: { wamid } });
                     
@@ -1598,7 +1601,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         }
                       });
 
-                      console.log(`[Webhook] Nova mensagem recebida de ${from}. Wamid: ${wamid}`);
+                      console.log(`[Webhook] Nova mensagem recebida de ${from} salva no banco. Wamid: ${wamid}`);
 
                       // Emitir evento em tempo real para o frontend
                       messageEventEmitter.emit("messageUpdated", {
@@ -1613,8 +1616,14 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         errorMessage: savedMsg.errorMessage,
                         updatedAt: savedMsg.updatedAt,
                       });
+                    } else {
+                      console.log(`[Webhook] Mensagem com wamid ${wamid} já existe no banco. Ignorando.`);
                     }
+                  } else {
+                    console.warn(`[Webhook] Nenhuma conta local cadastrada com o phoneNumberId: ${phoneId}`);
                   }
+                } else {
+                  console.warn("[Webhook] Atributo metadata.phone_number_id ausente no payload.");
                 }
               }
             }
