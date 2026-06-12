@@ -3,6 +3,7 @@ import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://whatsapp-api-oficial-nls9.onrender.com/api";
 const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "";
+const EMBEDDED_SIGNUP_CONFIG_ID = import.meta.env.VITE_EMBEDDED_SIGNUP_CONFIG_ID || "1626513905104662";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
@@ -160,7 +161,7 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
           }
         },
         {
-          config_id: FACEBOOK_APP_ID,
+          config_id: EMBEDDED_SIGNUP_CONFIG_ID,
           response_type: "code",
           override_default_response_type: true,
           extras: {
