@@ -4383,6 +4383,35 @@ export default function App() {
                                     fontSize: "0.92rem",
                                     wordBreak: "break-word"
                                   }}>
+                                    {/* Mídia do cabeçalho do template (OUTGOING) */}
+                                    {(() => {
+                                      const mediaUrl = msg.mediaUrl || msg.variables?.mediaUrl;
+                                      const tmpl = templates.find(t => t.name === msg.templateName);
+                                      const headerComp = tmpl && Array.isArray(tmpl.components)
+                                        ? tmpl.components.find((c: any) => c.type === "HEADER")
+                                        : null;
+                                      const fmt = headerComp?.format || msg.messageType;
+
+                                      if (mediaUrl && fmt === "IMAGE") return (
+                                        <img src={mediaUrl} alt="Imagem" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                      );
+                                      if (mediaUrl && fmt === "VIDEO") return (
+                                        <video src={mediaUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                      );
+                                      if (mediaUrl && fmt === "DOCUMENT") return (
+                                        <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
+                                          📄 {mediaUrl.split("/").pop() || "Documento"}
+                                        </a>
+                                      );
+                                      // Mídia recebida (INCOMING) — mediaUrl é o media ID da Meta, não uma URL direta
+                                      if (mediaUrl && msg.direction === "INCOMING") return (
+                                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>
+                                          📎 {msg.messageType === "IMAGE" ? "Imagem recebida" : msg.messageType === "VIDEO" ? "Vídeo recebido" : msg.messageType === "AUDIO" ? "Áudio recebido" : "Arquivo recebido"}
+                                        </div>
+                                      );
+                                      return null;
+                                    })()}
+                                    {/* Texto da mensagem */}
                                     {msg.body || (msg.templateName ? (
                                       (() => {
                                         const tmpl = templates.find(t => t.name === msg.templateName);
@@ -4400,7 +4429,7 @@ export default function App() {
                                         }
                                         return text;
                                       })()
-                                    ) : "Mídia")}
+                                    ) : (!msg.mediaUrl && !msg.variables?.mediaUrl ? "Mídia" : null))}
                                   </div>
                                   <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "4px", display: "flex", gap: "6px" }}>
                                     <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
