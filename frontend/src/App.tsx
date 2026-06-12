@@ -502,16 +502,22 @@ export default function App() {
           const incomingPhone = normalizePhone(data.to);
           if (activePhone && normalizePhone(activePhone) === incomingPhone) {
             setChatMessages((prevMsgs) => {
-              const idx = prevMsgs.findIndex((m) => m.wamid === data.wamid || m.id === data.messageId);
+              const idx = prevMsgs.findIndex((m) =>
+                (data.wamid && m.wamid === data.wamid) || m.id === data.messageId
+              );
               if (idx !== -1) {
                 const updated = [...prevMsgs];
                 updated[idx] = {
                   ...updated[idx],
                   status: data.status,
+                  wamid: data.wamid || updated[idx].wamid,
                   errorMessage: data.errorMessage !== undefined ? data.errorMessage : updated[idx].errorMessage,
                 };
                 return updated;
               }
+              // Mensagens OUTGOING só atualizam — nunca criam entrada nova via SSE
+              // (a mensagem já está no chat via fetchChatMessages ou foi adicionada ao disparar)
+              if (data.direction !== "INCOMING") return prevMsgs;
               return [...prevMsgs, {
                 id: data.messageId,
                 wamid: data.wamid,
