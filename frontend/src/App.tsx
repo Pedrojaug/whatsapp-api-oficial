@@ -2204,16 +2204,23 @@ export default function App() {
                         {["IMAGE", "VIDEO", "DOCUMENT"].includes(newTemplateHeaderFormat) && (
                           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                             <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>
-                              Arquivo de Exemplo (.jpg, .png, .mp4, .pdf - Máx 5MB)
+                              Arquivo de Exemplo (.jpg, .png, .mp4, .pdf - Máx 5MB) — webp não é aceito pela Meta
                             </label>
                             <input
                               type="file"
-                              accept={newTemplateHeaderFormat === "IMAGE" ? "image/*" : newTemplateHeaderFormat === "VIDEO" ? "video/*" : "application/pdf,.doc,.docx"}
+                              accept={newTemplateHeaderFormat === "IMAGE" ? "image/jpeg,image/png" : newTemplateHeaderFormat === "VIDEO" ? "video/mp4,video/3gpp" : "application/pdf"}
                               onChange={(e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
                                 if (file.size > 5 * 1024 * 1024) {
                                   showAlert("O tamanho do arquivo excede 5MB. Escolha um arquivo menor.", "error");
+                                  e.target.value = "";
+                                  return;
+                                }
+                                const blocked = ["image/webp", "image/gif", "image/bmp", "image/tiff"];
+                                if (blocked.includes(file.type)) {
+                                  showAlert(`Formato ${file.type.split("/")[1].toUpperCase()} não é aceito pela Meta. Use JPG ou PNG.`, "error");
+                                  e.target.value = "";
                                   return;
                                 }
                                 setSampleFile(file);
