@@ -4403,12 +4403,29 @@ export default function App() {
                                           📄 {mediaUrl.split("/").pop() || "Documento"}
                                         </a>
                                       );
-                                      // Mídia recebida (INCOMING) — mediaUrl é o media ID da Meta, não uma URL direta
-                                      if (mediaUrl && msg.direction === "INCOMING") return (
-                                        <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>
-                                          📎 {msg.messageType === "IMAGE" ? "Imagem recebida" : msg.messageType === "VIDEO" ? "Vídeo recebido" : msg.messageType === "AUDIO" ? "Áudio recebido" : "Arquivo recebido"}
-                                        </div>
-                                      );
+                                      // Mídia recebida (INCOMING) — mediaUrl é o media ID da Meta, buscar via proxy
+                                      if (mediaUrl && msg.direction === "INCOMING" && selectedAccount) {
+                                        const proxyUrl = `${API_BASE_URL}/accounts/${selectedAccount.id}/media/${mediaUrl}`;
+                                        if (msg.messageType === "IMAGE") return (
+                                          <img src={proxyUrl} alt="Imagem recebida" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                        );
+                                        if (msg.messageType === "VIDEO") return (
+                                          <video src={proxyUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                        );
+                                        if (msg.messageType === "AUDIO") return (
+                                          <audio src={proxyUrl} controls style={{ width: "100%", marginBottom: "6px" }} />
+                                        );
+                                        if (msg.messageType === "DOCUMENT") return (
+                                          <a href={proxyUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
+                                            📄 Documento recebido
+                                          </a>
+                                        );
+                                        return (
+                                          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>
+                                            📎 Arquivo recebido
+                                          </div>
+                                        );
+                                      }
                                       return null;
                                     })()}
                                     {/* Texto da mensagem */}

@@ -1261,6 +1261,39 @@ router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Req
   }
 });
 
+// Proxy de mídia recebida — busca o conteúdo binário da Meta e repassa ao frontend
+router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Response) => {
+  const { accountId, mediaId } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+
+    const token = decryptToken(account.accessToken);
+
+    // 1. Buscar URL temporária da mídia
+    const metaRes = await axios.get(
+      `https://graph.facebook.com/v19.0/${mediaId}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const mediaUrl: string = metaRes.data.url;
+    const mimeType: string = metaRes.data.mime_type || "application/octet-stream";
+
+    // 2. Baixar o conteúdo binário e repassar ao cliente (evita CORS)
+    const mediaContent = await axios.get(mediaUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: "stream",
+    });
+
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    mediaContent.data.pipe(res);
+  } catch (error: any) {
+    console.error("[Media Proxy] Erro ao buscar mídia:", error.response?.data || error.message);
+    res.status(500).json({ error: "Não foi possível carregar a mídia." });
+  }
+});
+
 // Enviar mensagem de texto livre / resposta para um contato (scoped to user)
 router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Response) => {
   const { accountId } = req.params;
