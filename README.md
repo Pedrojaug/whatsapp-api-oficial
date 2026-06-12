@@ -11,7 +11,8 @@ Plataforma premium de automação e disparo em lote utilizando a **API Oficial d
 - **⚡ Wizard de Pareamento Meta:** Assistente de conexão automatizado via pop-up OAuth do Facebook Login ou configuração manual passo a passo das chaves da Meta.
 - **📝 Construtor de Templates:** Construtor visual de templates de mensagens (suportando cabeçalhos dinâmicos com upload de imagens/vídeos, variáveis no corpo, rodapés e botões de chamada para ação) com simulador de WhatsApp em tempo real.
 - **👥 Listas de Contatos e Envio em Massa:** Importador de listas CSV com detecção automática de colunas. Mapeamento arrasta-e-solta das colunas do CSV para preencher variáveis dinâmicas de templates, processado de forma assíncrona em background.
-- **📊 Painel de Métricas e Gráficos:** Relatórios interativos por período preset ou personalizado, contadores em tempo real, cálculo de funil (Taxas de Abertura e Entrega) e gráfico de barras empilhadas mostrando a relação de Enviados, Lidos e Falhas.
+- **📊 Painel de Métricas e Gráficos:** Relatórios interativos por período preset ou personalizado, contadores em tempo real baseados em funil acumulado (mensagens lidas computam também como entregues/enviadas) e histórico de envios mostrando a relação de Enviados, Lidos e Falhas.
+- **💾 Salvamento Persistente de Mídias:** Armazenamento resiliente para contêineres efêmeros (como Render). Salva arquivos de imagem/vídeo codificados no banco Postgres, restaurando os arquivos locais no disco sob demanda caso o servidor seja reiniciado (Lazy Restore).
 
 ---
 
@@ -43,6 +44,9 @@ Antes de iniciar as aplicações, certifique-se de possuir:
    FACEBOOK_APP_ID="seu-app-id-meta"
    FACEBOOK_APP_SECRET="seu-app-secret-meta"
    WEBHOOK_VERIFY_TOKEN="sua-senha-do-webhook"
+   ENCRYPTION_KEY="sua-chave-aes-de-32-caracteres"
+   BACKEND_URL="http://localhost:3001"
+   FRONTEND_URL="http://localhost:5173"
    ```
 4. Execute as migrações do banco de dados (Prisma):
    ```bash
@@ -82,6 +86,15 @@ node seed_metrics.js
 
 ---
 
+## ☁️ Produção e Hospedagem (Render / Vercel)
+
+A plataforma está otimizada para rodar de forma contínua em ambientes de hospedagem na nuvem:
+- **💾 Resiliência de Mídias (Render Free tier):** O Render descarta os arquivos locais da pasta `uploads` quando o servidor hiberna ou é reiniciado. O backend resolve isso salvando o conteúdo binário (base64) no Postgres. Se o site requisitar um arquivo que sumiu do disco, o interceptador do backend o regenera localmente de forma invisível.
+- **⚖️ Páginas Legais (Política de Privacidade):** As páginas estáticas obrigatórias exigidas pela verificação de aplicativos da Meta estão configuradas na pasta pública em `/privacy.html` e `/terms.html` no frontend.
+- **Sincronismo Automático:** O comando de build do backend (`npm run build`) roda o `prisma db push` automaticamente para alinhar as tabelas de produção a cada deploy.
+
+---
+
 ## 🔑 Credenciais Locais de Teste
 
 Se o banco foi populado com o script `seed_metrics.js`, utilize as seguintes contas para testar:
@@ -115,4 +128,5 @@ Para receber as atualizações de status de entrega de mensagens da Meta API loc
 
 - **Backend:** Node.js, Express, TypeScript, Prisma ORM, Neon PostgreSQL, bcryptjs, jsonwebtoken.
 - **Frontend:** React, Vite, TypeScript, Axios, Vanilla CSS (Design em Glassmorphism e animações).
+- **Integração:** Meta Graph API (v19.0) e Webhooks.ios, Vanilla CSS (Design em Glassmorphism e animações).
 - **Integração:** Meta Graph API (v19.0) e Webhooks.
