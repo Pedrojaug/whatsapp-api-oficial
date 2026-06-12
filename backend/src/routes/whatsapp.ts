@@ -1617,6 +1617,7 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
         url: fileUrl,
         mimeType,
         size: fileBuffer.length,
+        fileData: fileBase64, // Salvar o base64 para persistência/recuperação posterior
       }
     });
 

@@ -7,6 +7,7 @@ import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
+import { prisma } from "./db";
 
 // Carregar variáveis de ambiente
 dotenv.config();
@@ -51,6 +52,40 @@ app.use(express.json({
 }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+
+// Interceptador para restaurar imagens apagadas (Render free tier cache reset)
+app.get("/uploads/:filename", async (req, res, next) => {
+  const { filename } = req.params;
+  const filePath = path.join(uploadsDir, filename);
+
+  // Se o arquivo já existe no disco, passa para o express.static servir
+  if (fs.existsSync(filePath)) {
+    return next();
+  }
+
+  // Se sumiu física do disco (ex: reinicialização do Render), busca e recupera do banco Postgres
+  try {
+    const mediaAsset = await prisma.mediaAsset.findFirst({
+      where: { filename }
+    });
+
+    if (mediaAsset && mediaAsset.fileData) {
+      // Remover prefixo de base64 se houver
+      const base64Data = mediaAsset.fileData.replace(/^data:.*?;base64,/, "");
+      const fileBuffer = Buffer.from(base64Data, "base64");
+      
+      // Escrever de volta no disco rígido para requisições futuras rápidas
+      fs.writeFileSync(filePath, fileBuffer);
+      console.log(`[Media Cache] Arquivo ${filename} restaurado do banco de dados com sucesso.`);
+      
+      return res.sendFile(filePath);
+    }
+  } catch (error) {
+    console.error(`[Media Cache] Erro ao tentar restaurar arquivo ${filename} do banco:`, error);
+  }
+
+  next();
+});
 
 // Servir arquivos de upload estaticamente
 app.use("/uploads", express.static(uploadsDir));
