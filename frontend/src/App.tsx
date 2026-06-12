@@ -3233,6 +3233,7 @@ export default function App() {
                           type="button"
                           onClick={() => {
                             setMediaSelectCallback(() => (url: string) => setMessageMediaUrl(url));
+                            if (selectedAccount) fetchMedia(selectedAccount.id);
                             setShowMediaSelectModal(true);
                           }}
                           className="btn btn-secondary"
