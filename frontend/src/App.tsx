@@ -739,11 +739,19 @@ export default function App() {
           }
 
           const headers = data[0].map(h => String(h || "").trim().toLowerCase());
-          
-          let phoneIdx = headers.findIndex(h => h.includes("tel") || h.includes("phone") || h.includes("celular") || h.includes("contato"));
+
+          // Detectar formato DDI+DDD+NUMERO (ex: exportação do Sebrae/CRM)
+          const ddiIdx = headers.findIndex(h => h === "ddi");
+          const dddIdx = headers.findIndex(h => h === "ddd");
+          const numeroIdx = headers.findIndex(h => h === "numero" || h === "número");
+          const splitPhone = ddiIdx !== -1 && dddIdx !== -1 && numeroIdx !== -1;
+
+          let phoneIdx = headers.findIndex(h =>
+            h.includes("tel") || h.includes("phone") || h.includes("celular") || h.includes("contato") || h.includes("fone")
+          );
           let nameIdx = headers.findIndex(h => h.includes("nome") || h.includes("name") || h.includes("cliente"));
 
-          if (phoneIdx === -1) {
+          if (!splitPhone && phoneIdx === -1) {
             if (headers.length === 1) {
               phoneIdx = 0;
               nameIdx = -1;
@@ -758,17 +766,31 @@ export default function App() {
             const row = data[i];
             if (!row || row.length === 0) continue;
 
-            const phone = String(row[phoneIdx] || "").trim().replace(/\D/g, "");
+            let phone = "";
+            if (splitPhone) {
+              // Montar número completo a partir de DDI + DDD + NUMERO
+              const ddi = String(row[ddiIdx] || "").trim().replace(/\D/g, "");
+              const ddd = String(row[dddIdx] || "").trim().replace(/\D/g, "");
+              const numero = String(row[numeroIdx] || "").trim().replace(/\D/g, "");
+              phone = ddi + ddd + numero;
+            } else {
+              phone = String(row[phoneIdx] || "").trim().replace(/\D/g, "");
+            }
+
             if (!phone || phone.length < 8) continue;
 
+            // Normalizar 9º dígito para números brasileiros
+            if (phone.startsWith("55") && phone.length === 12) {
+              phone = phone.slice(0, 4) + "9" + phone.slice(4);
+            }
+
             const name = nameIdx !== -1 ? String(row[nameIdx] || "").trim() : "";
-            
+
+            const skipIdxs = new Set([phoneIdx, nameIdx, ddiIdx, dddIdx, numeroIdx].filter(x => x !== -1));
             const variables: string[] = [];
             row.forEach((cell, idx) => {
-              if (idx !== phoneIdx && idx !== nameIdx) {
-                if (cell !== undefined && cell !== null) {
-                  variables.push(String(cell).trim());
-                }
+              if (!skipIdxs.has(idx) && cell !== undefined && cell !== null && String(cell).trim() !== "") {
+                variables.push(String(cell).trim());
               }
             });
 
