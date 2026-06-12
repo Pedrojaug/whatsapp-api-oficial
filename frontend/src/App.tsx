@@ -109,6 +109,10 @@ export default function App() {
   // Chat states
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>("");
+  const selectedPhoneRef = React.useRef(selectedPhone);
+  useEffect(() => {
+    selectedPhoneRef.current = selectedPhone;
+  }, [selectedPhone]);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [replyBody, setReplyBody] = useState("");
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
@@ -485,7 +489,8 @@ export default function App() {
           });
 
           // 1. Atualizar histórico se a conversa estiver aberta
-          if (selectedPhone && data.to === selectedPhone) {
+          const activePhone = selectedPhoneRef.current;
+          if (activePhone && data.to === activePhone) {
             setChatMessages((prevMsgs) => {
               const idx = prevMsgs.findIndex((m) => m.wamid === data.wamid || m.id === data.messageId);
               if (idx !== -1) {
@@ -552,14 +557,13 @@ export default function App() {
     };
 
     eventSource.onerror = (err) => {
-      console.error("Erro na conexão com SSE de eventos. Reconectando...", err);
-      eventSource.close();
+      console.error("Erro na conexão com SSE de eventos. O navegador tentará reconectar automaticamente.", err);
     };
 
     return () => {
       eventSource.close();
     };
-  }, [selectedAccount, token, selectedPhone]);
+  }, [selectedAccount, token]);
 
   useEffect(() => {
     if (selectedAccount && activeTab === "lists") {

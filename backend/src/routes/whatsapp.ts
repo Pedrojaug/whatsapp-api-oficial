@@ -974,12 +974,18 @@ router.get("/accounts/:accountId/messages/events", async (req: Request, res: Res
 
     // Configurar cabeçalhos para Server-Sent Events (SSE)
     res.setHeader("Content-Type", "text/event-stream");
-    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
     res.flushHeaders(); // Envia os cabeçalhos imediatamente
 
     // Enviar mensagem de conexão estabelecida
     res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+    // Heartbeat periódico (evita timeout de proxies/Load Balancers como Render/Cloudflare)
+    const keepAliveInterval = setInterval(() => {
+      res.write(":\n\n"); // SSE comment frame
+    }, 20000);
 
     const onMessageUpdated = (data: any) => {
       if (data.accountId === accountId) {
@@ -991,6 +997,7 @@ router.get("/accounts/:accountId/messages/events", async (req: Request, res: Res
 
     // Limpar listener quando a conexão fechar
     req.on("close", () => {
+      clearInterval(keepAliveInterval);
       messageEventEmitter.off("messageUpdated", onMessageUpdated);
     });
 
