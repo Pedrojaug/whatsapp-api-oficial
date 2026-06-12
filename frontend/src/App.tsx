@@ -136,7 +136,7 @@ export default function App() {
   const [messagesStatus, setMessagesStatus] = useState("");
   const [messagesTemplateFilter, setMessagesTemplateFilter] = useState("");
   const [messagesPage, setMessagesPage] = useState(1);
-  const [messagesLimit] = useState(50);
+  const [messagesLimit] = useState(25);
   const [totalMessages, setTotalMessages] = useState(0);
   const [loading, setLoading] = useState(false);
   const [syncingTemplates, setSyncingTemplates] = useState(false);
@@ -3778,42 +3778,57 @@ export default function App() {
                         </div>
 
                         {/* Paginação */}
-                        {totalMessages > messagesLimit && (
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "16px", marginTop: "10px" }}>
-                            <span style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                              Mostrando {((messagesPage - 1) * messagesLimit) + 1} - {Math.min(messagesPage * messagesLimit, totalMessages)} de {totalMessages} logs
-                            </span>
-                            <div style={{ display: "flex", gap: "8px" }}>
-                              <button
-                                disabled={messagesPage === 1}
-                                onClick={() => {
-                                  const prev = messagesPage - 1;
-                                  setMessagesPage(prev);
-                                  if (selectedAccount) fetchMessages(selectedAccount.id, prev, messagesSearch, messagesStatus, messagesTemplateFilter);
-                                }}
-                                className="btn btn-secondary"
-                                style={{ padding: "6px 12px", fontSize: "0.8rem" }}
-                              >
-                                ◀ Anterior
-                              </button>
-                              <span style={{ display: "flex", alignItems: "center", padding: "0 10px", fontSize: "0.85rem", fontWeight: "600", color: "#fff" }}>
-                                Página {messagesPage} de {Math.ceil(totalMessages / messagesLimit)}
+                        {(() => {
+                          const totalPages = Math.max(1, Math.ceil(totalMessages / messagesLimit));
+                          const goTo = (p: number) => {
+                            setMessagesPage(p);
+                            if (selectedAccount) fetchMessages(selectedAccount.id, p, messagesSearch, messagesStatus, messagesTemplateFilter);
+                          };
+
+                          // Gerar lista de páginas visíveis: sempre primeira, última e vizinhas da atual
+                          const pageNumbers: (number | "...")[] = [];
+                          for (let p = 1; p <= totalPages; p++) {
+                            if (p === 1 || p === totalPages || Math.abs(p - messagesPage) <= 1) {
+                              pageNumbers.push(p);
+                            } else if (pageNumbers[pageNumbers.length - 1] !== "...") {
+                              pageNumbers.push("...");
+                            }
+                          }
+
+                          return (
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "16px", marginTop: "10px", flexWrap: "wrap", gap: "10px" }}>
+                              <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                                {totalMessages === 0 ? "Nenhum registro" : `${((messagesPage - 1) * messagesLimit) + 1}–${Math.min(messagesPage * messagesLimit, totalMessages)} de ${totalMessages} disparos`}
                               </span>
-                              <button
-                                disabled={messagesPage >= Math.ceil(totalMessages / messagesLimit)}
-                                onClick={() => {
-                                  const next = messagesPage + 1;
-                                  setMessagesPage(next);
-                                  if (selectedAccount) fetchMessages(selectedAccount.id, next, messagesSearch, messagesStatus, messagesTemplateFilter);
-                                }}
-                                className="btn btn-secondary"
-                                style={{ padding: "6px 12px", fontSize: "0.8rem" }}
-                              >
-                                Próxima ▶
-                              </button>
+                              <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                                <button disabled={messagesPage === 1} onClick={() => goTo(1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>«</button>
+                                <button disabled={messagesPage === 1} onClick={() => goTo(messagesPage - 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>‹</button>
+                                {pageNumbers.map((p, i) =>
+                                  p === "..." ? (
+                                    <span key={`ellipsis-${i}`} style={{ padding: "5px 8px", color: "var(--text-muted)", fontSize: "0.82rem" }}>…</span>
+                                  ) : (
+                                    <button
+                                      key={p}
+                                      onClick={() => goTo(p as number)}
+                                      className="btn"
+                                      style={{
+                                        padding: "5px 10px",
+                                        fontSize: "0.82rem",
+                                        background: p === messagesPage ? "var(--primary)" : "rgba(255,255,255,0.05)",
+                                        border: p === messagesPage ? "1px solid var(--primary)" : "1px solid rgba(255,255,255,0.1)",
+                                        color: p === messagesPage ? "#fff" : "var(--text-secondary)",
+                                        fontWeight: p === messagesPage ? "700" : "400",
+                                        minWidth: "34px"
+                                      }}
+                                    >{p}</button>
+                                  )
+                                )}
+                                <button disabled={messagesPage >= totalPages} onClick={() => goTo(messagesPage + 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>›</button>
+                                <button disabled={messagesPage >= totalPages} onClick={() => goTo(totalPages)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>»</button>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     )}
                   </>
