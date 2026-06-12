@@ -1050,17 +1050,25 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       }
     });
 
-    // Calculate totals
+    // Calculate totals (cumulative funnel logic)
     let sent = 0;
     let delivered = 0;
     let read = 0;
     let failed = 0;
 
     messages.forEach(msg => {
-      if (msg.status === "SENT") sent++;
-      else if (msg.status === "DELIVERED") delivered++;
-      else if (msg.status === "READ") read++;
-      else if (msg.status === "FAILED") failed++;
+      if (msg.status === "READ") {
+        read++;
+        delivered++;
+        sent++;
+      } else if (msg.status === "DELIVERED") {
+        delivered++;
+        sent++;
+      } else if (msg.status === "SENT") {
+        sent++;
+      } else if (msg.status === "FAILED") {
+        failed++;
+      }
     });
     const total = messages.length;
 
