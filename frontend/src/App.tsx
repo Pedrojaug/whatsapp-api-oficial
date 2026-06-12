@@ -102,9 +102,19 @@ export default function App() {
     }
   }, [isDarkTheme]);
 
-  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists" | "admin" | "media">("metrics");
+  const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists" | "admin" | "media" | "chat">("metrics");
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
+
+  // Chat states
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [selectedPhone, setSelectedPhone] = useState<string>("");
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [replyBody, setReplyBody] = useState("");
+  const [isConversationsLoading, setIsConversationsLoading] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [isSendingReply, setIsSendingReply] = useState(false);
+  const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
 
   // Form states
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -358,6 +368,70 @@ export default function App() {
     }
   };
 
+  const fetchConversations = async (accountId: string, silent = false) => {
+    if (!silent) setIsConversationsLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations`);
+      setConversations(res.data);
+    } catch (err) {
+      console.error("Erro ao buscar conversas:", err);
+    } finally {
+      if (!silent) setIsConversationsLoading(false);
+    }
+  };
+
+  const fetchChatMessages = async (accountId: string, phone: string, silent = false) => {
+    if (!silent) setIsChatLoading(true);
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations/${phone}/messages`);
+      setChatMessages(res.data);
+    } catch (err) {
+      console.error("Erro ao buscar mensagens do chat:", err);
+    } finally {
+      if (!silent) setIsChatLoading(false);
+    }
+  };
+
+  const sendReply = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedAccount || !selectedPhone || !replyBody.trim()) return;
+
+    setIsSendingReply(true);
+    const bodyText = replyBody.trim();
+    try {
+      const res = await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/reply`, {
+        to: selectedPhone,
+        body: bodyText,
+      });
+
+      // Adiciona localmente para feedback rápido
+      setChatMessages((prev) => [...prev, res.data]);
+      setReplyBody("");
+      
+      // Atualiza a última mensagem na lista de conversas
+      setConversations((prevConv) => {
+        const index = prevConv.findIndex((c) => c.phone === selectedPhone);
+        if (index !== -1) {
+          const updated = [...prevConv];
+          updated[index] = {
+            ...updated[index],
+            lastMessage: bodyText,
+            updatedAt: new Date().toISOString(),
+            status: "SENT",
+            direction: "OUTGOING",
+          };
+          return updated;
+        }
+        return prevConv;
+      });
+    } catch (err: any) {
+      const details = err.response?.data?.error || "Erro desconhecido";
+      showAlert(`Falha ao enviar resposta: ${details}`, "error");
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
+
   useEffect(() => {
     if (selectedAccount) {
       fetchTemplates(selectedAccount.id);
@@ -366,6 +440,9 @@ export default function App() {
       fetchMetrics(selectedAccount.id);
       fetchMedia(selectedAccount.id);
       fetchScheduledMessages(selectedAccount.id);
+      if (activeTab === "chat") {
+        fetchConversations(selectedAccount.id);
+      }
     } else {
       setTemplates([]);
       setMessageLogs([]);
@@ -404,10 +481,64 @@ export default function App() {
               };
               return updated;
             }
-            // Se for um log novo (ex: acabou de ser enviado via API), recarrega a página atual para exibir
-            // Mas limitamos recarregamentos para evitar gargalos em lotes grandes.
-            // Para maior robustez, faremos o fetch manual de mensagens se não encontrar
             return prevLogs;
+          });
+
+          // 1. Atualizar histórico se a conversa estiver aberta
+          if (selectedPhone && data.to === selectedPhone) {
+            setChatMessages((prevMsgs) => {
+              const idx = prevMsgs.findIndex((m) => m.wamid === data.wamid || m.id === data.messageId);
+              if (idx !== -1) {
+                const updated = [...prevMsgs];
+                updated[idx] = {
+                  ...updated[idx],
+                  status: data.status,
+                  errorMessage: data.errorMessage !== undefined ? data.errorMessage : updated[idx].errorMessage,
+                };
+                return updated;
+              }
+              return [...prevMsgs, {
+                id: data.messageId,
+                wamid: data.wamid,
+                to: data.to,
+                status: data.status,
+                direction: data.direction,
+                messageType: data.messageType,
+                body: data.body,
+                createdAt: data.updatedAt || new Date().toISOString(),
+              }];
+            });
+          }
+
+          // 2. Atualizar lista de conversas ativas
+          setConversations((prevConv) => {
+            const idx = prevConv.findIndex((c) => c.phone === data.to);
+            const msgPreview = data.body || "Mídia";
+            
+            if (idx !== -1) {
+              const updated = [...prevConv];
+              updated[idx] = {
+                ...updated[idx],
+                lastMessage: msgPreview,
+                updatedAt: data.updatedAt || new Date().toISOString(),
+                status: data.status,
+                direction: data.direction,
+              };
+              // Mover a conversa ativa para o topo
+              const item = updated.splice(idx, 1)[0];
+              updated.unshift(item);
+              return updated;
+            } else {
+              // Nova conversa recebida
+              return [{
+                phone: data.to,
+                lastMessage: msgPreview,
+                updatedAt: data.updatedAt || new Date().toISOString(),
+                status: data.status,
+                direction: data.direction,
+                messageType: data.messageType,
+              }, ...prevConv];
+            }
           });
 
           // Atualiza as métricas do painel de controle
@@ -428,7 +559,7 @@ export default function App() {
     return () => {
       eventSource.close();
     };
-  }, [selectedAccount, token]);
+  }, [selectedAccount, token, selectedPhone]);
 
   useEffect(() => {
     if (selectedAccount && activeTab === "lists") {
@@ -436,6 +567,9 @@ export default function App() {
     }
     if (selectedAccount && activeTab === "media") {
       fetchMedia(selectedAccount.id);
+    }
+    if (selectedAccount && activeTab === "chat") {
+      fetchConversations(selectedAccount.id);
     }
     if (activeTab === "admin") {
       fetchAdminUsers();
@@ -1456,6 +1590,13 @@ export default function App() {
             style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
           >
             📊 Métricas
+          </button>
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`btn ${activeTab === "chat" ? "btn-primary" : "btn-secondary"}`}
+            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
+          >
+            💬 Chat / Atendimento
           </button>
           <button
             onClick={() => setActiveTab("templates")}
@@ -4034,6 +4175,407 @@ export default function App() {
                   </table>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab 7: CHAT / LIVE INBOX */}
+        {activeTab === "chat" && (
+          <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px", height: "calc(100vh - 150px)", minHeight: "550px" }}>
+            <div>
+              <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "4px" }}>Caixa de Entrada</h1>
+              <p style={{ color: "var(--text-secondary)" }}>Visualize e responda conversas com clientes em tempo real</p>
+            </div>
+
+            {!selectedAccount ? (
+              <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
+                <p style={{ color: "var(--text-muted)" }}>Nenhuma conta Meta API selecionada. Configure ou ative uma conta para abrir o Chat.</p>
+              </div>
+            ) : (
+              <div className="glass" style={{ display: "flex", flex: 1, borderRadius: "var(--radius-xl)", overflow: "hidden", border: "1px solid var(--border-color)", minHeight: "450px" }}>
+                {/* 1. Lista de Conversas (Esquerda) */}
+                <div style={{ width: "320px", borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", background: "rgba(0, 0, 0, 0.15)" }}>
+                  <div style={{ padding: "16px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <h3 style={{ fontSize: "1rem", fontWeight: "600" }}>Conversas Recentes</h3>
+                    <button 
+                      type="button" 
+                      onClick={() => fetchConversations(selectedAccount.id)} 
+                      style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.1rem" }}
+                      title="Atualizar lista"
+                    >
+                      🔄
+                    </button>
+                  </div>
+
+                  <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+                    {isConversationsLoading ? (
+                      <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                        <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
+                        <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
+                      </div>
+                    ) : conversations.length === 0 ? (
+                      <div style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
+                        Nenhuma conversa ativa encontrada.
+                      </div>
+                    ) : (
+                      conversations.map((c) => {
+                        const isActive = selectedPhone === c.phone;
+                        return (
+                          <div
+                            key={c.phone}
+                            onClick={() => {
+                              setSelectedPhone(c.phone);
+                              fetchChatMessages(selectedAccount.id, c.phone);
+                            }}
+                            style={{
+                              padding: "16px",
+                              borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
+                              cursor: "pointer",
+                              background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
+                              transition: "all 0.2s",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px"
+                            }}
+                            className="chat-conversation-item"
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontWeight: "700", color: isActive ? "var(--primary)" : "var(--text-primary)" }}>
+                                📱 {c.phone}
+                              </span>
+                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
+                                {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <span style={{
+                              fontSize: "0.82rem",
+                              color: "var(--text-muted)",
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                              whiteSpace: "nowrap",
+                              fontStyle: c.direction === "INCOMING" ? "italic" : "normal"
+                            }}>
+                              {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Área do Histórico de Chat (Direita) */}
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(255, 255, 255, 0.01)" }}>
+                  {!selectedPhone ? (
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", gap: "12px" }}>
+                      <span style={{ fontSize: "3.5rem" }}>💬</span>
+                      <span>Selecione uma conversa ao lado para visualizar o atendimento.</span>
+                    </div>
+                  ) : (
+                    <>
+                      {/* Header da conversa */}
+                      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)" }}>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                          <span style={{ fontWeight: "700", fontSize: "1.1rem" }}>📱 {selectedPhone}</span>
+                          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Canal Oficial do WhatsApp</span>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)} 
+                          className="btn btn-secondary"
+                          style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                        >
+                          🔄 Atualizar Chat
+                        </button>
+                      </div>
+
+                      {/* Mensagens do chat */}
+                      <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
+                        {isChatLoading ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", height: "100%", justifyContent: "center", alignItems: "center", color: "var(--text-muted)" }}>
+                            <div className="skeleton" style={{ width: "60%", height: "40px", borderRadius: "12px", alignSelf: "flex-start" }} />
+                            <div className="skeleton" style={{ width: "40%", height: "40px", borderRadius: "12px", alignSelf: "flex-end" }} />
+                          </div>
+                        ) : (
+                          <>
+                            {chatMessages.map((msg, index) => {
+                              const isIncoming = msg.direction === "INCOMING";
+                              return (
+                                <div
+                                  key={msg.id || index}
+                                  style={{
+                                    alignSelf: isIncoming ? "flex-start" : "flex-end",
+                                    maxWidth: "70%",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: isIncoming ? "flex-start" : "flex-end"
+                                  }}
+                                >
+                                  <div style={{
+                                    background: isIncoming ? "rgba(255, 255, 255, 0.05)" : "rgba(99, 102, 241, 0.2)",
+                                    border: isIncoming ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(99, 102, 241, 0.35)",
+                                    padding: "10px 14px",
+                                    borderRadius: isIncoming ? "0px 16px 16px 16px" : "16px 16px 0px 16px",
+                                    color: "var(--text-primary)",
+                                    boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
+                                    fontSize: "0.92rem",
+                                    wordBreak: "break-word"
+                                  }}>
+                                    {msg.body}
+                                  </div>
+                                  <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "4px", display: "flex", gap: "6px" }}>
+                                    <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    {!isIncoming && (
+                                      <span style={{ 
+                                        color: msg.status === "READ" ? "var(--success)" : 
+                                               msg.status === "DELIVERED" ? "#22d3ee" : 
+                                               msg.status === "FAILED" ? "var(--error)" : "var(--text-muted)"
+                                      }}>
+                                        {msg.status === "READ" ? "✓✓ Lido" : 
+                                         msg.status === "DELIVERED" ? "✓✓ Entregue" : 
+                                         msg.status === "SENT" ? "✓ Enviado" : 
+                                         msg.status === "FAILED" ? "⚠️ Falha" : "Enviando..."}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            
+                            {/* Referência invisible para scroll automático */}
+                            <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                          </>
+                        )}
+                      </div>
+
+                      {/* Banner de aviso 24h & Campo de Envio */}
+                      {(() => {
+                        const getLastIncoming = () => {
+                          for (let i = chatMessages.length - 1; i >= 0; i--) {
+                            if (chatMessages[i].direction === "INCOMING") return chatMessages[i];
+                          }
+                          return null;
+                        };
+                        const lastInc = getLastIncoming();
+                        let isWindowActive = false;
+                        let timeRemainingStr = "";
+
+                        if (lastInc) {
+                          const lastIncTime = new Date(lastInc.createdAt).getTime();
+                          const now = new Date().getTime();
+                          const diffMs = now - lastIncTime;
+                          const diffHrs = diffMs / (1000 * 60 * 60);
+                          
+                          if (diffHrs < 24) {
+                            isWindowActive = true;
+                            const remainingMs = (24 * 60 * 60 * 1000) - diffMs;
+                            const remHrs = Math.floor(remainingMs / (1000 * 60 * 60));
+                            const remMins = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+                            timeRemainingStr = `${remHrs}h ${remMins}m`;
+                          }
+                        }
+
+                        return (
+                          <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                            {/* Renderizar aviso dinâmico da janela de 24h */}
+                            {lastInc ? (
+                              isWindowActive ? (
+                                <div style={{
+                                  background: "rgba(16, 185, 129, 0.1)",
+                                  border: "1px solid rgba(16, 185, 129, 0.25)",
+                                  borderRadius: "6px",
+                                  padding: "8px 12px",
+                                  fontSize: "0.82rem",
+                                  color: "var(--success)",
+                                  fontWeight: "500",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px"
+                                }}>
+                                  <span>⚡ <strong>Janela de Atendimento Ativa:</strong> Você pode responder a este cliente com mensagens de texto livre. (Expira em {timeRemainingStr}).</span>
+                                </div>
+                              ) : (
+                                <div style={{
+                                  background: "rgba(245, 158, 11, 0.1)",
+                                  border: "1px solid rgba(245, 158, 11, 0.25)",
+                                  borderRadius: "6px",
+                                  padding: "8px 12px",
+                                  fontSize: "0.82rem",
+                                  color: "#f59e0b",
+                                  fontWeight: "500",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "8px"
+                                }}>
+                                  <span>⚠️ <strong>Janela de Atendimento Expirada:</strong> Mais de 24h se passaram desde a última resposta do cliente. Para enviar uma mensagem, use a opção de disparar um Template de reabertura.</span>
+                                </div>
+                              )
+                            ) : (
+                              <div style={{
+                                background: "rgba(255, 255, 255, 0.03)",
+                                border: "1px solid var(--border-color)",
+                                borderRadius: "6px",
+                                padding: "8px 12px",
+                                fontSize: "0.82rem",
+                                color: "var(--text-secondary)",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px"
+                              }}>
+                                <span>ℹ️ O cliente ainda não respondeu a esta conversa. Você só poderá enviar respostas de texto livre após a primeira interação dele.</span>
+                              </div>
+                            )}
+
+                            {/* Campo de digitação de mensagem e botões */}
+                            <form onSubmit={sendReply} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                              <input
+                                type="text"
+                                placeholder={
+                                  !lastInc || isWindowActive 
+                                    ? "Digite a sua resposta..." 
+                                    : "Janela expirada — envie um template para reabrir..."
+                                }
+                                value={replyBody}
+                                onChange={(e) => setReplyBody(e.target.value)}
+                                disabled={lastInc ? !isWindowActive : true}
+                                className="form-control"
+                                style={{ flex: 1, padding: "12px 16px", borderRadius: "var(--radius-lg)" }}
+                              />
+                              <button
+                                type="submit"
+                                className="btn btn-primary"
+                                style={{ padding: "12px 20px", borderRadius: "var(--radius-lg)" }}
+                                disabled={isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
+                              >
+                                {isSendingReply ? "Enviando..." : "Enviar ✈️"}
+                              </button>
+                              
+                              {/* Botão de Atalho para Enviar Template */}
+                              <button
+                                type="button"
+                                onClick={() => setShowChatTemplateModal(true)}
+                                className="btn btn-secondary"
+                                style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", whiteSpace: "nowrap" }}
+                                title="Enviar Template de Mensagem"
+                              >
+                                📝 Reabrir
+                              </button>
+                            </form>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal de Enviar Template no Chat */}
+        {showChatTemplateModal && (
+          <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
+            <div className="glass" style={{ width: "90%", maxWidth: "500px", padding: "30px", borderRadius: "var(--radius-xl)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Enviar Template de Mensagem</h3>
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowChatTemplateModal(false);
+                    setSelectedTemplateName("");
+                    setTemplateVariables([]);
+                  }} 
+                  style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--text-muted)" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-secondary)" }}>Selecione o Template</label>
+                  <select
+                    className="form-control"
+                    value={selectedTemplateName}
+                    onChange={(e) => {
+                      const name = e.target.value;
+                      setSelectedTemplateName(name);
+                      const t = templates.find(temp => temp.name === name);
+                      if (t) {
+                        const body = (t.components as any[]).find(c => c.type === "BODY")?.text || "";
+                        const vars = detectBodyVariables(body);
+                        setTemplateVariables(vars.map(() => ""));
+                      } else {
+                        setTemplateVariables([]);
+                      }
+                    }}
+                  >
+                    <option value="">Selecione...</option>
+                    {templates.filter(t => t.status === "APPROVED").map(t => (
+                      <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Variáveis do Template */}
+                {templateVariables.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-secondary)" }}>Preencha as variáveis</label>
+                    {templateVariables.map((v, i) => (
+                      <div key={i} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Variável {"{{"}{i + 1}{"}}"}</span>
+                        <input
+                          type="text"
+                          className="form-control"
+                          placeholder={`Valor para {{${i + 1}}}`}
+                          value={v}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setTemplateVariables(prev => {
+                              const next = [...prev];
+                              next[i] = val;
+                              return next;
+                            });
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ width: "100%", padding: "12px", marginTop: "10px" }}
+                  disabled={!selectedTemplateName || (templateVariables.length > 0 && templateVariables.some(v => !v.trim()))}
+                  onClick={async () => {
+                    if (!selectedAccount || !selectedPhone || !selectedTemplateName) return;
+                    try {
+                      setIsChatLoading(true);
+                      await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/send`, {
+                        to: selectedPhone,
+                        templateName: selectedTemplateName,
+                        variables: templateVariables,
+                      });
+                      
+                      setShowChatTemplateModal(false);
+                      setSelectedTemplateName("");
+                      setTemplateVariables([]);
+                      showAlert("Template enviado com sucesso! 🚀", "success");
+                      
+                      // Forçar atualização das mensagens do chat após 1 segundo
+                      setTimeout(() => fetchChatMessages(selectedAccount.id, selectedPhone, true), 1000);
+                    } catch (err: any) {
+                      const details = err.response?.data?.error || "Erro desconhecido";
+                      showAlert(`Falha ao enviar template: ${details}`, "error");
+                    } finally {
+                      setIsChatLoading(false);
+                    }
+                  }}
+                >
+                  Enviar Template ✈️
+                </button>
+              </div>
             </div>
           </div>
         )}

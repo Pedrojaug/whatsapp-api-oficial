@@ -49,6 +49,10 @@ export function startBackgroundDispatcher() {
 
       for (const msg of pendingMessages) {
         try {
+          if (!msg.templateName) {
+            throw new Error("Mensagem pendente na fila não possui nome do template.");
+          }
+
           const account = msg.account;
           const decryptedToken = decryptToken(account.accessToken);
           

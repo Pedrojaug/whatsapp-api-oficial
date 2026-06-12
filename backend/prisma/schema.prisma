@@ -56,9 +56,13 @@ model Message {
   id           String   @id @default(uuid())
   wamid        String?  @unique // WhatsApp Message ID (e.g. wamid.HBgNNTUxM...)
   to           String   // Recipient phone number (e.g. 5511999999999)
-  status       String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED
+  status       String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED, RECEIVED
+  direction    String   @default("OUTGOING") // OUTGOING (nós enviamos) ou INCOMING (cliente enviou)
+  messageType  String   @default("TEMPLATE") // TEMPLATE, TEXT, IMAGE, VIDEO, DOCUMENT
+  body         String?  // Conteúdo textual livre da mensagem
+  mediaUrl     String?  // URL de mídias enviadas/recebidas
   errorMessage String?
-  templateName String
+  templateName String?  // Agora opcional para suportar mensagens de texto livre
   variables    Json?    // Sent parameters (variables arrays/objects)
   accountId    String
   account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)

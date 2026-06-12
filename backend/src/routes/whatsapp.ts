@@ -1141,6 +1141,146 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
 });
 
 // ==========================================
+// CHAT / LIVE INBOX ROUTER
+// ==========================================
+
+// Obter a lista de conversas ativas (scoped to user)
+router.get("/accounts/:accountId/conversations", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    // Obter todas as mensagens da conta ordenadas por data descendente
+    const messages = await prisma.message.findMany({
+      where: { accountId },
+      orderBy: { createdAt: "desc" }
+    });
+
+    // Agrupar conversas por número de telefone de forma manual e eficiente
+    const conversationsMap = new Map<string, any>();
+    messages.forEach(msg => {
+      if (!conversationsMap.has(msg.to)) {
+        conversationsMap.set(msg.to, {
+          phone: msg.to,
+          lastMessage: msg.body || (msg.templateName ? `Template: ${msg.templateName}` : "Mídia"),
+          updatedAt: msg.createdAt,
+          status: msg.status,
+          direction: msg.direction,
+          messageType: msg.messageType,
+        });
+      }
+    });
+
+    const conversations = Array.from(conversationsMap.values());
+    res.json(conversations);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter histórico de mensagens com um contato específico (scoped to user)
+router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Request, res: Response) => {
+  const { accountId, phone } = req.params;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const messages = await prisma.message.findMany({
+      where: { accountId, to: phone },
+      orderBy: { createdAt: "asc" }
+    });
+
+    res.json(messages);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Enviar mensagem de texto livre / resposta para um contato (scoped to user)
+router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { to, body } = req.body;
+
+  if (!to || !body) {
+    return res.status(400).json({ error: "Telefone (to) e mensagem (body) são obrigatórios." });
+  }
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({
+      where: { id: accountId, userId }
+    });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    // Descriptografar o token de acesso da Meta
+    const decryptedToken = decryptToken(account.accessToken);
+
+    // Enviar mensagem de texto livre via API da Meta
+    const response = await axios.post(
+      `https://graph.facebook.com/v19.0/${account.phoneNumberId}/messages`,
+      {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: {
+          preview_url: false,
+          body: body
+        }
+      },
+      {
+        headers: { Authorization: `Bearer ${decryptedToken}` }
+      }
+    );
+
+    const wamid = response.data.messages?.[0]?.id;
+
+    // Gravar no banco de dados local como OUTGOING
+    const savedMsg = await prisma.message.create({
+      data: {
+        accountId,
+        wamid,
+        to,
+        status: "SENT",
+        direction: "OUTGOING",
+        messageType: "TEXT",
+        body,
+      }
+    });
+
+    console.log(`[Chat] Resposta enviada com sucesso para ${to}. Wamid: ${wamid}`);
+
+    // Emitir evento em tempo real via SSE
+    messageEventEmitter.emit("messageUpdated", {
+      accountId: savedMsg.accountId,
+      messageId: savedMsg.id,
+      status: savedMsg.status,
+      direction: savedMsg.direction,
+      body: savedMsg.body,
+      to: savedMsg.to,
+      messageType: savedMsg.messageType,
+      wamid: savedMsg.wamid,
+      errorMessage: savedMsg.errorMessage,
+      updatedAt: savedMsg.updatedAt,
+    });
+
+    res.status(201).json(savedMsg);
+  } catch (error: any) {
+    console.error(`[Chat] Erro ao enviar resposta para ${to}:`, error.response?.data || error.message);
+    const metaError = error.response?.data?.error;
+    const errMsg = metaError ? `Erro da Meta: ${metaError.message}` : error.message;
+    res.status(error.response?.status || 500).json({ error: errMsg });
+  }
+});
+
+// ==========================================
 // SCHEDULED MESSAGES ROUTER
 // ==========================================
 
@@ -1347,6 +1487,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
           const value = change.value;
           
           if (change.field === "messages") {
+            // 1.1 Atualizações de Status (Enviado, Entregue, Lido, Falhou)
             if (value.statuses && Array.isArray(value.statuses)) {
               for (const statusObj of value.statuses) {
                 const wamid = statusObj.id;
@@ -1375,10 +1516,88 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                     accountId: updatedMsg.accountId,
                     messageId: updatedMsg.id,
                     status: updatedMsg.status,
+                    direction: updatedMsg.direction,
+                    body: updatedMsg.body,
+                    to: updatedMsg.to,
+                    messageType: updatedMsg.messageType,
                     wamid: updatedMsg.wamid,
                     errorMessage: updatedMsg.errorMessage,
                     updatedAt: updatedMsg.updatedAt,
                   });
+                }
+              }
+            }
+
+            // 1.2 Mensagens Recebidas do Cliente (Respostas)
+            if (value.messages && Array.isArray(value.messages)) {
+              for (const messageObj of value.messages) {
+                const wamid = messageObj.id;
+                const from = messageObj.from; // Número de telefone do remetente (cliente)
+                const type = messageObj.type; // text, image, document, video, audio, etc.
+                
+                let bodyText = null;
+                let mediaUrl = null;
+                
+                if (type === "text") {
+                  bodyText = messageObj.text?.body;
+                } else if (type === "image") {
+                  bodyText = messageObj.image?.caption || "Imagem recebida";
+                  mediaUrl = messageObj.image?.id;
+                } else if (type === "document") {
+                  bodyText = messageObj.document?.filename || "Documento recebido";
+                  mediaUrl = messageObj.document?.id;
+                } else if (type === "video") {
+                  bodyText = messageObj.video?.caption || "Vídeo recebido";
+                  mediaUrl = messageObj.video?.id;
+                } else if (type === "audio") {
+                  bodyText = "Áudio recebido";
+                  mediaUrl = messageObj.audio?.id;
+                } else {
+                  bodyText = `Mensagem do tipo ${type} recebida`;
+                }
+
+                // Encontrar conta do WhatsApp correspondente pelo phoneNumberId que recebeu
+                const phoneId = value.metadata?.phone_number_id;
+                if (phoneId) {
+                  const account = await prisma.account.findFirst({
+                    where: { phoneNumberId: phoneId }
+                  });
+
+                  if (account) {
+                    // Evitar duplicações caso a Meta reenvie o webhook
+                    const existingMsg = await prisma.message.findUnique({ where: { wamid } });
+                    
+                    if (!existingMsg) {
+                      const savedMsg = await prisma.message.create({
+                        data: {
+                          accountId: account.id,
+                          wamid,
+                          to: from, // Para mensagens recebidas, salvamos o telefone do remetente em "to"
+                          status: "RECEIVED",
+                          direction: "INCOMING",
+                          messageType: type.toUpperCase(),
+                          body: bodyText,
+                          mediaUrl: mediaUrl,
+                        }
+                      });
+
+                      console.log(`[Webhook] Nova mensagem recebida de ${from}. Wamid: ${wamid}`);
+
+                      // Emitir evento em tempo real para o frontend
+                      messageEventEmitter.emit("messageUpdated", {
+                        accountId: savedMsg.accountId,
+                        messageId: savedMsg.id,
+                        status: savedMsg.status,
+                        direction: savedMsg.direction,
+                        body: savedMsg.body,
+                        to: savedMsg.to,
+                        messageType: savedMsg.messageType,
+                        wamid: savedMsg.wamid,
+                        errorMessage: savedMsg.errorMessage,
+                        updatedAt: savedMsg.updatedAt,
+                      });
+                    }
+                  }
                 }
               }
             }
