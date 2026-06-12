@@ -768,21 +768,30 @@ export default function App() {
 
             let phone = "";
             if (splitPhone) {
-              // Montar número completo a partir de DDI + DDD + NUMERO
               const ddi = String(row[ddiIdx] || "").trim().replace(/\D/g, "");
               const ddd = String(row[dddIdx] || "").trim().replace(/\D/g, "");
               const numero = String(row[numeroIdx] || "").trim().replace(/\D/g, "");
-              phone = ddi + ddd + numero;
+
+              // Se NUMERO já contém o número completo (≥10 dígitos), ignorar DDI+DDD
+              if (numero.length >= 10) {
+                // NUMERO já tem DDI+DDD embutidos ou é número local longo — usar só ele
+                phone = numero.startsWith("55") ? numero : ddi + ddd + numero;
+              } else {
+                phone = ddi + ddd + numero;
+              }
             } else {
               phone = String(row[phoneIdx] || "").trim().replace(/\D/g, "");
             }
 
             if (!phone || phone.length < 8) continue;
 
-            // Normalizar 9º dígito para números brasileiros
+            // Normalizar 9º dígito para números brasileiros (55+DDD+8dígitos → 55+DDD+9+8dígitos)
             if (phone.startsWith("55") && phone.length === 12) {
               phone = phone.slice(0, 4) + "9" + phone.slice(4);
             }
+
+            // Descartar números com tamanho inválido (fora de 10–15 dígitos)
+            if (phone.length < 10 || phone.length > 15) continue;
 
             const name = nameIdx !== -1 ? String(row[nameIdx] || "").trim() : "";
 
