@@ -24,6 +24,15 @@ const getApiUrl = () => {
 };
 const API_BASE_URL = getApiUrl();
 
+/** Normaliza números BR para 13 dígitos (55 + DDD + 9 + 8 dígitos). */
+function normalizePhone(phone: string): string {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.startsWith("55") && digits.length === 12) {
+    return digits.slice(0, 4) + "9" + digits.slice(4);
+  }
+  return digits;
+}
+
 const parseJwt = (token: string) => {
   try {
     return JSON.parse(atob(token.split('.')[1]));
@@ -490,7 +499,8 @@ export default function App() {
 
           // 1. Atualizar histórico se a conversa estiver aberta
           const activePhone = selectedPhoneRef.current;
-          if (activePhone && data.to === activePhone) {
+          const incomingPhone = normalizePhone(data.to);
+          if (activePhone && normalizePhone(activePhone) === incomingPhone) {
             setChatMessages((prevMsgs) => {
               const idx = prevMsgs.findIndex((m) => m.wamid === data.wamid || m.id === data.messageId);
               if (idx !== -1) {
@@ -517,9 +527,9 @@ export default function App() {
 
           // 2. Atualizar lista de conversas ativas
           setConversations((prevConv) => {
-            const idx = prevConv.findIndex((c) => c.phone === data.to);
+            const idx = prevConv.findIndex((c) => normalizePhone(c.phone) === incomingPhone);
             const msgPreview = data.body || "Mídia";
-            
+
             if (idx !== -1) {
               const updated = [...prevConv];
               updated[idx] = {
@@ -536,7 +546,7 @@ export default function App() {
             } else {
               // Nova conversa recebida
               return [{
-                phone: data.to,
+                phone: incomingPhone,
                 lastMessage: msgPreview,
                 updatedAt: data.updatedAt || new Date().toISOString(),
                 status: data.status,

@@ -1165,8 +1165,34 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
 });
 
 // ==========================================
+// ==========================================
 // CHAT / LIVE INBOX ROUTER
 // ==========================================
+
+/**
+ * Normaliza números brasileiros para sempre usar 13 dígitos (com o 9º dígito).
+ * Ex: 558386241167 (12d) → 5583986241167 (13d)
+ * Evita conversas duplicadas causadas pela transição do 9º dígito no Brasil.
+ */
+function normalizePhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  // Brasil: 55 + DDD(2) + número — sem o 9 = 12 dígitos, com o 9 = 13 dígitos
+  if (digits.startsWith("55") && digits.length === 12) {
+    return digits.slice(0, 4) + "9" + digits.slice(4);
+  }
+  return digits;
+}
+
+/** Retorna ambas as variantes do número (com e sem 9º dígito) para queries. */
+function phoneVariants(phone: string): string[] {
+  const normalized = normalizePhone(phone);
+  const digits = phone.replace(/\D/g, "");
+  const variants = new Set([phone, digits, normalized]);
+  if (normalized.startsWith("55") && normalized.length === 13) {
+    variants.add(normalized.slice(0, 4) + normalized.slice(5)); // versão sem o 9
+  }
+  return Array.from(variants);
+}
 
 // Obter a lista de conversas ativas (scoped to user)
 router.get("/accounts/:accountId/conversations", async (req: Request, res: Response) => {
@@ -1184,12 +1210,13 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
       orderBy: { createdAt: "desc" }
     });
 
-    // Agrupar conversas por número de telefone de forma manual e eficiente
+    // Agrupar conversas por número normalizado (resolve problema do 9º dígito brasileiro)
     const conversationsMap = new Map<string, any>();
     messages.forEach(msg => {
-      if (!conversationsMap.has(msg.to)) {
-        conversationsMap.set(msg.to, {
-          phone: msg.to,
+      const key = normalizePhone(msg.to);
+      if (!conversationsMap.has(key)) {
+        conversationsMap.set(key, {
+          phone: key,
           lastMessage: msg.body || (msg.templateName ? `Template: ${msg.templateName}` : "Mídia"),
           updatedAt: msg.createdAt,
           status: msg.status,
@@ -1217,7 +1244,7 @@ router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Req
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     const messages = await prisma.message.findMany({
-      where: { accountId, to: phone },
+      where: { accountId, to: { in: phoneVariants(phone) } },
       orderBy: { createdAt: "asc" }
     });
 
@@ -1557,7 +1584,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
             if (value.messages && Array.isArray(value.messages)) {
               for (const messageObj of value.messages) {
                 const wamid = messageObj.id;
-                const from = messageObj.from; // Número de telefone do remetente (cliente)
+                const from = normalizePhone(messageObj.from); // Normaliza 9º dígito BR
                 const type = messageObj.type; // text, image, document, video, audio, etc.
                 
                 let bodyText = null;
