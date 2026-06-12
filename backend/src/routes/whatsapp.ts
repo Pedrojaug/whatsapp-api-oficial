@@ -1205,10 +1205,16 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     // Obter todas as mensagens da conta ordenadas por data descendente
-    const messages = await prisma.message.findMany({
-      where: { accountId },
-      orderBy: { createdAt: "desc" }
-    });
+    const [messages, contacts] = await Promise.all([
+      prisma.message.findMany({
+        where: { accountId },
+        orderBy: { createdAt: "desc" }
+      }),
+      prisma.whatsAppContact.findMany({ where: { accountId } })
+    ]);
+
+    // Índice rápido: phone → profileName
+    const contactMap = new Map(contacts.map(c => [c.phone, c.profileName]));
 
     // Agrupar conversas por número normalizado (resolve problema do 9º dígito brasileiro)
     const conversationsMap = new Map<string, any>();
@@ -1217,6 +1223,7 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
       if (!conversationsMap.has(key)) {
         conversationsMap.set(key, {
           phone: key,
+          profileName: contactMap.get(key) || null,
           lastMessage: msg.body || (msg.templateName ? `Template: ${msg.templateName}` : "Mídia"),
           updatedAt: msg.createdAt,
           status: msg.status,
@@ -1582,10 +1589,17 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
             // 1.2 Mensagens Recebidas do Cliente (Respostas)
             if (value.messages && Array.isArray(value.messages)) {
+              // Extrair nome de perfil do campo contacts (entregue junto com as mensagens)
+              const contactsArr = value.contacts as any[] | undefined;
+
               for (const messageObj of value.messages) {
                 const wamid = messageObj.id;
                 const from = normalizePhone(messageObj.from); // Normaliza 9º dígito BR
                 const type = messageObj.type; // text, image, document, video, audio, etc.
+
+                // Nome de perfil do WhatsApp do remetente
+                const profileName: string | null =
+                  contactsArr?.find((c: any) => normalizePhone(c.wa_id) === from)?.profile?.name || null;
                 
                 let bodyText = null;
                 let mediaUrl = null;
@@ -1618,9 +1632,19 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
                   if (account) {
                     console.log(`[Webhook] Conta encontrada no banco: ${account.name} (ID: ${account.id})`);
+
+                    // Salvar/atualizar nome de perfil do contato
+                    if (profileName) {
+                      await prisma.whatsAppContact.upsert({
+                        where: { accountId_phone: { accountId: account.id, phone: from } },
+                        update: { profileName },
+                        create: { accountId: account.id, phone: from, profileName },
+                      });
+                    }
+
                     // Evitar duplicações caso a Meta reenvie o webhook
                     const existingMsg = await prisma.message.findUnique({ where: { wamid } });
-                    
+
                     if (!existingMsg) {
                       const savedMsg = await prisma.message.create({
                         data: {
@@ -1649,6 +1673,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         wamid: savedMsg.wamid,
                         errorMessage: savedMsg.errorMessage,
                         updatedAt: savedMsg.updatedAt,
+                        profileName,
                       });
                     } else {
                       console.log(`[Webhook] Mensagem com wamid ${wamid} já existe no banco. Ignorando.`);

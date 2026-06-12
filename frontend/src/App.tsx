@@ -544,6 +544,8 @@ export default function App() {
                 updatedAt: data.updatedAt || new Date().toISOString(),
                 status: data.status,
                 direction: data.direction,
+                // Atualiza o nome se vier no evento
+                ...(data.profileName ? { profileName: data.profileName } : {}),
               };
               // Mover a conversa ativa para o topo
               const item = updated.splice(idx, 1)[0];
@@ -553,6 +555,7 @@ export default function App() {
               // Nova conversa recebida
               return [{
                 phone: incomingPhone,
+                profileName: data.profileName || null,
                 lastMessage: msgPreview,
                 updatedAt: data.updatedAt || new Date().toISOString(),
                 status: data.status,
@@ -4261,7 +4264,7 @@ export default function App() {
                           >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <span style={{ fontWeight: "700", color: isActive ? "var(--primary)" : "var(--text-primary)" }}>
-                                📱 {c.phone}
+                                {c.profileName ? `👤 ${c.profileName}` : `📱 ${c.phone}`}
                               </span>
                               <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
                                 {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -4296,8 +4299,16 @@ export default function App() {
                       {/* Header da conversa */}
                       <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)" }}>
                         <div style={{ display: "flex", flexDirection: "column" }}>
-                          <span style={{ fontWeight: "700", fontSize: "1.1rem" }}>📱 {selectedPhone}</span>
-                          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Canal Oficial do WhatsApp</span>
+                          <span style={{ fontWeight: "700", fontSize: "1.1rem" }}>
+                            {conversations.find(c => c.phone === selectedPhone)?.profileName
+                              ? `👤 ${conversations.find(c => c.phone === selectedPhone)?.profileName}`
+                              : `📱 ${selectedPhone}`}
+                          </span>
+                          <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                            {conversations.find(c => c.phone === selectedPhone)?.profileName
+                              ? selectedPhone
+                              : "Canal Oficial do WhatsApp"}
+                          </span>
                         </div>
                         <button 
                           type="button" 
