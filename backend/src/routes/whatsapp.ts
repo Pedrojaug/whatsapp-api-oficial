@@ -803,6 +803,22 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
       ? templateComponents.find((c: any) => c.type === "HEADER")
       : null;
 
+    const bodyComp = templateComponents && Array.isArray(templateComponents)
+      ? templateComponents.find((c: any) => c.type === "BODY")
+      : null;
+
+    // Reconstruir corpo do template para persistência de histórico
+    let reconstructedBody: string | null = null;
+    if (bodyComp && bodyComp.text) {
+      reconstructedBody = bodyComp.text;
+      const resolvedVars = variables || [];
+      if (Array.isArray(resolvedVars)) {
+        resolvedVars.forEach((val: any, idx: number) => {
+          reconstructedBody = reconstructedBody!.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), String(val));
+        });
+      }
+    }
+
     if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
       const typeLower = headerComp.format.toLowerCase();
       components.push({
@@ -859,6 +875,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
         data: {
           wamid,
           status: "SENT",
+          body: reconstructedBody,
         },
       });
 

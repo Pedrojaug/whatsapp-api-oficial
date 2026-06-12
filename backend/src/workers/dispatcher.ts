@@ -71,6 +71,21 @@ export function startBackgroundDispatcher() {
             ? templateComponents.find((c: any) => c.type === "HEADER")
             : null;
 
+          const bodyComp = templateComponents && Array.isArray(templateComponents)
+            ? templateComponents.find((c: any) => c.type === "BODY")
+            : null;
+
+          // Reconstruir texto da mensagem para persistência de histórico
+          let reconstructedBody: string | null = null;
+          if (bodyComp && bodyComp.text) {
+            reconstructedBody = bodyComp.text;
+            if (resolvedVars && resolvedVars.length > 0) {
+              resolvedVars.forEach((val: any, idx: number) => {
+                reconstructedBody = reconstructedBody!.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), String(val));
+              });
+            }
+          }
+
           const components: any[] = [];
 
           // 1. Cabeçalho de Mídia
@@ -129,6 +144,7 @@ export function startBackgroundDispatcher() {
             data: {
               wamid,
               status: "SENT",
+              body: reconstructedBody,
               errorMessage: null
             }
           });
@@ -140,6 +156,10 @@ export function startBackgroundDispatcher() {
             accountId: updatedMsg.accountId,
             messageId: updatedMsg.id,
             status: updatedMsg.status,
+            direction: updatedMsg.direction,
+            body: updatedMsg.body,
+            to: updatedMsg.to,
+            messageType: updatedMsg.messageType,
             wamid: updatedMsg.wamid,
             errorMessage: updatedMsg.errorMessage,
             updatedAt: updatedMsg.updatedAt,

@@ -4321,7 +4321,24 @@ export default function App() {
                                     fontSize: "0.92rem",
                                     wordBreak: "break-word"
                                   }}>
-                                    {msg.body}
+                                    {msg.body || (msg.templateName ? (
+                                      (() => {
+                                        const tmpl = templates.find(t => t.name === msg.templateName);
+                                        if (!tmpl) return `📋 Template: ${msg.templateName}`;
+                                        const bodyComp = Array.isArray(tmpl.components)
+                                          ? tmpl.components.find((c: any) => c.type === "BODY")
+                                          : null;
+                                        if (!bodyComp || !bodyComp.text) return `📋 Template: ${msg.templateName}`;
+                                        let text = bodyComp.text;
+                                        const resolvedVars = msg.variables?.variables || [];
+                                        if (Array.isArray(resolvedVars)) {
+                                          resolvedVars.forEach((val: any, idx: number) => {
+                                            text = text.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), val);
+                                          });
+                                        }
+                                        return text;
+                                      })()
+                                    ) : "Mídia")}
                                   </div>
                                   <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "4px", display: "flex", gap: "6px" }}>
                                     <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
