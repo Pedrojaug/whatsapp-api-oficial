@@ -3201,123 +3201,6 @@ export default function App() {
               </ModalPortal>
             )}
 
-            {/* Modal de Seleção de Mídia */}
-            {showMediaSelectModal && (<ModalPortal>
-              <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1001 }}>
-                <div className="glass fade-in" style={{ width: "720px", maxWidth: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
-
-                  {/* Header */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
-                    <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>🎞️ Selecionar da Galeria</h3>
-                    <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} style={{ background: "none", border: "none", color: "var(--text-primary)", fontSize: "1.3rem", cursor: "pointer", opacity: 0.7 }}>✕</button>
-                  </div>
-
-                  {/* Filter tabs */}
-                  <div style={{ display: "flex", gap: "8px", padding: "14px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.05)" }}>
-                    {(["all", "image", "video", "document"] as const).map((f) => {
-                      const labels: Record<string, string> = { all: "🗂️ Todos", image: "🖼️ Imagens", video: "🎬 Vídeos", document: "📄 Docs" };
-                      const activeF = (window as any).__modalMediaFilter || "all";
-                      return (
-                        <button
-                          key={f}
-                          type="button"
-                          className={`btn ${activeF === f ? "btn-primary" : "btn-secondary"}`}
-                          style={{ padding: "5px 14px", fontSize: "0.8rem" }}
-                          onClick={() => {
-                            (window as any).__modalMediaFilter = f;
-                            setLoadingMedia(() => { setTimeout(() => setLoadingMedia(false), 10); return true; });
-                          }}
-                        >
-                          {labels[f]}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: "15px", overflowY: "auto", flex: 1 }}>
-                    {mediaAssets.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
-                        Nenhuma mídia encontrada. Faça upload na aba <strong>Galeria de Mídias</strong> primeiro.
-                      </div>
-                    ) : (() => {
-                      const mf = (window as any).__modalMediaFilter || "all";
-                      const filteredModal = mediaAssets.filter((a: any) =>
-                        mf === "all" ? true :
-                        mf === "image" ? a.mimeType?.startsWith("image/") :
-                        mf === "video" ? a.mimeType?.startsWith("video/") :
-                        a.mimeType === "application/pdf"
-                      );
-                      return filteredModal.length === 0 ? (
-                        <div style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>
-                          Nenhum arquivo deste tipo disponível.
-                        </div>
-                      ) : (
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: "14px" }}>
-                          {filteredModal.map((asset: any) => {
-                            const isVideo = asset.mimeType?.startsWith("video/");
-                            const isImage = asset.mimeType?.startsWith("image/");
-                            const typeBg = isVideo ? "rgba(139,92,246,0.75)" : isImage ? "rgba(16,185,129,0.75)" : "rgba(245,158,11,0.75)";
-                            const typeLabel = isVideo ? "🎬" : isImage ? "🖼️" : "📄";
-                            return (
-                              <div
-                                key={asset.id}
-                                onClick={() => {
-                                  if (mediaSelectCallback) mediaSelectCallback(asset.url);
-                                  setShowMediaSelectModal(false);
-                                  setMediaSelectCallback(null);
-                                }}
-                                className="glass-interactive"
-                                style={{
-                                  borderRadius: "var(--radius-sm)",
-                                  overflow: "hidden",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  border: "1px solid var(--border-color)",
-                                  cursor: "pointer",
-                                  transition: "transform 0.15s ease, border-color 0.15s ease",
-                                }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--primary)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLDivElement).style.transform = ""; }}
-                              >
-                                {/* Preview */}
-                                <div style={{ height: "100px", background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
-                                  {isImage ? (
-                                    <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                                  ) : isVideo ? (
-                                    <>
-                                      <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" playsInline />
-                                      {/* Play overlay */}
-                                      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.25)", pointerEvents: "none" }}>
-                                        <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem" }}>▶</div>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <span style={{ fontSize: "2.5rem" }}>📄</span>
-                                  )}
-                                  {/* Type badge */}
-                                  <div style={{ position: "absolute", top: "6px", left: "6px", background: typeBg, backdropFilter: "blur(4px)", padding: "2px 7px", borderRadius: "20px", fontSize: "0.65rem", fontWeight: "700", color: "#fff", pointerEvents: "none" }}>
-                                    {typeLabel} {asset.mimeType?.split("/")[1]?.toUpperCase()}
-                                  </div>
-                                </div>
-                                {/* Name */}
-                                <div style={{ padding: "8px 10px", fontSize: "0.72rem", fontWeight: "500", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={asset.filename}>
-                                  {asset.filename.replace(/^\d+-/, "")}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", padding: "14px 28px", background: "rgba(0,0,0,0.05)" }}>
-                    <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} className="btn btn-secondary">Cancelar</button>
-                  </div>
-
-                </div>
-              </div>
-            </ModalPortal>)}
 
           </div>
         )}
@@ -4720,6 +4603,95 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Modal de Seleção de Mídia — global, visível em qualquer aba */}
+      {showMediaSelectModal && (
+        <ModalPortal>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1001 }}>
+            <div className="glass fade-in" style={{ width: "720px", maxWidth: "95vw", maxHeight: "90vh", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>🎞️ Selecionar da Galeria</h3>
+                <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} style={{ background: "none", border: "none", color: "var(--text-primary)", fontSize: "1.3rem", cursor: "pointer", opacity: 0.7 }}>✕</button>
+              </div>
+              {/* Filter tabs */}
+              <div style={{ display: "flex", gap: "8px", padding: "14px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.05)" }}>
+                {(["all", "image", "video", "document"] as const).map((f) => {
+                  const labels: Record<string, string> = { all: "🗂️ Todos", image: "🖼️ Imagens", video: "🎬 Vídeos", document: "📄 Docs" };
+                  const activeF = (window as any).__modalMediaFilter || "all";
+                  return (
+                    <button key={f} type="button" className={`btn ${activeF === f ? "btn-primary" : "btn-secondary"}`} style={{ padding: "5px 14px", fontSize: "0.8rem" }}
+                      onClick={() => { (window as any).__modalMediaFilter = f; setLoadingMedia(() => { setTimeout(() => setLoadingMedia(false), 10); return true; }); }}>
+                      {labels[f]}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Grid */}
+              <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: "15px", overflowY: "auto", flex: 1 }}>
+                {mediaAssets.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                    Nenhuma mídia encontrada. Faça upload na aba <strong>Galeria de Mídias</strong> primeiro.
+                  </div>
+                ) : (() => {
+                  const mf = (window as any).__modalMediaFilter || "all";
+                  const filteredModal = mediaAssets.filter((a: any) =>
+                    mf === "all" ? true :
+                    mf === "image" ? a.mimeType?.startsWith("image/") :
+                    mf === "video" ? a.mimeType?.startsWith("video/") :
+                    a.mimeType === "application/pdf"
+                  );
+                  return filteredModal.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "30px", color: "var(--text-muted)" }}>Nenhum arquivo deste tipo disponível.</div>
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))", gap: "14px" }}>
+                      {filteredModal.map((asset: any) => {
+                        const isVideo = asset.mimeType?.startsWith("video/");
+                        const isImage = asset.mimeType?.startsWith("image/");
+                        const typeBg = isVideo ? "rgba(139,92,246,0.75)" : isImage ? "rgba(16,185,129,0.75)" : "rgba(245,158,11,0.75)";
+                        const typeLabel = isVideo ? "🎬" : isImage ? "🖼️" : "📄";
+                        return (
+                          <div key={asset.id} onClick={() => { if (mediaSelectCallback) mediaSelectCallback(asset.url); setShowMediaSelectModal(false); setMediaSelectCallback(null); }}
+                            className="glass-interactive"
+                            style={{ borderRadius: "var(--radius-sm)", overflow: "hidden", display: "flex", flexDirection: "column", border: "1px solid var(--border-color)", cursor: "pointer", transition: "transform 0.15s ease, border-color 0.15s ease" }}
+                            onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--primary)"; (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)"; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--border-color)"; (e.currentTarget as HTMLDivElement).style.transform = ""; }}>
+                            <div style={{ height: "100px", background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", position: "relative" }}>
+                              {isImage ? (
+                                <img src={asset.url} alt={asset.filename} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                              ) : isVideo ? (
+                                <>
+                                  <video src={asset.url} style={{ width: "100%", height: "100%", objectFit: "cover" }} muted preload="metadata" playsInline />
+                                  <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.25)", pointerEvents: "none" }}>
+                                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "rgba(255,255,255,0.9)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.9rem" }}>▶</div>
+                                  </div>
+                                </>
+                              ) : (
+                                <span style={{ fontSize: "2.5rem" }}>📄</span>
+                              )}
+                              <div style={{ position: "absolute", top: "6px", left: "6px", background: typeBg, backdropFilter: "blur(4px)", padding: "2px 7px", borderRadius: "20px", fontSize: "0.65rem", fontWeight: "700", color: "#fff", pointerEvents: "none" }}>
+                                {typeLabel} {asset.mimeType?.split("/")[1]?.toUpperCase()}
+                              </div>
+                            </div>
+                            <div style={{ padding: "8px 10px", fontSize: "0.72rem", fontWeight: "500", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap", color: "var(--text-secondary)" }} title={asset.filename}>
+                              {asset.filename.replace(/^\d+-/, "")}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+              {/* Footer */}
+              <div style={{ display: "flex", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", padding: "14px 28px", background: "rgba(0,0,0,0.05)" }}>
+                <button type="button" onClick={() => { setShowMediaSelectModal(false); setMediaSelectCallback(null); }} className="btn btn-secondary">Cancelar</button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
       </div>
     </div>
   );
