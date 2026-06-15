@@ -10,12 +10,69 @@ import { messageEventEmitter } from "../utils/emitter";
 
 const router = Router();
 
-// Middleware de autenticação para todas as rotas exceto webhooks
+// Middleware de autenticação para todas as rotas exceto webhooks e rotas internas do n8n
 router.use((req, res, next) => {
   if (req.path === "/webhooks" || req.path.startsWith("/webhooks")) {
     return next();
   }
+  if (req.path.startsWith("/n8n/")) {
+    return next();
+  }
   return authMiddleware(req as AuthenticatedRequest, res, next);
+});
+
+// ==========================================
+// ROTAS INTERNAS N8N (sem JWT, acesso por meta_token)
+// ==========================================
+
+// Proxy de mídia Meta para o n8n baixar arquivos de mídia
+router.get("/n8n/media/:mediaId", async (req: Request, res: Response) => {
+  const { mediaId } = req.params;
+  const metaToken = req.query.meta_token as string;
+  if (!metaToken || !mediaId) {
+    return res.status(400).json({ error: "meta_token e mediaId são obrigatórios" });
+  }
+  try {
+    const metaRes = await axios.get(`https://graph.facebook.com/v19.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${metaToken}` },
+    });
+    const mediaUrl: string = metaRes.data.url;
+    const mimeType: string = metaRes.data.mime_type || "application/octet-stream";
+    const mediaContent = await axios.get(mediaUrl, {
+      headers: { Authorization: `Bearer ${metaToken}` },
+      responseType: "stream",
+    });
+    res.setHeader("Content-Type", mimeType);
+    res.setHeader("Cache-Control", "private, max-age=300");
+    mediaContent.data.pipe(res);
+  } catch (error: any) {
+    console.error("[N8N Media Proxy] Erro:", error.response?.data || error.message);
+    res.status(500).json({ error: "Erro ao baixar mídia da Meta" });
+  }
+});
+
+// Envio de mensagem de texto via Meta API para o n8n responder ao lead
+router.post("/n8n/send", async (req: Request, res: Response) => {
+  const { phone_number_id, to, body: msgBody, meta_token } = req.body;
+  if (!phone_number_id || !to || !msgBody || !meta_token) {
+    return res.status(400).json({ error: "phone_number_id, to, body e meta_token são obrigatórios" });
+  }
+  try {
+    const metaRes = await axios.post(
+      `https://graph.facebook.com/v19.0/${phone_number_id}/messages`,
+      {
+        messaging_product: "whatsapp",
+        to,
+        type: "text",
+        text: { body: msgBody },
+      },
+      { headers: { Authorization: `Bearer ${meta_token}`, "Content-Type": "application/json" } }
+    );
+    res.json({ success: true, wamid: metaRes.data?.messages?.[0]?.id });
+  } catch (error: any) {
+    console.error("[N8N Send] Erro:", error.response?.data || error.message);
+    res.status(500).json({ error: "Erro ao enviar mensagem via Meta API" });
+  }
 });
 
 // ==========================================
@@ -1773,7 +1830,10 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                             conteudo_buffer: mediaUrl ? {
                               id: mediaUrl,
                               mimetype: mimeType
-                            } : null
+                            } : null,
+                            account_id: account.id,
+                            phone_number_id: account.phoneNumberId,
+                            access_token: decryptToken(account.accessToken)
                           }
                         };
 
