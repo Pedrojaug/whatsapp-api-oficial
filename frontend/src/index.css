@@ -40,6 +40,8 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-glow: 0 0 20px rgba(0, 194, 107, 0.15);
+  --shadow-card-hover: 0 16px 30px rgba(0, 0, 0, 0.5);
+  --inset-card-hover: inset 0 1px 1px rgba(255, 255, 255, 0.08);
   
   --transition-fast: 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   --transition-normal: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -70,10 +72,25 @@ body.light-theme {
   --border-color: rgba(0, 0, 0, 0.07);
   --border-focus: rgba(0, 175, 95, 0.6);
   --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #9ca3af;
+  --text-secondary: #2d3748; /* Darker gray for excellent legibility */
+  --text-muted: #5c6873; /* Meets contrast criteria on white backgrounds */
   --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 4px 10px -3px rgba(0, 0, 0, 0.04);
   --shadow-glow: 0 0 20px rgba(0, 175, 95, 0.1);
+  --shadow-card-hover: 0 16px 30px rgba(0, 0, 0, 0.08);
+  --inset-card-hover: inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  
+  /* Status/Accent variables optimized for light mode contrast */
+  --primary: #009652;
+  --primary-hover: #007a42;
+  --success: #059669;
+  --success-glow: rgba(5, 150, 105, 0.08);
+  --warning: #d97706;
+  --warning-glow: rgba(217, 119, 6, 0.08);
+  --error: #dc2626;
+  --error-glow: rgba(220, 38, 38, 0.08);
+
+  -webkit-font-smoothing: subpixel-antialiased;
+  -moz-osx-font-smoothing: auto;
 }
 
 /* Light theme: inputs, textareas, selects */
@@ -82,6 +99,11 @@ body.light-theme textarea {
   background-color: rgba(0, 0, 0, 0.03) !important;
   color: #111827 !important;
   border-color: rgba(0, 0, 0, 0.1) !important;
+}
+body.light-theme input::placeholder,
+body.light-theme textarea::placeholder {
+  color: #5c6873 !important;
+  opacity: 0.85;
 }
 body.light-theme select {
   background-color: #ffffff !important;
@@ -145,6 +167,18 @@ body.light-theme .skeleton {
     rgba(0, 0, 0, 0.04) 63%
   );
   background-size: 400% 100%;
+}
+
+/* Light theme: status badges for better text contrast */
+body.light-theme .badge-sent {
+  color: #4f46e5 !important;
+  background-color: rgba(79, 70, 229, 0.08) !important;
+  border-color: rgba(79, 70, 229, 0.2) !important;
+}
+body.light-theme .badge-delivered {
+  color: #0891b2 !important;
+  background-color: rgba(8, 145, 178, 0.08) !important;
+  border-color: rgba(8, 145, 178, 0.2) !important;
 }
 
 /* Scrollbar styling */
@@ -374,23 +408,23 @@ select option {
 /* Color specific hover glows */
 .hover-glow-primary:hover {
   border-color: rgba(0, 194, 107, 0.25) !important;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(0, 194, 107, 0.22) !important;
+  box-shadow: var(--shadow-card-hover), var(--inset-card-hover), 0 0 22px rgba(0, 194, 107, 0.22) !important;
 }
 .hover-glow-purple:hover {
   border-color: rgba(129, 140, 248, 0.25) !important;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(129, 140, 248, 0.22) !important;
+  box-shadow: var(--shadow-card-hover), var(--inset-card-hover), 0 0 22px rgba(129, 140, 248, 0.22) !important;
 }
 .hover-glow-cyan:hover {
   border-color: rgba(34, 211, 238, 0.25) !important;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(34, 211, 238, 0.22) !important;
+  box-shadow: var(--shadow-card-hover), var(--inset-card-hover), 0 0 22px rgba(34, 211, 238, 0.22) !important;
 }
 .hover-glow-success:hover {
   border-color: rgba(16, 185, 129, 0.25) !important;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(16, 185, 129, 0.22) !important;
+  box-shadow: var(--shadow-card-hover), var(--inset-card-hover), 0 0 22px rgba(16, 185, 129, 0.22) !important;
 }
 .hover-glow-error:hover {
   border-color: rgba(239, 68, 68, 0.25) !important;
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.08), 0 0 22px rgba(239, 68, 68, 0.22) !important;
+  box-shadow: var(--shadow-card-hover), var(--inset-card-hover), 0 0 22px rgba(239, 68, 68, 0.22) !important;
 }
 
 /* Skeleton Loader with Shimmer Effect */
@@ -409,4 +443,54 @@ select option {
 @keyframes skeleton-shimmer {
   0% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* Template Preview Box Styles */
+.template-preview-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.template-preview-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
+
+.template-preview-body {
+  color: #e5e7eb;
+}
+
+.template-preview-footer {
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Light Theme overrides for Template Preview Box */
+body.light-theme .template-preview-box {
+  background: rgba(0, 0, 0, 0.025) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+body.light-theme .template-preview-header {
+  border-bottom-color: rgba(0, 0, 0, 0.06) !important;
+  color: var(--text-primary) !important;
+}
+
+body.light-theme .template-preview-body {
+  color: var(--text-secondary) !important; /* Use our readable dark text color in light theme */
+}
+
+body.light-theme .template-preview-footer {
+  border-top-color: rgba(0, 0, 0, 0.06) !important;
+  color: var(--text-muted) !important;
+}
+
+/* Phone Simulator Panel in Builder Modal */
+.phone-simulator-panel {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .phone-simulator-panel {
+  background: rgba(0, 0, 0, 0.025) !important;
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
 }

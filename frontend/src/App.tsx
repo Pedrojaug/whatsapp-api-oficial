@@ -2233,10 +2233,10 @@ export default function App() {
                       </div>
 
                       {/* Preview Box */}
-                      <div style={{ padding: "16px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.05)", fontSize: "0.9rem", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {headerComp && <div style={{ fontWeight: "700", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "4px" }}>{headerComp.text}</div>}
-                        <div style={{ whiteSpace: "pre-wrap", color: "#e5e7eb" }}>{bodyComp?.text}</div>
-                        {footerComp && <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "4px" }}>{footerComp.text}</div>}
+                      <div className="template-preview-box" style={{ fontSize: "0.9rem", flex: 1, display: "flex", flexDirection: "column", gap: "8px" }}>
+                        {headerComp && <div className="template-preview-header" style={{ fontWeight: "700", paddingBottom: "4px" }}>{headerComp.text}</div>}
+                        <div className="template-preview-body" style={{ whiteSpace: "pre-wrap" }}>{bodyComp?.text}</div>
+                        {footerComp && <div className="template-preview-footer" style={{ fontSize: "0.75rem", paddingTop: "4px" }}>{footerComp.text}</div>}
                       </div>
 
                       {/* Actions */}
@@ -2297,7 +2297,7 @@ export default function App() {
                     <h3 style={{ fontSize: "1.3rem", fontWeight: "700" }}>
                       {editingTemplateId ? "Editar Template (Reenvio para Aprovação)" : "Criar Novo Template"}
                     </h3>
-                    <button type="button" onClick={() => { resetTemplateForm(); setShowNewTemplateModal(false); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                    <button type="button" onClick={() => { resetTemplateForm(); setShowNewTemplateModal(false); }} style={{ background: "none", border: "none", color: "var(--text-secondary)", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
                   </div>
 
                   {/* Content split in columns */}
@@ -2642,7 +2642,7 @@ export default function App() {
                     </form>
 
                     {/* Right Side: Simulator Preview */}
-                    <div style={{ flex: 0.8, padding: "24px 30px", background: "rgba(0,0,0,0.15)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "15px" }}>
+                    <div className="phone-simulator-panel" style={{ flex: 0.8, padding: "24px 30px", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "15px" }}>
                       <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Pré-visualização em tempo real</span>
                       <PhoneSimulator
                         headerFormat={newTemplateHeaderFormat}

@@ -1210,15 +1210,15 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
         where: { accountId },
         orderBy: { createdAt: "desc" }
       }),
-      prisma.whatsAppContact.findMany({ where: { accountId } })
+      (prisma as any).whatsAppContact.findMany({ where: { accountId } })
     ]);
 
     // Índice rápido: phone → profileName
-    const contactMap = new Map(contacts.map(c => [c.phone, c.profileName]));
+    const contactMap = new Map(contacts.map((c: any) => [c.phone, c.profileName]));
 
     // Agrupar conversas por número normalizado (resolve problema do 9º dígito brasileiro)
     const conversationsMap = new Map<string, any>();
-    messages.forEach(msg => {
+    messages.forEach((msg: any) => {
       const key = normalizePhone(msg.to);
       if (!conversationsMap.has(key)) {
         conversationsMap.set(key, {
@@ -1668,7 +1668,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
                     // Salvar/atualizar nome de perfil do contato
                     if (profileName) {
-                      await prisma.whatsAppContact.upsert({
+                      await (prisma as any).whatsAppContact.upsert({
                         where: { accountId_phone: { accountId: account.id, phone: from } },
                         update: { profileName },
                         create: { accountId: account.id, phone: from, profileName },
