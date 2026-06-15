@@ -60,15 +60,41 @@ router.post("/n8n/send", async (req: Request, res: Response) => {
   try {
     const metaRes = await axios.post(
       `https://graph.facebook.com/v19.0/${phone_number_id}/messages`,
-      {
-        messaging_product: "whatsapp",
-        to,
-        type: "text",
-        text: { body: msgBody },
-      },
+      { messaging_product: "whatsapp", to, type: "text", text: { body: msgBody } },
       { headers: { Authorization: `Bearer ${meta_token}`, "Content-Type": "application/json" } }
     );
-    res.json({ success: true, wamid: metaRes.data?.messages?.[0]?.id });
+    const wamid = metaRes.data?.messages?.[0]?.id;
+
+    // Salvar no banco e emitir SSE para aparecer no chat do site
+    const account = await prisma.account.findFirst({ where: { phoneNumberId: phone_number_id } });
+    if (account) {
+      const savedMsg = await prisma.message.create({
+        data: {
+          wamid,
+          to,
+          status: "SENT",
+          direction: "OUTGOING",
+          messageType: "TEXT",
+          body: msgBody,
+          accountId: account.id,
+          variables: { sentBy: "SDR" } as any,
+        },
+      });
+      messageEventEmitter.emit("messageUpdated", {
+        accountId: account.id,
+        messageId: savedMsg.id,
+        status: "SENT",
+        direction: "OUTGOING",
+        body: msgBody,
+        to,
+        messageType: "TEXT",
+        wamid: savedMsg.wamid,
+        updatedAt: savedMsg.updatedAt,
+        variables: savedMsg.variables,
+      });
+    }
+
+    res.json({ success: true, wamid });
   } catch (error: any) {
     console.error("[N8N Send] Erro:", error.response?.data || error.message);
     res.status(500).json({ error: "Erro ao enviar mensagem via Meta API" });
