@@ -148,7 +148,7 @@
         {
             "parameters": {
                 "method": "POST",
-                "url": "=http://localhost:3001/api/accounts/INSERIR_ACCOUNT_ID/messages/reply",
+                "url": "https://whatsapp-api-oficial-nls9.onrender.com/api/accounts/4d7429d1-f671-469b-9d83-ad924c73fd6a/messages/reply",
                 "sendHeaders": true,
                 "headerParameters": {
                     "parameters": [
@@ -158,7 +158,7 @@
                         },
                         {
                             "name": "Authorization",
-                            "value": "Bearer INSERIR_JWT_TOKEN"
+                            "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI5MmVkNzk5OC1lZjlhLTQ2MTEtOTBmNi0yZTA2YzUxMjRlNmMiLCJpYXQiOjE3ODE1NDEyNDZ9.ckDxaeXrGyfT8iIfRoemvif_NRrHwJNl3v3Lt2mVkBU"
                         }
                     ]
                 },
