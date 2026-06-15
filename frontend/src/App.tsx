@@ -1795,32 +1795,36 @@ export default function App() {
             </div>
 
             {!selectedAccount ? (
-              <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
-                <p style={{ color: "var(--text-muted)" }}>Nenhuma conta Meta API selecionada. Configure ou ative uma conta para visualizar métricas.</p>
+              <div className="glass" style={{ borderRadius: "var(--radius-xl)" }}>
+                <div className="empty-state">
+                  <span className="empty-state__icon">📊</span>
+                  <span className="empty-state__title">Nenhuma conta selecionada</span>
+                  <span className="empty-state__desc">Configure ou ative uma conta Meta API para visualizar as métricas de disparo.</span>
+                </div>
               </div>
             ) : (
               <>
                 {/* Metrics cards grid */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
-                  <div className="glass glass-interactive hover-glow-primary" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <span style={{ color: "var(--text-muted)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Total Disparado</span>
-                    <span style={{ fontSize: "2.5rem", fontWeight: "700" }}>{totalAll}</span>
+                  <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
+                    <span className="stat-card__label">Total Disparado</span>
+                    <span className="stat-card__value">{totalAll}</span>
                   </div>
-                  <div className="glass glass-interactive hover-glow-purple" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <span style={{ color: "#818cf8", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Enviado</span>
-                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#818cf8" }}>{totalSent}</span>
+                  <div className="glass glass-interactive hover-glow-purple stat-card stat-card--purple">
+                    <span className="stat-card__label">Enviado</span>
+                    <span className="stat-card__value">{totalSent}</span>
                   </div>
-                  <div className="glass glass-interactive hover-glow-cyan" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <span style={{ color: "#22d3ee", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Entregue</span>
-                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "#22d3ee" }}>{totalDelivered}</span>
+                  <div className="glass glass-interactive hover-glow-cyan stat-card stat-card--cyan">
+                    <span className="stat-card__label">Entregue</span>
+                    <span className="stat-card__value">{totalDelivered}</span>
                   </div>
-                  <div className="glass glass-interactive hover-glow-success" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <span style={{ color: "var(--success)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Lido</span>
-                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--success)" }}>{totalRead}</span>
+                  <div className="glass glass-interactive hover-glow-success stat-card stat-card--success">
+                    <span className="stat-card__label">Lido</span>
+                    <span className="stat-card__value">{totalRead}</span>
                   </div>
-                  <div className="glass glass-interactive hover-glow-error" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "8px" }}>
-                    <span style={{ color: "var(--error)", fontSize: "0.85rem", fontWeight: "600", textTransform: "uppercase" }}>Falhas</span>
-                    <span style={{ fontSize: "2.5rem", fontWeight: "700", color: "var(--error)" }}>{totalFailed}</span>
+                  <div className="glass glass-interactive hover-glow-error stat-card stat-card--error">
+                    <span className="stat-card__label">Falhas</span>
+                    <span className="stat-card__value">{totalFailed}</span>
                   </div>
                 </div>
 
@@ -2046,28 +2050,28 @@ export default function App() {
                     <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma métrica de template registrada neste período.</p>
                   ) : (
                     <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                      <table className="data-table">
                         <thead>
-                          <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                            <th style={{ padding: "12px 8px" }}>Nome do Template</th>
-                            <th style={{ padding: "12px 8px" }}>Disparados</th>
-                            <th style={{ padding: "12px 8px" }}>Enviados</th>
-                            <th style={{ padding: "12px 8px" }}>Lidos</th>
-                            <th style={{ padding: "12px 8px" }}>Falhas</th>
-                            <th style={{ padding: "12px 8px" }}>Taxa de Leitura</th>
+                          <tr>
+                            <th>Nome do Template</th>
+                            <th>Disparados</th>
+                            <th>Enviados</th>
+                            <th>Lidos</th>
+                            <th>Falhas</th>
+                            <th>Taxa de Leitura</th>
                           </tr>
                         </thead>
                         <tbody>
                           {metricsData.templateMetrics.map((t, idx) => {
                             const readRate = t.sent > 0 ? Math.round((t.read / t.sent) * 100) : 0;
                             return (
-                              <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                                <td style={{ padding: "12px 8px", fontWeight: "600" }}>{t.templateName}</td>
-                                <td style={{ padding: "12px 8px" }}>{t.total}</td>
-                                <td style={{ padding: "12px 8px", color: "#818cf8" }}>{t.sent}</td>
-                                <td style={{ padding: "12px 8px", color: "var(--success)" }}>{t.read}</td>
-                                <td style={{ padding: "12px 8px", color: "var(--error)" }}>{t.failed}</td>
-                                <td style={{ padding: "12px 8px" }}>
+                              <tr key={idx}>
+                                <td style={{ fontWeight: "600" }}>{t.templateName}</td>
+                                <td>{t.total}</td>
+                                <td style={{ color: "#818cf8" }}>{t.sent}</td>
+                                <td style={{ color: "var(--success)" }}>{t.read}</td>
+                                <td style={{ color: "var(--error)" }}>{t.failed}</td>
+                                <td>
                                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                                     <span style={{ fontWeight: "600" }}>{readRate}%</span>
                                     <div style={{ width: "60px", height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
@@ -3568,30 +3572,30 @@ export default function App() {
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                         <div style={{ overflowX: "auto" }}>
-                          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                          <table className="data-table">
                             <thead>
-                              <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                                <th style={{ padding: "12px 8px" }}>Destinatário</th>
-                                <th style={{ padding: "12px 8px" }}>Template</th>
-                                <th style={{ padding: "12px 8px" }}>Data/Hora</th>
-                                <th style={{ padding: "12px 8px" }}>Status</th>
-                                <th style={{ padding: "12px 8px" }}>Detalhes</th>
+                              <tr>
+                                <th>Destinatário</th>
+                                <th>Template</th>
+                                <th>Data/Hora</th>
+                                <th>Status</th>
+                                <th>Detalhes</th>
                               </tr>
                             </thead>
                             <tbody>
                               {messageLogs.map((log) => (
-                                <tr key={log.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                                  <td style={{ padding: "12px 8px", fontWeight: "500" }}>{log.to}</td>
-                                  <td style={{ padding: "12px 8px" }}>{log.templateName}</td>
-                                  <td style={{ padding: "12px 8px", color: "var(--text-secondary)", fontSize: "0.8rem" }}>
+                                <tr key={log.id}>
+                                  <td style={{ fontWeight: "500" }}>{log.to}</td>
+                                  <td>{log.templateName}</td>
+                                  <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
                                     {new Date(log.createdAt).toLocaleString()}
                                   </td>
-                                  <td style={{ padding: "12px 8px" }}>
+                                  <td>
                                     <span className={`badge badge-${log.status.toLowerCase()}`}>
                                       {log.status}
                                     </span>
                                   </td>
-                                  <td style={{ padding: "12px 8px", color: "var(--text-muted)", fontSize: "0.8rem", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  <td style={{ color: "var(--text-muted)", fontSize: "0.8rem", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                     {log.errorMessage ? (
                                       <span style={{ color: "var(--error)" }} title={log.errorMessage}>
                                         ⚠️ {log.errorMessage}
@@ -3669,28 +3673,28 @@ export default function App() {
                       <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhum agendamento futuro encontrado para esta conta.</p>
                     ) : (
                       <div style={{ overflowX: "auto" }}>
-                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+                        <table className="data-table">
                           <thead>
-                            <tr style={{ textAlign: "left", borderBottom: "1px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
-                              <th style={{ padding: "12px 8px" }}>Destinatário</th>
-                              <th style={{ padding: "12px 8px" }}>Template</th>
-                              <th style={{ padding: "12px 8px" }}>Data/Hora de Envio</th>
-                              <th style={{ padding: "12px 8px" }}>Status</th>
-                              <th style={{ padding: "12px 8px", textAlign: "right" }}>Ações</th>
+                            <tr>
+                              <th>Destinatário</th>
+                              <th>Template</th>
+                              <th>Data/Hora de Envio</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: "right" }}>Ações</th>
                             </tr>
                           </thead>
                           <tbody>
                             {scheduledMessages.map((msg) => (
-                              <tr key={msg.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                                <td style={{ padding: "12px 8px", fontWeight: "500" }}>{msg.to}</td>
-                                <td style={{ padding: "12px 8px" }}>{msg.templateName}</td>
-                                <td style={{ padding: "12px 8px", color: "var(--text-secondary)", fontSize: "0.8rem" }}>
+                              <tr key={msg.id}>
+                                <td style={{ fontWeight: "500" }}>{msg.to}</td>
+                                <td>{msg.templateName}</td>
+                                <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
                                   {new Date(msg.scheduledAt).toLocaleString()}
                                 </td>
-                                <td style={{ padding: "12px 8px" }}>
+                                <td>
                                   <span className="badge badge-pending">PENDING</span>
                                 </td>
-                                <td style={{ padding: "12px 8px", textAlign: "right" }}>
+                                <td style={{ textAlign: "right" }}>
                                   <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                                     <button
                                       type="button"
@@ -4086,8 +4090,12 @@ export default function App() {
             </div>
 
             {!selectedAccount ? (
-              <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
-                <p style={{ color: "var(--text-muted)" }}>Nenhuma conta Meta API selecionada. Configure ou ative uma conta para abrir o Chat.</p>
+              <div className="glass" style={{ borderRadius: "var(--radius-xl)" }}>
+                <div className="empty-state">
+                  <span className="empty-state__icon">💬</span>
+                  <span className="empty-state__title">Nenhuma conta selecionada</span>
+                  <span className="empty-state__desc">Configure ou ative uma conta Meta API para abrir a Caixa de Entrada.</span>
+                </div>
               </div>
             ) : (
               <div className="glass" style={{ display: "flex", flex: 1, borderRadius: "var(--radius-xl)", overflow: "hidden", border: "1px solid var(--border-color)", minHeight: "450px" }}>
@@ -4112,12 +4120,16 @@ export default function App() {
                         <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
                       </div>
                     ) : conversations.length === 0 ? (
-                      <div style={{ padding: "30px", textAlign: "center", color: "var(--text-muted)", fontSize: "0.9rem" }}>
-                        Nenhuma conversa ativa encontrada.
+                      <div className="empty-state">
+                        <span className="empty-state__icon">💬</span>
+                        <span className="empty-state__desc">Nenhuma conversa ativa encontrada.</span>
                       </div>
                     ) : (
                       conversations.map((c) => {
                         const isActive = selectedPhone === c.phone;
+                        const initials = c.profileName
+                          ? c.profileName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
+                          : "📱";
                         return (
                           <div
                             key={c.phone}
@@ -4125,36 +4137,22 @@ export default function App() {
                               setSelectedPhone(c.phone);
                               fetchChatMessages(selectedAccount.id, c.phone);
                             }}
-                            style={{
-                              padding: "16px",
-                              borderBottom: "1px solid rgba(255, 255, 255, 0.03)",
-                              cursor: "pointer",
-                              background: isActive ? "rgba(99, 102, 241, 0.08)" : "transparent",
-                              transition: "all 0.2s",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "6px"
-                            }}
-                            className="chat-conversation-item"
+                            className={`conv-item${isActive ? " active" : ""}`}
                           >
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                              <span style={{ fontWeight: "700", color: isActive ? "var(--primary)" : "var(--text-primary)" }}>
-                                {c.profileName ? `👤 ${c.profileName}` : `📱 ${c.phone}`}
-                              </span>
-                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>
-                                {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
+                            <div className="conv-avatar">{initials}</div>
+                            <div className="conv-item__body">
+                              <div className="conv-item__top">
+                                <span className="conv-item__name">
+                                  {c.profileName || c.phone}
+                                </span>
+                                <span className="conv-item__time">
+                                  {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="conv-item__preview" style={{ fontStyle: c.direction === "INCOMING" ? "italic" : "normal" }}>
+                                {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
+                              </div>
                             </div>
-                            <span style={{
-                              fontSize: "0.82rem",
-                              color: "var(--text-muted)",
-                              textOverflow: "ellipsis",
-                              overflow: "hidden",
-                              whiteSpace: "nowrap",
-                              fontStyle: c.direction === "INCOMING" ? "italic" : "normal"
-                            }}>
-                              {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
-                            </span>
                           </div>
                         );
                       })
@@ -4165,9 +4163,12 @@ export default function App() {
                 {/* 2. Área do Histórico de Chat (Direita) */}
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(255, 255, 255, 0.01)" }}>
                   {!selectedPhone ? (
-                    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", gap: "12px" }}>
-                      <span style={{ fontSize: "3.5rem" }}>💬</span>
-                      <span>Selecione uma conversa ao lado para visualizar o atendimento.</span>
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <div className="empty-state">
+                        <span className="empty-state__icon">💬</span>
+                        <span className="empty-state__title">Nenhuma conversa aberta</span>
+                        <span className="empty-state__desc">Selecione uma conversa ao lado para visualizar o atendimento.</span>
+                      </div>
                     </div>
                   ) : (
                     <>
@@ -4209,24 +4210,9 @@ export default function App() {
                               return (
                                 <div
                                   key={msg.id || index}
-                                  style={{
-                                    alignSelf: isIncoming ? "flex-start" : "flex-end",
-                                    maxWidth: "70%",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: isIncoming ? "flex-start" : "flex-end"
-                                  }}
+                                  className={`msg-bubble-wrap msg-bubble-wrap--${isIncoming ? "in" : "out"}`}
                                 >
-                                  <div style={{
-                                    background: isIncoming ? "rgba(255, 255, 255, 0.05)" : "rgba(99, 102, 241, 0.2)",
-                                    border: isIncoming ? "1px solid rgba(255, 255, 255, 0.08)" : "1px solid rgba(99, 102, 241, 0.35)",
-                                    padding: "10px 14px",
-                                    borderRadius: isIncoming ? "0px 16px 16px 16px" : "16px 16px 0px 16px",
-                                    color: "var(--text-primary)",
-                                    boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-                                    fontSize: "0.92rem",
-                                    wordBreak: "break-word"
-                                  }}>
+                                  <div className={`msg-bubble msg-bubble--${isIncoming ? "in" : "out"}`}>
                                     {/* Mídia do cabeçalho do template (OUTGOING) */}
                                     {(() => {
                                       const mediaUrl = msg.mediaUrl || msg.variables?.mediaUrl;
@@ -4292,17 +4278,17 @@ export default function App() {
                                       })()
                                     ) : (!msg.mediaUrl && !msg.variables?.mediaUrl ? "Mídia" : null))}
                                   </div>
-                                  <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "4px", display: "flex", gap: "6px" }}>
+                                  <div className="msg-time" style={{ display: "flex", gap: "6px" }}>
                                     <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     {!isIncoming && (
-                                      <span style={{ 
-                                        color: msg.status === "READ" ? "var(--success)" : 
-                                               msg.status === "DELIVERED" ? "#22d3ee" : 
+                                      <span style={{
+                                        color: msg.status === "READ" ? "var(--success)" :
+                                               msg.status === "DELIVERED" ? "#22d3ee" :
                                                msg.status === "FAILED" ? "var(--error)" : "var(--text-muted)"
                                       }}>
-                                        {msg.status === "READ" ? "✓✓ Lido" : 
-                                         msg.status === "DELIVERED" ? "✓✓ Entregue" : 
-                                         msg.status === "SENT" ? "✓ Enviado" : 
+                                        {msg.status === "READ" ? "✓✓ Lido" :
+                                         msg.status === "DELIVERED" ? "✓✓ Entregue" :
+                                         msg.status === "SENT" ? "✓ Enviado" :
                                          msg.status === "FAILED" ? "⚠️ Falha" : "Enviando..."}
                                       </span>
                                     )}
