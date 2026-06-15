@@ -112,6 +112,7 @@ export default function App() {
   }, [isDarkTheme]);
 
   const [activeTab, setActiveTab] = useState<"metrics" | "accounts" | "templates" | "messages" | "lists" | "admin" | "media" | "chat">("metrics");
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
@@ -166,6 +167,11 @@ export default function App() {
   const [loadingScheduled, setLoadingScheduled] = useState(false);
   const [showRescheduleModal, setShowRescheduleModal] = useState<string | null>(null);
   const [rescheduleDate, setRescheduleDate] = useState("");
+
+  const navigate = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    setIsSidebarOpen(false);
+  };
 
   const handleLoginSuccess = (newToken: string, newUser: any) => {
     if (!newToken || !newUser) {
@@ -1598,9 +1604,43 @@ export default function App() {
           </button>
         </div>
       )}
-      <div style={{ display: "flex", flex: 1 }}>
+      {/* Mobile overlay */}
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)} />}
+
+      {/* Mobile header — sits above the flex row, hidden on desktop */}
+      <header className="mobile-header">
+        <button
+          className={`hamburger-btn${isSidebarOpen ? " open" : ""}`}
+          onClick={() => setIsSidebarOpen(v => !v)}
+          aria-label="Menu"
+        >
+          <span /><span /><span />
+        </button>
+        <div className="mobile-header__logo">Send<span>Inteligentte</span></div>
+        <div className="account-select-wrapper" style={{ minWidth: 0, maxWidth: "160px" }}>
+          <select
+            value={selectedAccount?.id || ""}
+            onChange={(e) => {
+              const acc = accounts.find((a) => a.id === e.target.value);
+              if (acc) setSelectedAccount(acc);
+            }}
+            className="field-input"
+            style={{ cursor: "pointer", fontSize: "0.78rem", padding: "6px 28px 6px 10px" }}
+          >
+            {accounts.length === 0 ? (
+              <option value="">Sem contas</option>
+            ) : (
+              accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>{acc.name}</option>
+              ))
+            )}
+          </select>
+        </div>
+      </header>
+
+      <div className="app-layout">
         {/* Sidebar */}
-        <aside className="glass" style={{ width: "280px", padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px", borderRight: "1px solid var(--border-color)", height: "100vh", position: "sticky", top: 0, overflowY: "auto" }}>
+        <aside className={`app-sidebar glass${isSidebarOpen ? " open" : ""}`}>
           <div className="sidebar-logo">
           <div className="sidebar-logo-mark">💬</div>
           <div style={{ minWidth: 0 }}>
@@ -1637,33 +1677,33 @@ export default function App() {
         {/* Navigation Menu */}
         <nav style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
           <span className="nav-section-label">Principal</span>
-          <button onClick={() => setActiveTab("metrics")} className={`nav-item ${activeTab === "metrics" ? "active" : ""}`}>
+          <button onClick={() => navigate("metrics")} className={`nav-item ${activeTab === "metrics" ? "active" : ""}`}>
             <span className="nav-icon">📊</span> Métricas
           </button>
-          <button onClick={() => setActiveTab("chat")} className={`nav-item ${activeTab === "chat" ? "active" : ""}`}>
+          <button onClick={() => navigate("chat")} className={`nav-item ${activeTab === "chat" ? "active" : ""}`}>
             <span className="nav-icon">💬</span> Chat & Atendimento
           </button>
 
           <span className="nav-section-label" style={{ marginTop: "6px" }}>Campanhas</span>
-          <button onClick={() => setActiveTab("templates")} className={`nav-item ${activeTab === "templates" ? "active" : ""}`}>
+          <button onClick={() => navigate("templates")} className={`nav-item ${activeTab === "templates" ? "active" : ""}`}>
             <span className="nav-icon">📝</span> Templates Meta
           </button>
-          <button onClick={() => setActiveTab("lists")} className={`nav-item ${activeTab === "lists" ? "active" : ""}`}>
+          <button onClick={() => navigate("lists")} className={`nav-item ${activeTab === "lists" ? "active" : ""}`}>
             <span className="nav-icon">👥</span> Listas de Contatos
           </button>
-          <button onClick={() => setActiveTab("messages")} className={`nav-item ${activeTab === "messages" ? "active" : ""}`}>
+          <button onClick={() => navigate("messages")} className={`nav-item ${activeTab === "messages" ? "active" : ""}`}>
             <span className="nav-icon">🚀</span> Envio & Histórico
           </button>
-          <button onClick={() => setActiveTab("media")} className={`nav-item ${activeTab === "media" ? "active" : ""}`}>
+          <button onClick={() => navigate("media")} className={`nav-item ${activeTab === "media" ? "active" : ""}`}>
             <span className="nav-icon">🖼️</span> Galeria de Mídias
           </button>
 
           <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
-          <button onClick={() => setActiveTab("accounts")} className={`nav-item ${activeTab === "accounts" ? "active" : ""}`}>
+          <button onClick={() => navigate("accounts")} className={`nav-item ${activeTab === "accounts" ? "active" : ""}`}>
             <span className="nav-icon">⚙️</span> Contas Meta API
           </button>
           {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
-            <button onClick={() => setActiveTab("admin")} className={`nav-item ${activeTab === "admin" ? "active" : ""}`}>
+            <button onClick={() => navigate("admin")} className={`nav-item ${activeTab === "admin" ? "active" : ""}`}>
               <span className="nav-icon">🛠️</span> Administração
             </button>
           )}
@@ -1714,11 +1754,11 @@ export default function App() {
       </aside>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: "40px", overflowY: "auto" }}>
-        
+      <main className="app-main">
+
         {/* Alert Notifications */}
         {alert && (
-          <div className="fade-in" style={{
+          <div className="fade-in app-alert" style={{
             position: "fixed", top: "24px", right: "32px", zIndex: 2000,
             padding: "16px 24px", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", gap: "10px",
             background: alert.type === "success" ? "rgba(16, 185, 129, 0.92)" : "rgba(239, 68, 68, 0.92)",
@@ -1735,8 +1775,8 @@ export default function App() {
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
               <div>
-                <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Painel de Métricas</h1>
-                <p style={{ color: "var(--text-secondary)" }}>Visão geral dos disparos efetuados pela conta <strong>{selectedAccount?.name || "Nenhuma conta selecionada"}</strong></p>
+                <h1 className="page-heading">Painel de Métricas</h1>
+                <p className="page-subheading">Visão geral dos disparos efetuados pela conta <strong>{selectedAccount?.name || "Nenhuma conta selecionada"}</strong></p>
               </div>
               
               <button 
@@ -1805,7 +1845,7 @@ export default function App() {
             ) : (
               <>
                 {/* Metrics cards grid */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px" }}>
+                <div className="metrics-stats-grid">
                   <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
                     <span className="stat-card__label">Total Disparado</span>
                     <span className="stat-card__value">{totalAll}</span>
@@ -1828,7 +1868,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "25px", alignItems: "stretch" }}>
+                <div className="metrics-chart-grid">
                   {/* Delivery Funnel */}
                   <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
                     <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Funil de Entrega</h3>
@@ -3159,11 +3199,11 @@ export default function App() {
         {activeTab === "messages" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
             <div>
-              <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Disparador & Logs</h1>
-              <p style={{ color: "var(--text-secondary)" }}>Realize disparos de teste ou acompanhe a entrega das automações do n8n</p>
+              <h1 className="page-heading">Disparador & Logs</h1>
+              <p className="page-subheading">Realize disparos de teste ou acompanhe a entrega das automações do n8n</p>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1.6fr", gap: "24px", alignItems: "start" }}>
+            <div className="messages-grid">
               {/* Testador Manual de Disparo */}
               <form onSubmit={handleSendMessage} className="glass" style={{ padding: "24px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "18px" }}>
                 <h3 style={{ fontSize: "1.15rem", fontWeight: "600" }}>Disparo de Mensagens</h3>
@@ -4085,8 +4125,8 @@ export default function App() {
         {activeTab === "chat" && (
           <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px", height: "calc(100vh - 150px)", minHeight: "550px" }}>
             <div>
-              <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "4px" }}>Caixa de Entrada</h1>
-              <p style={{ color: "var(--text-secondary)" }}>Visualize e responda conversas com clientes em tempo real</p>
+              <h1 className="page-heading">Caixa de Entrada</h1>
+              <p className="page-subheading">Visualize e responda conversas com clientes em tempo real</p>
             </div>
 
             {!selectedAccount ? (
@@ -4100,7 +4140,7 @@ export default function App() {
             ) : (
               <div className="glass" style={{ display: "flex", flex: 1, borderRadius: "var(--radius-xl)", overflow: "hidden", border: "1px solid var(--border-color)", minHeight: "450px" }}>
                 {/* 1. Lista de Conversas (Esquerda) */}
-                <div style={{ width: "320px", borderRight: "1px solid var(--border-color)", display: "flex", flexDirection: "column", background: "rgba(0, 0, 0, 0.15)" }}>
+                <div className={`chat-panel-list${selectedPhone ? " mobile-hidden" : ""}`}>
                   <div style={{ padding: "16px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <h3 style={{ fontSize: "1rem", fontWeight: "600" }}>Conversas Recentes</h3>
                     <button 
@@ -4161,7 +4201,7 @@ export default function App() {
                 </div>
 
                 {/* 2. Área do Histórico de Chat (Direita) */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", background: "rgba(255, 255, 255, 0.01)" }}>
+                <div className={`chat-panel-msg${!selectedPhone ? " mobile-hidden" : ""}`}>
                   {!selectedPhone ? (
                     <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <div className="empty-state">
@@ -4173,8 +4213,17 @@ export default function App() {
                   ) : (
                     <>
                       {/* Header da conversa */}
-                      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)" }}>
-                        <div style={{ display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPhone("")}
+                          className="btn btn-secondary"
+                          style={{ padding: "6px 10px", fontSize: "0.8rem", flexShrink: 0, display: "none" }}
+                          id="chat-back-btn"
+                        >
+                          ← Voltar
+                        </button>
+                        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
                           <span style={{ fontWeight: "700", fontSize: "1.1rem" }}>
                             {conversations.find(c => c.phone === selectedPhone)?.profileName
                               ? `👤 ${conversations.find(c => c.phone === selectedPhone)?.profileName}`
