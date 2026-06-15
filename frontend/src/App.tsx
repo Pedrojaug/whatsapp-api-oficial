@@ -515,9 +515,9 @@ export default function App() {
                 };
                 return updated;
               }
-              // Mensagens OUTGOING só atualizam — nunca criam entrada nova via SSE
-              // (a mensagem já está no chat via fetchChatMessages ou foi adicionada ao disparar)
-              if (data.direction !== "INCOMING") return prevMsgs;
+              // Mensagens OUTGOING do agente SDR chegam via SSE como novas — adicionar ao chat
+              const isAgentMsg = data.direction === "OUTGOING" && (data.variables as any)?.sentBy === "SDR";
+              if (data.direction !== "INCOMING" && !isAgentMsg) return prevMsgs;
               return [...prevMsgs, {
                 id: data.messageId,
                 wamid: data.wamid,
