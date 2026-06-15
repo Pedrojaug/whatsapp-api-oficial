@@ -1,0 +1,282 @@
+{
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 9-20 * * *"
+                        }
+                    ]
+                }
+            },
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                -1328,
+                -16
+            ],
+            "id": "f08e1706-3eb1-4fe9-836e-dc6fdacd76f9",
+            "name": "A cada hora (9h-20h)"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "SELECT\n    phone AS id,\n    name,\n    phone,\n    follow_up_count,\n    last_seen_at,\n    last_follow_up_at\nFROM public.sdrinteligentte_leads\nWHERE lead_status = 'ativo'\n    AND follow_up_count < 2\n    AND last_seen_at < '2026-02-13 10:00:00';",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                -1088,
+                -16
+            ],
+            "id": "afca288f-0766-4d2f-9d67-83bc6e154f57",
+            "name": "Buscar leads elegíveis",
+            "credentials": {
+                "postgres": {
+                    "id": "zpXxWuWJodQsLQpp",
+                    "name": "Postgres account 2"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 2
+                    },
+                    "conditions": [
+                        {
+                            "id": "check-has-results",
+                            "leftValue": "={{ $json.id }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "notEmpty",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                -848,
+                -16
+            ],
+            "id": "e78c0d7c-cfd7-4ad6-9c16-9091f6c3529b",
+            "name": "Tem leads?"
+        },
+        {
+            "parameters": {
+                "jsCode": "const results = [];\n\nfor (const item of items) {\n  const lead = item.json;\n  const name = lead.name || 'Olá';\n  const count = lead.follow_up_count || 0;\n\n  let texto = '';\n\n  if (count === 0) {\n    // Follow-up 1 — 12h após última interação\n    texto = `Oi, ${name} está por ai?`;\n  } else if (count === 1) {\n    // Follow-up 2 — 24h após o primeiro follow-up (último contato)\n    texto = `${name}, vou encerrar meus lembretes por aqui pra não te incomodar. Quando sentir que é a hora de automatizar seu negócio, é só me chamar por aqui que eu te ajudo. 😊`;\n  }\n\n  if (texto) {\n    results.push({\n      json: {\n        id: lead.id,\n        name: name,\n        phone: String(lead.phone || '').replace(/\\D/g, ''),\n        follow_up_count: count,\n        texto_followup: texto\n      }\n    });\n  }\n}\n\nreturn results;"
+            },
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                -608,
+                -96
+            ],
+            "id": "d556562e-3dda-4873-b340-3c9313614c88",
+            "name": "Montar texto do follow-up"
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                -368,
+                -96
+            ],
+            "id": "4377246e-a1ed-4a90-8857-0bb1f7a10cc1",
+            "name": "Loop 1 a 1"
+        },
+        {
+            "parameters": {
+                "operation": "executeQuery",
+                "query": "UPDATE public.sdrinteligentte_leads\nSET follow_up_count = follow_up_count + 1,\n    last_follow_up_at = NOW()\nWHERE phone = '{{ $('Montar texto do follow-up').item.json.phone }}';",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.postgres",
+            "typeVersion": 2.6,
+            "position": [
+                112,
+                -96
+            ],
+            "id": "d50647d7-752f-45bb-bae2-96fede5f6bd7",
+            "name": "Atualizar follow_up_count",
+            "credentials": {
+                "postgres": {
+                    "id": "zpXxWuWJodQsLQpp",
+                    "name": "Postgres account 2"
+                }
+            }
+        },
+        {
+            "parameters": {},
+            "type": "n8n-nodes-base.wait",
+            "typeVersion": 1.1,
+            "position": [
+                352,
+                -96
+            ],
+            "id": "33d00521-0714-4058-8173-52d3bda2e28f",
+            "name": "Espera 5s",
+            "webhookId": "dcb4662a-ac3c-4115-99e7-e461029549f3"
+        },
+        {
+            "parameters": {},
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                -592,
+                176
+            ],
+            "id": "b77b228e-c6ad-4008-81b4-2d48f4adce5d",
+            "name": "Sem leads elegíveis"
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "=http://localhost:3001/api/accounts/INSERIR_ACCOUNT_ID/messages/reply",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        },
+                        {
+                            "name": "Authorization",
+                            "value": "Bearer INSERIR_JWT_TOKEN"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "specifyBody": "json",
+                "jsonBody": "={\n  \"to\": \"{{ $json.phone }}\",\n  \"body\": \"{{ $json.texto_followup }}\",\n  \"variables\": {\n    \"sentBy\": \"SDR\"\n  }\n}",
+                "options": {}
+            },
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                -128,
+                -64
+            ],
+            "id": "b33283e8-b945-4142-b9dd-1e0a4fc1da4f",
+            "name": "ENVIO DE RESPOSTA"
+        }
+    ],
+    "connections": {
+        "A cada hora (9h-20h)": {
+            "main": [
+                [
+                    {
+                        "node": "Buscar leads elegíveis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Buscar leads elegíveis": {
+            "main": [
+                [
+                    {
+                        "node": "Tem leads?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Tem leads?": {
+            "main": [
+                [
+                    {
+                        "node": "Montar texto do follow-up",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Sem leads elegíveis",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Montar texto do follow-up": {
+            "main": [
+                [
+                    {
+                        "node": "Loop 1 a 1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Loop 1 a 1": {
+            "main": [
+                [],
+                [
+                    {
+                        "node": "ENVIO DE RESPOSTA",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Atualizar follow_up_count": {
+            "main": [
+                [
+                    {
+                        "node": "Espera 5s",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Espera 5s": {
+            "main": [
+                [
+                    {
+                        "node": "Loop 1 a 1",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "ENVIO DE RESPOSTA": {
+            "main": [
+                [
+                    {
+                        "node": "Atualizar follow_up_count",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "instanceId": "2fcdfa165a2d01c730e2958b43dd83581e2e0c8a0ce9fb8cbecfbf54127c6890"
+    }
+}

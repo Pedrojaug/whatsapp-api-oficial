@@ -1297,7 +1297,7 @@ router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Resp
 // Enviar mensagem de texto livre / resposta para um contato (scoped to user)
 router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { to, body } = req.body;
+  const { to, body, variables } = req.body;
 
   if (!to || !body) {
     return res.status(400).json({ error: "Telefone (to) e mensagem (body) são obrigatórios." });
@@ -1343,6 +1343,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
         direction: "OUTGOING",
         messageType: "TEXT",
         body,
+        variables: variables || null,
       }
     });
 
@@ -1360,6 +1361,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       wamid: savedMsg.wamid,
       errorMessage: savedMsg.errorMessage,
       updatedAt: savedMsg.updatedAt,
+      variables: savedMsg.variables,
     });
 
     res.status(201).json(savedMsg);
