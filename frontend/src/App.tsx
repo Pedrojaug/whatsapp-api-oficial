@@ -1601,165 +1601,111 @@ export default function App() {
       <div style={{ display: "flex", flex: 1 }}>
         {/* Sidebar */}
         <aside className="glass" style={{ width: "280px", padding: "20px 16px", display: "flex", flexDirection: "column", gap: "16px", borderRight: "1px solid var(--border-color)", height: "100vh", position: "sticky", top: 0, overflowY: "auto" }}>
-          <div>
-          <h2 style={{ fontSize: "1.6rem", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", fontFamily: "var(--font-sans)" }}>
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--primary)", flexShrink: 0 }}>
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
-            <span style={{ color: "var(--text-primary)" }}>Send</span>
-            <span style={{ background: "linear-gradient(135deg, var(--primary) 0%, #10b981 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Inteligentte</span>
-          </h2>
-          <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "500" }}>por Inteligentte Lab</p>
+          <div className="sidebar-logo">
+          <div className="sidebar-logo-mark">💬</div>
+          <div style={{ minWidth: 0 }}>
+            <div className="sidebar-logo-text">Send<span style={{ color: "var(--primary)" }}>Inteligentte</span></div>
+            <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "1px" }}>por Inteligentte Lab</div>
+          </div>
+          <span className="sidebar-logo-badge">Beta</span>
         </div>
 
         {/* Account Switcher */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Conta Ativa</label>
-          <select
-            value={selectedAccount?.id || ""}
-            onChange={(e) => {
-              const acc = accounts.find((a) => a.id === e.target.value);
-              if (acc) setSelectedAccount(acc);
-            }}
-            className="glass"
-            style={{ width: "100%", padding: "10px", borderRadius: "var(--radius-md)", color: "var(--text-primary)", outline: "none", cursor: "pointer", border: "1px solid var(--border-color)", fontSize: "0.9rem" }}
-          >
-            {accounts.length === 0 ? (
-              <option value="">Sem contas cadastradas</option>
-            ) : (
-              accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.name}
-                </option>
-              ))
-            )}
-          </select>
+        <div className="field">
+          <label className="nav-section-label">Conta Ativa</label>
+          <div className="account-select-wrapper">
+            <select
+              value={selectedAccount?.id || ""}
+              onChange={(e) => {
+                const acc = accounts.find((a) => a.id === e.target.value);
+                if (acc) setSelectedAccount(acc);
+              }}
+              className="field-input"
+              style={{ cursor: "pointer", paddingRight: "32px" }}
+            >
+              {accounts.length === 0 ? (
+                <option value="">Sem contas cadastradas</option>
+              ) : (
+                accounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>{acc.name}</option>
+                ))
+              )}
+            </select>
+          </div>
         </div>
 
         {/* Navigation Menu */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <button
-            onClick={() => setActiveTab("metrics")}
-            className={`btn ${activeTab === "metrics" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            📊 Métricas
+        <nav style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+          <span className="nav-section-label">Principal</span>
+          <button onClick={() => setActiveTab("metrics")} className={`nav-item ${activeTab === "metrics" ? "active" : ""}`}>
+            <span className="nav-icon">📊</span> Métricas
           </button>
-          <button
-            onClick={() => setActiveTab("chat")}
-            className={`btn ${activeTab === "chat" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            💬 Chat / Atendimento
+          <button onClick={() => setActiveTab("chat")} className={`nav-item ${activeTab === "chat" ? "active" : ""}`}>
+            <span className="nav-icon">💬</span> Chat & Atendimento
           </button>
-          <button
-            onClick={() => setActiveTab("templates")}
-            className={`btn ${activeTab === "templates" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            📝 Templates Meta
+
+          <span className="nav-section-label" style={{ marginTop: "6px" }}>Campanhas</span>
+          <button onClick={() => setActiveTab("templates")} className={`nav-item ${activeTab === "templates" ? "active" : ""}`}>
+            <span className="nav-icon">📝</span> Templates Meta
           </button>
-          <button
-            onClick={() => setActiveTab("lists")}
-            className={`btn ${activeTab === "lists" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            👥 Listas de Contatos
+          <button onClick={() => setActiveTab("lists")} className={`nav-item ${activeTab === "lists" ? "active" : ""}`}>
+            <span className="nav-icon">👥</span> Listas de Contatos
           </button>
-          <button
-            onClick={() => setActiveTab("messages")}
-            className={`btn ${activeTab === "messages" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            🚀 Envio & Histórico
+          <button onClick={() => setActiveTab("messages")} className={`nav-item ${activeTab === "messages" ? "active" : ""}`}>
+            <span className="nav-icon">🚀</span> Envio & Histórico
           </button>
-          <button
-            onClick={() => setActiveTab("media")}
-            className={`btn ${activeTab === "media" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            🖼️ Galeria de Mídias
+          <button onClick={() => setActiveTab("media")} className={`nav-item ${activeTab === "media" ? "active" : ""}`}>
+            <span className="nav-icon">🖼️</span> Galeria de Mídias
           </button>
-          <button
-            onClick={() => setActiveTab("accounts")}
-            className={`btn ${activeTab === "accounts" ? "btn-primary" : "btn-secondary"}`}
-            style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-          >
-            ⚙️ Contas Meta API
+
+          <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
+          <button onClick={() => setActiveTab("accounts")} className={`nav-item ${activeTab === "accounts" ? "active" : ""}`}>
+            <span className="nav-icon">⚙️</span> Contas Meta API
           </button>
           {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
-            <button
-              onClick={() => setActiveTab("admin")}
-              className={`btn ${activeTab === "admin" ? "btn-primary" : "btn-secondary"}`}
-              style={{ justifyContent: "flex-start", width: "100%", padding: "10px 14px", fontSize: "0.85rem" }}
-            >
-              🛠️ Administração
+            <button onClick={() => setActiveTab("admin")} className={`nav-item ${activeTab === "admin" ? "active" : ""}`}>
+              <span className="nav-icon">🛠️</span> Administração
             </button>
           )}
         </nav>
 
         {/* Bottom Section */}
-        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "14px", borderTop: "1px solid var(--border-color)", paddingTop: "15px" }}>
+        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
           {user && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-primary)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                  👤 {user.name || user.email}
-                </span>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
-                  {user.email}
-                </span>
+            <>
+              <div className="user-card">
+                <div className="user-avatar">
+                  {(user.name || user.email).charAt(0).toUpperCase()}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {user.name || user.email}
+                  </div>
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {user.email}
+                  </div>
+                </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="btn btn-secondary"
-                style={{
-                  width: "100%",
-                  background: "rgba(239, 68, 68, 0.08)",
-                  color: "var(--error)",
-                  borderColor: "rgba(239, 68, 68, 0.15)",
-                  justifyContent: "flex-start",
-                  padding: "8px 12px",
-                  fontSize: "0.85rem",
-                }}
+                className="nav-item"
+                style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)" }}
               >
-                🚪 Sair da Conta
+                <span className="nav-icon">🚪</span> Sair da Conta
               </button>
-            </div>
+            </>
           )}
 
           {/* Theme Toggle */}
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <button
-              id="theme-toggle-btn"
-              onClick={() => setIsDarkTheme(!isDarkTheme)}
-              title={isDarkTheme ? "Mudar para tema claro" : "Mudar para tema escuro"}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "transparent",
-                border: "1px solid var(--border-color)",
-                borderRadius: "999px",
-                padding: "5px 14px",
-                cursor: "pointer",
-                fontSize: "0.78rem",
-                color: "var(--text-muted)",
-                transition: "all 0.25s ease",
-                backdropFilter: "blur(4px)",
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--primary)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-color)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
-              }}
-            >
-              {isDarkTheme ? "☀️ Tema Claro" : "🌙 Tema Escuro"}
-            </button>
-          </div>
+          <button
+            id="theme-toggle-btn"
+            onClick={() => setIsDarkTheme(!isDarkTheme)}
+            title={isDarkTheme ? "Mudar para tema claro" : "Mudar para tema escuro"}
+            className="nav-item"
+            style={{ justifyContent: "center", fontSize: "0.78rem" }}
+          >
+            {isDarkTheme ? "☀️ Tema Claro" : "🌙 Tema Escuro"}
+          </button>
 
           <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
             Desenvolvido por Inteligentte Lab | v1.0.0
@@ -4415,7 +4361,8 @@ export default function App() {
                                   alignItems: "center",
                                   gap: "8px"
                                 }}>
-                                  <span>⚡ <strong>Janela de Atendimento Ativa:</strong> Você pode responder a este cliente com mensagens de texto livre. (Expira em {timeRemainingStr}).</span>
+                                  <span className="window-badge" style={{ fontSize: "0.78rem" }}><span className="dot" />Janela aberta</span>
+                                  <span style={{ fontSize: "0.8rem" }}>Responda livremente · Expira em <strong>{timeRemainingStr}</strong></span>
                                 </div>
                               ) : (
                                 <div style={{
