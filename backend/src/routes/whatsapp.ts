@@ -1349,6 +1349,36 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
 
     console.log(`[Chat] Resposta enviada com sucesso para ${to}. Wamid: ${wamid}`);
 
+    // Encaminhar resposta humana manual para o n8n para pausar o robô (takeover humano)
+    const n8nWebhookUrl = process.env.N8N_SDR_WEBHOOK_URL;
+    if (n8nWebhookUrl) {
+      // Ignorar se a mensagem foi disparada de forma automatizada (ex: pelo próprio SDR n8n)
+      const isSdrDisparo = variables && (variables as any).sentBy === "SDR";
+      
+      if (!isSdrDisparo) {
+        const n8nPayload = {
+          body: {
+            event: "on-message",
+            type: "text",
+            from: to,
+            to: to,
+            destiny: account.phoneNumberId,
+            isgroup: false,
+            isGroupMsg: false,
+            fromMe: true,
+            id: wamid,
+            content: body,
+            login_atendente: "human", // sinaliza atendimento humano
+          }
+        };
+
+        console.log(`[Webhook Forward Outgoing] Encaminhando resposta de atendente humana para n8n: ${n8nWebhookUrl}`);
+        axios.post(n8nWebhookUrl, n8nPayload).catch(err => {
+          console.error("[Webhook Forward Outgoing] Falha ao encaminhar resposta para n8n:", err.message);
+        });
+      }
+    }
+
     // Emitir evento em tempo real via SSE
     messageEventEmitter.emit("messageUpdated", {
       accountId: savedMsg.accountId,
@@ -1710,6 +1740,48 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         updatedAt: savedMsg.updatedAt,
                         profileName,
                       });
+
+                      // Encaminhar webhook para o n8n do SDR se configurado
+                      const n8nWebhookUrl = process.env.N8N_SDR_WEBHOOK_URL;
+                      if (n8nWebhookUrl) {
+                        const finalProfileName = profileName || "";
+                        
+                        let mimeType = "image/jpeg";
+                        if (type === "image" && messageObj.image?.mime_type) mimeType = messageObj.image.mime_type;
+                        else if (type === "audio" && messageObj.audio?.mime_type) mimeType = messageObj.audio.mime_type;
+                        else if (type === "video" && messageObj.video?.mime_type) mimeType = messageObj.video.mime_type;
+                        else if (type === "document" && messageObj.document?.mime_type) mimeType = messageObj.document.mime_type;
+
+                        const n8nPayload = {
+                          body: {
+                            event: "on-message",
+                            type: type === "voice" ? "audio" : type,
+                            from: from,
+                            phone: from,
+                            cel_contato: from,
+                            destiny: account.phoneNumberId,
+                            cel_conectado: account.phoneNumberId,
+                            isgroup: false,
+                            isGroupMsg: false,
+                            fromMe: false,
+                            id: wamid,
+                            content: bodyText || "",
+                            caption: bodyText || "",
+                            pushName: finalProfileName,
+                            senderName: finalProfileName,
+                            nome_contato: finalProfileName,
+                            conteudo_buffer: mediaUrl ? {
+                              id: mediaUrl,
+                              mimetype: mimeType
+                            } : null
+                          }
+                        };
+
+                        console.log(`[Webhook Forward] Encaminhando mensagem de ${from} para n8n: ${n8nWebhookUrl}`);
+                        axios.post(n8nWebhookUrl, n8nPayload).catch(err => {
+                          console.error("[Webhook Forward] Falha ao encaminhar mensagem para n8n:", err.message);
+                        });
+                      }
                     } else {
                       console.log(`[Webhook] Mensagem com wamid ${wamid} já existe no banco. Ignorando.`);
                     }
