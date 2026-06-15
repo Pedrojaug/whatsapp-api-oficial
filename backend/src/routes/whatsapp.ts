@@ -1414,19 +1414,17 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       
       if (!isSdrDisparo) {
         const n8nPayload = {
-          body: {
-            event: "on-message",
-            type: "text",
-            from: to,
-            to: to,
-            destiny: account.phoneNumberId,
-            isgroup: false,
-            isGroupMsg: false,
-            fromMe: true,
-            id: wamid,
-            content: body,
-            login_atendente: "human", // sinaliza atendimento humano
-          }
+          event: "on-message",
+          type: "text",
+          from: to,
+          to: to,
+          destiny: account.phoneNumberId,
+          isgroup: false,
+          isGroupMsg: false,
+          fromMe: true,
+          id: wamid,
+          content: body,
+          login_atendente: "human", // sinaliza atendimento humano
         };
 
         console.log(`[Webhook Forward Outgoing] Encaminhando resposta de atendente humana para n8n: ${n8nWebhookUrl}`);
@@ -1810,31 +1808,29 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         else if (type === "document" && messageObj.document?.mime_type) mimeType = messageObj.document.mime_type;
 
                         const n8nPayload = {
-                          body: {
-                            event: "on-message",
-                            type: type === "voice" ? "audio" : type,
-                            from: from,
-                            phone: from,
-                            cel_contato: from,
-                            destiny: account.phoneNumberId,
-                            cel_conectado: account.phoneNumberId,
-                            isgroup: false,
-                            isGroupMsg: false,
-                            fromMe: false,
-                            id: wamid,
-                            content: bodyText || "",
-                            caption: bodyText || "",
-                            pushName: finalProfileName,
-                            senderName: finalProfileName,
-                            nome_contato: finalProfileName,
-                            conteudo_buffer: mediaUrl ? {
-                              id: mediaUrl,
-                              mimetype: mimeType
-                            } : null,
-                            account_id: account.id,
-                            phone_number_id: account.phoneNumberId,
-                            access_token: decryptToken(account.accessToken)
-                          }
+                          event: "on-message",
+                          type: type === "voice" ? "audio" : type,
+                          from: from,
+                          phone: from,
+                          cel_contato: from,
+                          destiny: account.phoneNumberId,
+                          cel_conectado: account.phoneNumberId,
+                          isgroup: false,
+                          isGroupMsg: false,
+                          fromMe: false,
+                          id: wamid,
+                          content: bodyText || "",
+                          caption: bodyText || "",
+                          pushName: finalProfileName,
+                          senderName: finalProfileName,
+                          nome_contato: finalProfileName,
+                          conteudo_buffer: mediaUrl ? {
+                            id: mediaUrl,
+                            mimetype: mimeType
+                          } : null,
+                          account_id: account.id,
+                          phone_number_id: account.phoneNumberId,
+                          access_token: decryptToken(account.accessToken)
                         };
 
                         console.log(`[Webhook Forward] Encaminhando mensagem de ${from} para n8n: ${n8nWebhookUrl}`);
