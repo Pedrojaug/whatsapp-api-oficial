@@ -4,7 +4,10 @@ const ALGORITHM = "aes-256-cbc";
 
 // Obtém a chave de 32 bytes (garantida via hash sha256)
 const getEncryptionKey = (): Buffer => {
-  const key = process.env.ENCRYPTION_KEY || "chave-secreta-padrao-send-inteligentte-dev";
+  const key = process.env.ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error("FATAL: ENCRYPTION_KEY environment variable is not set.");
+  }
   return crypto.createHash("sha256").update(key).digest();
 };
 

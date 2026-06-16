@@ -4,7 +4,10 @@ import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "minha-chave-secreta-super-segura-do-hub";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is not set.");
+}
 
 // Apply authentication middleware to all admin endpoints
 router.use(authMiddleware);

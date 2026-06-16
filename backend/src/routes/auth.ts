@@ -6,7 +6,10 @@ import { z } from "zod";
 import { prisma } from "../db";
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || "minha-chave-secreta-super-segura-do-hub";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("FATAL: JWT_SECRET environment variable is not set.");
+}
 
 // Rate Limiter para rotas de autenticação (limite de 5 requisições por minuto por IP)
 const authLimiter = rateLimit({

@@ -96,8 +96,13 @@ app.use("/api/admin", adminRouter);
 app.use("/api", whatsappRouter);
 
 // Rota de Status
-app.get("/status", (req, res) => {
-  res.json({ status: "ok", time: new Date() });
+app.get("/status", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", database: "connected", time: new Date() });
+  } catch (error) {
+    res.status(503).json({ status: "degraded", database: "disconnected", time: new Date() });
+  }
 });
 
 // Middleware de tratamento de erro global
