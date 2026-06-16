@@ -35,7 +35,11 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     setIsLoadingAccounts(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts`);
+      const res = await axios.get(`${API_BASE_URL}/accounts`, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
       setAccounts(res.data);
       if (res.data.length > 0) {
         // Se a conta selecionada ainda existe, mantém ela, senão seleciona a primeira

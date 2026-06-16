@@ -52,7 +52,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [token, setToken] = useState<string | null>(getSafeToken());
+  const [token, setToken] = useState<string | null>(() => {
+    const t = getSafeToken();
+    if (t) {
+      axios.defaults.headers.common["Authorization"] = `Bearer ${t}`;
+    }
+    return t;
+  });
   const [user, setUser] = useState<any | null>(getSafeUser());
   
   const decoded = token ? parseJwt(token) : null;
@@ -70,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = (newToken: string, newUser: any) => {
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
+    axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
     setToken(newToken);
     setUser(newUser);
   };
@@ -79,6 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("user");
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_user");
+    delete axios.defaults.headers.common["Authorization"];
     setToken(null);
     setUser(null);
   };
@@ -96,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(res.data.user));
       
+      axios.defaults.headers.common["Authorization"] = `Bearer ${res.data.token}`;
       setToken(res.data.token);
       setUser(res.data.user);
     } catch (err: any) {
@@ -114,6 +123,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem("token", adminToken);
       localStorage.setItem("user", adminUser);
       
+      axios.defaults.headers.common["Authorization"] = `Bearer ${adminToken}`;
       setToken(adminToken);
       setUser(JSON.parse(adminUser));
     }
