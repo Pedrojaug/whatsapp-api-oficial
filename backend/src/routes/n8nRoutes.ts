@@ -6,7 +6,7 @@ import { metaService } from "../services/metaService";
 const router = Router();
 
 // Middleware de validação de API Key exclusivo para rotas N8N
-router.use((req, res, next) => {
+router.use("/n8n", (req, res, next) => {
   const apiKey = req.headers["x-api-key"] as string;
   const expectedKey = process.env.N8N_API_KEY;
   if (!expectedKey) {
