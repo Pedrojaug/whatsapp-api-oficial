@@ -2,9 +2,10 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
-import { API_BASE_URL } from "../contexts/AuthContext";
+import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 
 export default function MediaPage() {
+  const { token } = useAuth();
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
 
@@ -15,11 +16,13 @@ export default function MediaPage() {
   const fetchMedia = async (accountId: string) => {
     setLoadingMedia(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/media`);
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/media`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+      });
       setMediaAssets(res.data);
     } catch (err: any) {
       console.error("Erro ao buscar mídias:", err);
-      showAlert("Erro ao buscar mídias da conta.", "error");
+      showAlert("Erro ao buscar mídias: " + (err.response?.data?.error || err.message), "error");
     } finally {
       setLoadingMedia(false);
     }

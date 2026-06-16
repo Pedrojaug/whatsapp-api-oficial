@@ -4,7 +4,7 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
-import { API_BASE_URL } from "../contexts/AuthContext";
+import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import PhoneSimulator from "../components/PhoneSimulator";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -33,6 +33,7 @@ interface MessageLog {
 }
 
 export default function MessagesPage() {
+  const { token } = useAuth();
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
 
@@ -93,7 +94,9 @@ export default function MessagesPage() {
   const fetchMedia = async (accountId: string) => {
     setLoadingMedia(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/media`);
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/media`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+      });
       setMediaAssets(res.data);
     } catch (err: any) {
       console.error("Erro ao buscar mídias:", err);
