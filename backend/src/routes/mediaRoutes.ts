@@ -77,7 +77,7 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
 
     // Gerar um nome único para evitar colisões
     const uniqueFilename = `${Date.now()}-${filename.replace(/\s+/g, "_")}`;
-    const uploadsDir = path.join(__dirname, "../uploads"); // Nota: modificado de ../../uploads para ../uploads dependendo da estrutura de pastas de build (src/routes/mediaRoutes.ts -> src/uploads é um nível acima)
+    const uploadsDir = path.join(__dirname, "../../uploads");
     
     // Garantir que a pasta uploads existe
     if (!fs.existsSync(uploadsDir)) {
@@ -128,7 +128,7 @@ router.delete("/accounts/:accountId/media/:mediaId", async (req: Request, res: R
     if (!mediaAsset) return res.status(404).json({ error: "Mídia não encontrada." });
 
     // Excluir arquivo físico se existir
-    const filePath = path.join(__dirname, "../uploads", mediaAsset.filename);
+    const filePath = path.join(__dirname, "../../uploads", mediaAsset.filename);
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     }

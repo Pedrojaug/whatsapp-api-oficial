@@ -341,7 +341,7 @@ export default function TemplatesPage() {
     setNewTemplateCategory(tmpl.category);
     setNewTemplateLanguage(tmpl.language);
     
-    const components = tmpl.components || [];
+    const components = Array.isArray(tmpl.components) ? tmpl.components : [];
     const header = components.find((c: any) => c.type === "HEADER");
     const body = components.find((c: any) => c.type === "BODY");
     const footer = components.find((c: any) => c.type === "FOOTER");
@@ -425,9 +425,10 @@ export default function TemplatesPage() {
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
           {templates.map((tmpl) => {
-            const bodyComp = tmpl.components.find((c: any) => c.type === "BODY");
-            const headerComp = tmpl.components.find((c: any) => c.type === "HEADER");
-            const footerComp = tmpl.components.find((c: any) => c.type === "FOOTER");
+            const componentsList = Array.isArray(tmpl.components) ? tmpl.components : [];
+            const bodyComp = componentsList.find((c: any) => c.type === "BODY");
+            const headerComp = componentsList.find((c: any) => c.type === "HEADER");
+            const footerComp = componentsList.find((c: any) => c.type === "FOOTER");
 
             return (
               <div key={tmpl.id} className="glass glass-interactive" style={{ padding: "24px", borderRadius: "var(--radius-lg)", display: "flex", flexDirection: "column", gap: "16px" }}>

@@ -186,7 +186,7 @@ export default function MessagesPage() {
     setMessageMediaUrl("");
     const tmpl = templates.find((t) => t.name === name);
     if (tmpl) {
-      const bodyComp = tmpl.components.find((c: any) => c.type === "BODY");
+      const bodyComp = Array.isArray(tmpl.components) ? tmpl.components.find((c: any) => c.type === "BODY") : null;
       const varCount = bodyComp ? getVariablesCount(bodyComp.text) : 0;
       setTemplateVariables(Array(varCount).fill(""));
       setVariableMappings(Array(varCount).fill("STATIC_VALUE"));
@@ -590,10 +590,11 @@ export default function MessagesPage() {
           {selectedTemplateName ? (() => {
             const tmpl = templates.find(t => t.name === selectedTemplateName);
             if (!tmpl) return null;
-            const bodyComp = tmpl.components.find((c: any) => c.type === "BODY");
-            const headerComp = tmpl.components.find((c: any) => c.type === "HEADER");
-            const footerComp = tmpl.components.find((c: any) => c.type === "FOOTER");
-            const buttonsComp = tmpl.components.find((c: any) => c.type === "BUTTONS");
+            const componentsList = Array.isArray(tmpl.components) ? tmpl.components : [];
+            const bodyComp = componentsList.find((c: any) => c.type === "BODY");
+            const headerComp = componentsList.find((c: any) => c.type === "HEADER");
+            const footerComp = componentsList.find((c: any) => c.type === "FOOTER");
+            const buttonsComp = componentsList.find((c: any) => c.type === "BUTTONS");
 
             const resolvedPreviewVars = recipientType === "list"
               ? templateVariables.map((_, idx) => {

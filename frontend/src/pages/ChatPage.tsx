@@ -601,7 +601,7 @@ export default function ChatPage() {
                     setSelectedTemplateName(name);
                     const t = templates.find(temp => temp.name === name);
                     if (t) {
-                      const body = (t.components as any[]).find(c => c.type === "BODY")?.text || "";
+                      const body = Array.isArray(t.components) ? t.components.find(c => c.type === "BODY")?.text || "" : "";
                       const vars = detectBodyVariables(body);
                       setTemplateVariables(vars.map(() => ""));
                     } else {
