@@ -23,7 +23,9 @@ import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
 import { handleTrackingRedirect } from "./routes/trackingRoutes";
+import publicApiRouter from "./routes/publicApiRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
+import { startCampaignWorker } from "./workers/campaignWorker";
 import { prisma } from "./db";
 
 const app = express();
@@ -107,7 +109,10 @@ app.use("/uploads", express.static(uploadsDir));
 // Redirect público de links rastreados (sem autenticação)
 app.get("/t/:shortCode", handleTrackingRedirect);
 
-// Rotas
+// API Pública por chave (sem JWT)
+app.use("/api/v1", publicApiRouter);
+
+// Rotas autenticadas
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api", whatsappRouter);
@@ -138,8 +143,9 @@ prisma.message.updateMany({ where: { status: "PROCESSING" }, data: { status: "PE
   })
   .catch((err: Error) => console.error("[Startup] Erro ao recuperar mensagens PROCESSING:", err.message));
 
-// Iniciar worker de background
+// Iniciar workers de background
 startBackgroundDispatcher();
+startCampaignWorker();
 
 // Iniciar servidor
 app.listen(PORT, () => {

@@ -35,9 +35,12 @@ model Account {
   whatsappContacts WhatsAppContact[]
   optOuts          OptOut[]
   trackedLinks     TrackedLink[]
+  apiKeys          ApiKey[]
+  campaigns        Campaign[]
 
   @@unique([userId, name])
 }
+
 
 model Template {
   id         String   @id @default(uuid())
@@ -141,6 +144,57 @@ model TrackedLink {
   createdAt   DateTime  @default(now())
 
   @@index([accountId])
+}
+
+model ApiKey {
+  id         String    @id @default(uuid())
+  name       String
+  keyHash    String    @unique
+  keyPrefix  String
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([accountId])
+}
+
+model Campaign {
+  id            String        @id @default(uuid())
+  name          String
+  accountId     String
+  account       Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  contactListId String?
+  templateName  String
+  variables     Json?
+  mediaUrl      String?
+  status        String        @default("DRAFT")
+  scheduleType  String        // ONCE, DAILY, WEEKLY, MONTHLY
+  scheduleTime  String?       // "HH:MM" UTC
+  scheduleDays  Int[]         @default([])
+  scheduleDate  DateTime?
+  nextRunAt     DateTime?
+  lastRunAt     DateTime?
+  runCount      Int           @default(0)
+  runs          CampaignRun[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([accountId])
+  @@index([status, nextRunAt])
+}
+
+model CampaignRun {
+  id            String    @id @default(uuid())
+  campaignId    String
+  campaign      Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  status        String    @default("RUNNING")
+  messagesSent  Int       @default(0)
+  contactsTotal Int       @default(0)
+  startedAt     DateTime  @default(now())
+  finishedAt    DateTime?
+
+  @@index([campaignId])
 }
 
 model OptOut {

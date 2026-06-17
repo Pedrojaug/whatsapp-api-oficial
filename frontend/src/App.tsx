@@ -18,6 +18,8 @@ import AccountsPage from "./pages/AccountsPage";
 import AdminPage from "./pages/AdminPage";
 import OptOutPage from "./pages/OptOutPage";
 import LinkTrackingPage from "./pages/LinkTrackingPage";
+import ApiKeysPage from "./pages/ApiKeysPage";
+import CampaignsPage from "./pages/CampaignsPage";
 
 export default function App() {
   return (
@@ -40,6 +42,8 @@ export default function App() {
                 <Route path="media" element={<MediaPage />} />
                 <Route path="optouts" element={<OptOutPage />} />
                 <Route path="link-tracking" element={<LinkTrackingPage />} />
+                <Route path="api-keys" element={<ApiKeysPage />} />
+                <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
                 <Route path="admin" element={<AdminPage />} />
                 

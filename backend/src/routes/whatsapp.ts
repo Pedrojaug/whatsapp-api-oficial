@@ -11,6 +11,8 @@ import mediaRouter from "./mediaRoutes";
 import optoutRouter from "./optoutRoutes";
 import reportRouter from "./reportRoutes";
 import trackingRouter from "./trackingRoutes";
+import apiKeyRouter from "./apiKeyRoutes";
+import campaignRouter from "./campaignRoutes";
 
 const router = Router();
 
@@ -27,5 +29,7 @@ router.use(mediaRouter);
 router.use(optoutRouter);
 router.use(reportRouter);
 router.use(trackingRouter);
+router.use(apiKeyRouter);
+router.use(campaignRouter);
 
 export default router;

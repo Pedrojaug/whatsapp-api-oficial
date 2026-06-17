@@ -16,7 +16,9 @@ import {
   Sun,
   Moon,
   ShieldOff,
-  Link2
+  Link2,
+  Megaphone,
+  KeyRound
 } from "lucide-react";
 
 export default function Layout() {
@@ -238,10 +240,16 @@ export default function Layout() {
             <NavLink to="/link-tracking" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <Link2 size={18} className="nav-icon" /> Rastreamento de Links
             </NavLink>
+            <NavLink to="/campaigns" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+              <Megaphone size={18} className="nav-icon" /> Campanhas Recorrentes
+            </NavLink>
 
             <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
             <NavLink to="/accounts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <Settings2 size={18} className="nav-icon" /> Contas Meta API
+            </NavLink>
+            <NavLink to="/api-keys" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+              <KeyRound size={18} className="nav-icon" /> API Pública
             </NavLink>
             {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
               <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
