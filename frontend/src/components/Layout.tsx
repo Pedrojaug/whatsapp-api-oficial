@@ -3,6 +3,20 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
+import { 
+  BarChart3, 
+  MessageSquare, 
+  FileText, 
+  Users, 
+  Send, 
+  Image as ImageIcon, 
+  Settings2, 
+  Wrench, 
+  LogOut, 
+  Sun, 
+  Moon,
+  MessageSquareCode
+} from "lucide-react";
 
 export default function Layout() {
   const { token, user, isImpersonating, impersonatorName, login, logout, stopImpersonating } = useAuth();
@@ -143,7 +157,9 @@ export default function Layout() {
         {/* Sidebar */}
         <aside className={`app-sidebar glass${isSidebarOpen ? " open" : ""}`}>
           <div className="sidebar-logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
-            <div className="sidebar-logo-mark">💬</div>
+            <div className="sidebar-logo-mark" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <MessageSquareCode size={18} style={{ color: "var(--primary)" }} />
+            </div>
             <div style={{ minWidth: 0 }}>
               <div className="sidebar-logo-text">Send<span style={{ color: "var(--primary)" }}>Inteligentte</span></div>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "1px" }}>por Inteligentte Lab</div>
@@ -176,33 +192,33 @@ export default function Layout() {
           <nav style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
             <span className="nav-section-label">Principal</span>
             <NavLink to="/metrics" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">📊</span> Métricas
+              <BarChart3 size={18} className="nav-icon" /> Métricas
             </NavLink>
             <NavLink to="/chat" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">💬</span> Chat & Atendimento
+              <MessageSquare size={18} className="nav-icon" /> Chat & Atendimento
             </NavLink>
 
             <span className="nav-section-label" style={{ marginTop: "6px" }}>Campanhas</span>
             <NavLink to="/templates" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">📝</span> Templates Meta
+              <FileText size={18} className="nav-icon" /> Templates Meta
             </NavLink>
             <NavLink to="/lists" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">👥</span> Listas de Contatos
+              <Users size={18} className="nav-icon" /> Listas de Contatos
             </NavLink>
             <NavLink to="/messages" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">🚀</span> Envio & Histórico
+              <Send size={18} className="nav-icon" /> Envio & Histórico
             </NavLink>
             <NavLink to="/media" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">🖼️</span> Galeria de Mídias
+              <ImageIcon size={18} className="nav-icon" /> Galeria de Mídias
             </NavLink>
 
             <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
             <NavLink to="/accounts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <span className="nav-icon">⚙️</span> Contas Meta API
+              <Settings2 size={18} className="nav-icon" /> Contas Meta API
             </NavLink>
             {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
               <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-                <span className="nav-icon">🛠️</span> Administração
+                <Wrench size={18} className="nav-icon" /> Administração
               </NavLink>
             )}
           </nav>
@@ -227,9 +243,9 @@ export default function Layout() {
                 <button
                   onClick={logout}
                   className="nav-item"
-                  style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", textAlign: "left", width: "100%" }}
+                  style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
                 >
-                  <span className="nav-icon">🚪</span> Sair da Conta
+                  <LogOut size={18} className="nav-icon" /> Sair da Conta
                 </button>
               </>
             )}
@@ -240,9 +256,17 @@ export default function Layout() {
               onClick={() => setIsDarkTheme(!isDarkTheme)}
               title={isDarkTheme ? "Mudar para tema claro" : "Mudar para tema escuro"}
               className="nav-item"
-              style={{ justifyContent: "center", fontSize: "0.78rem" }}
+              style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.875rem" }}
             >
-              {isDarkTheme ? "☀️ Tema Claro" : "🌙 Tema Escuro"}
+              {isDarkTheme ? (
+                <>
+                  <Sun size={18} className="nav-icon" /> Tema Claro
+                </>
+              ) : (
+                <>
+                  <Moon size={18} className="nav-icon" /> Tema Escuro
+                </>
+              )}
             </button>
 
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
