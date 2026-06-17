@@ -14,8 +14,7 @@ import {
   Wrench, 
   LogOut, 
   Sun, 
-  Moon,
-  MessageSquareCode
+  Moon
 } from "lucide-react";
 
 export default function Layout() {
@@ -134,7 +133,15 @@ export default function Layout() {
         >
           <span /><span /><span />
         </button>
-        <div className="mobile-header__logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>Send<span>Inteligentte</span></div>
+        <div className="mobile-header__logo" onClick={() => navigate("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
+          <div style={{ width: "24px", height: "24px", overflow: "hidden", display: "flex", alignItems: "center" }}>
+            <img src="/logo.png" style={{ height: "100%", width: "auto", objectFit: "cover", objectPosition: "left" }} />
+          </div>
+          <div style={{ fontSize: "1rem", fontWeight: 400, display: "flex", alignItems: "center" }}>
+            <span style={{ color: "var(--primary)", fontWeight: 700 }}>Send</span>
+            <span style={{ marginLeft: "3px", color: "var(--text-primary)" }}>Inteligentte</span>
+          </div>
+        </div>
         <div className="account-select-wrapper" style={{ minWidth: 0, maxWidth: "160px" }}>
           <select
             value={selectedAccount?.id || ""}
@@ -157,11 +164,14 @@ export default function Layout() {
         {/* Sidebar */}
         <aside className={`app-sidebar glass${isSidebarOpen ? " open" : ""}`}>
           <div className="sidebar-logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
-            <div className="sidebar-logo-mark" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MessageSquareCode size={18} style={{ color: "var(--primary)" }} />
+            <div className="sidebar-logo-mark" style={{ display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", background: "transparent", border: "none" }}>
+              <img src="/logo.png" style={{ height: "100%", width: "auto", objectFit: "cover", objectPosition: "left" }} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <div className="sidebar-logo-text">Send<span style={{ color: "var(--primary)" }}>Inteligentte</span></div>
+              <div className="sidebar-logo-text" style={{ fontSize: "1.05rem", fontWeight: 400, letterSpacing: "-0.01em", display: "flex", alignItems: "center" }}>
+                <span style={{ color: "var(--primary)", fontWeight: 700 }}>Send</span>
+                <span style={{ marginLeft: "4px", color: "var(--text-primary)" }}>Inteligentte</span>
+              </div>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "1px" }}>por Inteligentte Lab</div>
             </div>
             <span className="sidebar-logo-badge">Beta</span>
