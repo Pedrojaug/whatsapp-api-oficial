@@ -17,6 +17,7 @@ import MediaPage from "./pages/MediaPage";
 import AccountsPage from "./pages/AccountsPage";
 import AdminPage from "./pages/AdminPage";
 import OptOutPage from "./pages/OptOutPage";
+import LinkTrackingPage from "./pages/LinkTrackingPage";
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
                 <Route path="messages" element={<MessagesPage />} />
                 <Route path="media" element={<MediaPage />} />
                 <Route path="optouts" element={<OptOutPage />} />
+                <Route path="link-tracking" element={<LinkTrackingPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
                 <Route path="admin" element={<AdminPage />} />
                 

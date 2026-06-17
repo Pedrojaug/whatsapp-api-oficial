@@ -8,23 +8,21 @@ const router = Router();
 // Aplica autenticação a todas as rotas de listas/contatos
 router.use(authMiddleware);
 
-// Listar listas de contatos (scoped to user)
+// Listar listas de contatos (scoped to user), com filtro opcional por tag
 router.get("/accounts/:accountId/lists", async (req: Request, res: Response) => {
   const { accountId } = req.params;
+  const { tag } = req.query;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
 
+    const where: any = { accountId };
+    if (tag) where.tags = { has: tag as string };
+
     const lists = await prisma.contactList.findMany({
-      where: { accountId },
-      include: {
-        _count: {
-          select: { contacts: true }
-        }
-      },
+      where,
+      include: { _count: { select: { contacts: true } } },
       orderBy: { createdAt: "desc" },
     });
     res.json(lists);
@@ -63,7 +61,7 @@ router.get("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
 // Criar lista e importar contatos (scoped to user)
 router.post("/accounts/:accountId/lists", async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { name, contacts } = req.body; // contacts: Array<{ name?: string, phone: string, variables?: string[] }>
+  const { name, contacts, tags } = req.body;
 
   if (!name || !contacts || !Array.isArray(contacts)) {
     return res.status(400).json({ error: "Nome da lista e contatos são obrigatórios." });
@@ -71,16 +69,14 @@ router.post("/accounts/:accountId/lists", async (req: Request, res: Response) =>
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
 
-    // Criar a lista de contatos
     const list = await prisma.contactList.create({
       data: {
         accountId,
         name,
+        tags: Array.isArray(tags) ? tags.map(String) : [],
       }
     });
 
@@ -107,6 +103,30 @@ router.post("/accounts/:accountId/lists", async (req: Request, res: Response) =>
     });
 
     res.status(201).json(createdList);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Atualizar apenas as tags de uma lista (scoped to user)
+router.patch("/accounts/:accountId/lists/:listId/tags", async (req: Request, res: Response) => {
+  const { accountId, listId } = req.params;
+  const { tags } = req.body;
+
+  if (!Array.isArray(tags)) return res.status(400).json({ error: "Campo 'tags' deve ser um array." });
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const updated = await prisma.contactList.updateMany({
+      where: { id: listId, accountId },
+      data: { tags: tags.map(String) },
+    });
+    if (updated.count === 0) return res.status(404).json({ error: "Lista não encontrada" });
+
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -139,7 +159,7 @@ router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Re
 // Editar lista e gerenciar seus contatos (scoped to user)
 router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Response) => {
   const { accountId, listId } = req.params;
-  const { name, contacts } = req.body; // contacts: Array<{ id?: string, name?: string, phone: string, variables?: string[] }>
+  const { name, contacts, tags } = req.body;
 
   if (!name || !contacts || !Array.isArray(contacts)) {
     return res.status(400).json({ error: "Nome da lista e contatos são obrigatórios." });
@@ -147,20 +167,15 @@ router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
 
-    const list = await prisma.contactList.findFirst({
-      where: { id: listId, accountId }
-    });
+    const list = await prisma.contactList.findFirst({ where: { id: listId, accountId } });
     if (!list) return res.status(404).json({ error: "Lista não encontrada" });
 
-    // Atualizar nome da lista
     await prisma.contactList.update({
       where: { id: listId },
-      data: { name }
+      data: { name, tags: Array.isArray(tags) ? tags.map(String) : list.tags },
     });
 
     const existingContacts = await prisma.contact.findMany({

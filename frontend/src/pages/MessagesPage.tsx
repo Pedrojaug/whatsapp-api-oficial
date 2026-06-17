@@ -49,6 +49,8 @@ export default function MessagesPage() {
 
   // Lists & Media selections
   const [contactLists, setContactLists] = useState<any[]>([]);
+  const [listTagFilter, setListTagFilter] = useState("");
+  const [exportingXlsx, setExportingXlsx] = useState(false);
   const [mediaAssets, setMediaAssets] = useState<any[]>([]);
   const [, setLoadingMedia] = useState(false);
   const [showMediaSelectModal, setShowMediaSelectModal] = useState(false);
@@ -411,7 +413,23 @@ export default function MessagesPage() {
               />
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {/* Tag filter for lists */}
+              {(() => {
+                const allTags = Array.from(new Set(contactLists.flatMap((l) => l.tags || []))) as string[];
+                return allTags.length > 0 ? (
+                  <select
+                    value={listTagFilter}
+                    onChange={(e) => { setListTagFilter(e.target.value); setSelectedListId(""); }}
+                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: listTagFilter ? "#fff" : "var(--text-muted)", outline: "none", fontSize: "0.8rem" }}
+                  >
+                    <option value="">🏷️ Filtrar por tag (todas)</option>
+                    {allTags.map((tag) => (
+                      <option key={tag} value={tag}>#{tag}</option>
+                    ))}
+                  </select>
+                ) : null;
+              })()}
               <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Selecionar Lista</label>
               <select
                 value={selectedListId}
@@ -419,11 +437,13 @@ export default function MessagesPage() {
                 style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
               >
                 <option value="">Selecione uma lista</option>
-                {contactLists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name} ({list._count?.contacts || 0} contatos)
-                  </option>
-                ))}
+                {contactLists
+                  .filter((list) => !listTagFilter || (list.tags && list.tags.includes(listTagFilter)))
+                  .map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} ({list._count?.contacts || 0} contatos)
+                    </option>
+                  ))}
               </select>
             </div>
           )}
@@ -657,21 +677,53 @@ export default function MessagesPage() {
                 📅 Agendamentos Futuros
               </button>
             </div>
-            <button
-              onClick={() => {
-                if (selectedAccount) {
-                  if (logsView === "recent") {
-                    fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
-                  } else {
-                    fetchScheduledMessages(selectedAccount.id);
+            <div style={{ display: "flex", gap: "8px" }}>
+              {logsView === "recent" && (
+                <button
+                  type="button"
+                  disabled={exportingXlsx || !selectedAccount}
+                  onClick={async () => {
+                    if (!selectedAccount) return;
+                    setExportingXlsx(true);
+                    try {
+                      const res = await axios.get(
+                        `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=messages&period=30days`,
+                        { responseType: "blob" }
+                      );
+                      const url = URL.createObjectURL(res.data);
+                      const a = document.createElement("a");
+                      a.href = url;
+                      a.download = `mensagens_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    } catch {
+                      alert("Erro ao exportar XLSX.");
+                    } finally {
+                      setExportingXlsx(false);
+                    }
+                  }}
+                  className="btn btn-secondary"
+                  style={{ padding: "8px 14px", fontSize: "0.8rem" }}
+                >
+                  {exportingXlsx ? "Exportando..." : "📊 Exportar XLSX"}
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  if (selectedAccount) {
+                    if (logsView === "recent") {
+                      fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+                    } else {
+                      fetchScheduledMessages(selectedAccount.id);
+                    }
                   }
-                }
-              }}
-              className="btn btn-secondary"
-              style={{ padding: "8px 14px", fontSize: "0.8rem" }}
-            >
-              🔄 {logsView === "recent" ? "Atualizar Logs" : "Atualizar Agendamentos"}
-            </button>
+                }}
+                className="btn btn-secondary"
+                style={{ padding: "8px 14px", fontSize: "0.8rem" }}
+              >
+                🔄 {logsView === "recent" ? "Atualizar Logs" : "Atualizar Agendamentos"}
+              </button>
+            </div>
           </div>
 
           {logsView === "recent" ? (

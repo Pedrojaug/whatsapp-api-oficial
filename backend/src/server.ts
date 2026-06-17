@@ -22,6 +22,7 @@ if (missingVars.length > 0) {
 import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
+import { handleTrackingRedirect } from "./routes/trackingRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
 import { prisma } from "./db";
 
@@ -102,6 +103,9 @@ app.get("/uploads/:filename", async (req, res, next) => {
 
 // Servir arquivos de upload estaticamente
 app.use("/uploads", express.static(uploadsDir));
+
+// Redirect público de links rastreados (sem autenticação)
+app.get("/t/:shortCode", handleTrackingRedirect);
 
 // Rotas
 app.use("/api/auth", authRouter);

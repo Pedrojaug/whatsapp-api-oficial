@@ -9,6 +9,8 @@ import n8nRouter from "./n8nRoutes";
 import oauthRouter from "./oauthRoutes";
 import mediaRouter from "./mediaRoutes";
 import optoutRouter from "./optoutRoutes";
+import reportRouter from "./reportRoutes";
+import trackingRouter from "./trackingRoutes";
 
 const router = Router();
 
@@ -23,5 +25,7 @@ router.use(n8nRouter);
 router.use(oauthRouter);
 router.use(mediaRouter);
 router.use(optoutRouter);
+router.use(reportRouter);
+router.use(trackingRouter);
 
 export default router;

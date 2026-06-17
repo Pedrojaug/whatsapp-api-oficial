@@ -37,6 +37,12 @@ export default function ContactsPage() {
   const [loading, setLoading] = useState(false);
   const [loadingEdit, setLoadingEdit] = useState(false);
 
+  // Tag modal states
+  const [tagModal, setTagModal] = useState<{ listId: string; listName: string } | null>(null);
+  const [tagModalTags, setTagModalTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
+  const [savingTags, setSavingTags] = useState(false);
+
   const fetchContactLists = async (accountId: string) => {
     setLoadingLists(true);
     try {
@@ -75,6 +81,23 @@ export default function ContactsPage() {
     } catch (err: any) {
       const details = err.response?.data?.error || err.message;
       showAlert(`Erro ao excluir lista: ${details}`, "error");
+    }
+  };
+
+  const handleSaveTags = async () => {
+    if (!selectedAccount || !tagModal) return;
+    setSavingTags(true);
+    try {
+      await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/lists/${tagModal.listId}/tags`, {
+        tags: tagModalTags,
+      });
+      showAlert("Tags atualizadas!", "success");
+      setTagModal(null);
+      fetchContactLists(selectedAccount.id);
+    } catch {
+      showAlert("Erro ao salvar tags.", "error");
+    } finally {
+      setSavingTags(false);
     }
   };
 
@@ -419,10 +442,11 @@ export default function ContactsPage() {
                       background: selectedList?.id === list.id ? "rgba(0, 194, 107, 0.05)" : undefined,
                       display: "flex",
                       justifyContent: "space-between",
-                      alignItems: "center"
+                      alignItems: "flex-start",
+                      gap: "12px"
                     }}
                   >
-                    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
                       <span style={{ fontWeight: "600", fontSize: "1.1rem" }}>{list.name}</span>
                       <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                         👤 {list._count?.contacts || 0} Contatos
@@ -430,17 +454,40 @@ export default function ContactsPage() {
                       <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
                         Criado em: {new Date(list.createdAt).toLocaleDateString()}
                       </span>
+                      {list.tags && list.tags.length > 0 && (
+                        <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "6px" }}>
+                          {list.tags.map((tag: string) => (
+                            <span key={tag} style={{ background: "rgba(0,194,107,0.15)", color: "var(--primary)", padding: "2px 8px", borderRadius: "20px", fontSize: "0.72rem", fontWeight: "600", border: "1px solid rgba(0,194,107,0.3)" }}>
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteContactList(list.id, list.name);
-                      }}
-                      className="btn btn-danger"
-                      style={{ padding: "6px 12px", fontSize: "0.8rem" }}
-                    >
-                      Excluir
-                    </button>
+                    <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTagModalTags(list.tags || []);
+                          setTagInput("");
+                          setTagModal({ listId: list.id, listName: list.name });
+                        }}
+                        className="btn btn-secondary"
+                        style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                      >
+                        🏷️ Tags
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteContactList(list.id, list.name);
+                        }}
+                        className="btn btn-danger"
+                        style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -892,6 +939,81 @@ export default function ContactsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Modal de Edição de Tags */}
+      {tagModal && (
+        <ModalPortal>
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
+            <div className="glass fade-in" style={{ width: "480px", maxWidth: "95vw", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+                <h3 style={{ fontSize: "1.15rem", fontWeight: "700" }}>Tags — {tagModal.listName}</h3>
+                <button type="button" onClick={() => setTagModal(null)} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+              </div>
+
+              <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "18px" }}>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input
+                    type="text"
+                    placeholder="Nova tag (Enter para adicionar)"
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const trimmed = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
+                        if (trimmed && !tagModalTags.includes(trimmed)) {
+                          setTagModalTags([...tagModalTags, trimmed]);
+                        }
+                        setTagInput("");
+                      }
+                    }}
+                    style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
+                      if (trimmed && !tagModalTags.includes(trimmed)) {
+                        setTagModalTags([...tagModalTags, trimmed]);
+                      }
+                      setTagInput("");
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "10px 16px", fontSize: "0.9rem" }}
+                  >
+                    + Add
+                  </button>
+                </div>
+
+                <div style={{ minHeight: "60px", display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(0,0,0,0.15)", border: "1px solid var(--border-color)" }}>
+                  {tagModalTags.length === 0 ? (
+                    <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nenhuma tag. Digite acima e pressione Enter.</span>
+                  ) : (
+                    tagModalTags.map((tag) => (
+                      <span
+                        key={tag}
+                        onClick={() => setTagModalTags(tagModalTags.filter((t) => t !== tag))}
+                        title="Clique para remover"
+                        style={{ background: "rgba(0,194,107,0.15)", color: "var(--primary)", padding: "4px 10px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "600", border: "1px solid rgba(0,194,107,0.3)", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}
+                      >
+                        #{tag} <span style={{ opacity: 0.7, fontSize: "0.75rem" }}>✕</span>
+                      </span>
+                    ))
+                  )}
+                </div>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Clique em uma tag para removê-la. Pressione Enter para adicionar.</span>
+
+                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
+                  <button type="button" onClick={() => setTagModal(null)} className="btn btn-secondary">Cancelar</button>
+                  <button type="button" onClick={handleSaveTags} disabled={savingTags} className="btn btn-primary" style={{ minWidth: "120px" }}>
+                    {savingTags ? "Salvando..." : "Salvar Tags"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </ModalPortal>

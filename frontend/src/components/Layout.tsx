@@ -15,7 +15,8 @@ import {
   LogOut,
   Sun,
   Moon,
-  ShieldOff
+  ShieldOff,
+  Link2
 } from "lucide-react";
 
 export default function Layout() {
@@ -233,6 +234,9 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/optouts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <ShieldOff size={18} className="nav-icon" /> Opt-out (LGPD)
+            </NavLink>
+            <NavLink to="/link-tracking" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+              <Link2 size={18} className="nav-icon" /> Rastreamento de Links
             </NavLink>
 
             <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>

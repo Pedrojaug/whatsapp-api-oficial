@@ -3,9 +3,12 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL } from "../contexts/AuthContext";
+import { useAlert } from "../contexts/AlertContext";
 
 export default function DashboardPage() {
   const { selectedAccount } = useAccount();
+  const { showAlert } = useAlert();
+  const [exportingXlsx, setExportingXlsx] = useState(false);
 
   const [metricsPeriod, setMetricsPeriod] = useState<"today" | "yesterday" | "7days" | "30days" | "custom">("7days");
   const [metricsStartDate, setMetricsStartDate] = useState("");
@@ -63,15 +66,45 @@ export default function DashboardPage() {
           <p className="page-subheading">Visão geral dos disparos efetuados pela conta <strong>{selectedAccount?.name || "Nenhuma conta selecionada"}</strong></p>
         </div>
         
-        <button 
-          type="button" 
-          onClick={() => selectedAccount && fetchMetrics(selectedAccount.id)} 
-          className="btn btn-secondary" 
-          style={{ padding: "8px 14px", fontSize: "0.85rem" }}
-          disabled={!selectedAccount}
-        >
-          🔄 Atualizar Dados
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            type="button"
+            disabled={exportingXlsx || !selectedAccount}
+            onClick={async () => {
+              if (!selectedAccount) return;
+              setExportingXlsx(true);
+              try {
+                const res = await axios.get(
+                  `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=metrics&period=${metricsPeriod}${metricsPeriod === "custom" && metricsStartDate ? `&startDate=${metricsStartDate}${metricsEndDate ? `&endDate=${metricsEndDate}` : ""}` : ""}`,
+                  { responseType: "blob" }
+                );
+                const url = URL.createObjectURL(res.data);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `metricas_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                a.click();
+                URL.revokeObjectURL(url);
+              } catch {
+                showAlert("Erro ao exportar XLSX.", "error");
+              } finally {
+                setExportingXlsx(false);
+              }
+            }}
+            className="btn btn-secondary"
+            style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+          >
+            {exportingXlsx ? "Exportando..." : "📊 Exportar XLSX"}
+          </button>
+          <button
+            type="button"
+            onClick={() => selectedAccount && fetchMetrics(selectedAccount.id)}
+            className="btn btn-secondary"
+            style={{ padding: "8px 14px", fontSize: "0.85rem" }}
+            disabled={!selectedAccount}
+          >
+            🔄 Atualizar Dados
+          </button>
+        </div>
       </div>
 
       {/* Filtros de Período */}
