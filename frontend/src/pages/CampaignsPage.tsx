@@ -248,7 +248,7 @@ export default function CampaignsPage() {
           <h1 className="page-heading">Campanhas Recorrentes</h1>
           <p className="page-subheading">Automatize disparos para listas de contatos em horários definidos</p>
         </div>
-        <button type="button" onClick={openCreate} disabled={!selectedAccount} className="btn btn-primary" style={{ padding: "9px 18px", fontSize: "0.9rem" }}>
+        <button type="button" onClick={openCreate} disabled={!selectedAccount} className="btn btn-primary">
           + Nova Campanha
         </button>
       </div>
@@ -309,20 +309,20 @@ export default function CampaignsPage() {
                       </div>
                       <div style={{ display: "flex", gap: "6px", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
                         {c.status === "DRAFT" || c.status === "PAUSED" ? (
-                          <button onClick={() => handleActivate(c.id)} className="btn btn-primary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>
+                          <button onClick={() => handleActivate(c.id)} className="btn btn-primary btn-sm">
                             ▶ Ativar
                           </button>
                         ) : c.status === "ACTIVE" ? (
-                          <button onClick={() => handlePause(c.id)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>
+                          <button onClick={() => handlePause(c.id)} className="btn btn-secondary btn-sm">
                             ⏸ Pausar
                           </button>
                         ) : null}
                         {c.status !== "ACTIVE" && (
-                          <button onClick={() => openEdit(c)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>
+                          <button onClick={() => openEdit(c)} className="btn btn-secondary btn-sm">
                             ✏️
                           </button>
                         )}
-                        <button onClick={() => handleDelete(c.id, c.name)} className="btn btn-danger" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>
+                        <button onClick={() => handleDelete(c.id, c.name)} className="btn btn-danger btn-sm">
                           🗑
                         </button>
                       </div>
@@ -376,201 +376,204 @@ export default function CampaignsPage() {
       {/* Create / Edit Modal */}
       {showModal && (
         <ModalPortal>
-          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000, overflowY: "auto", padding: "20px" }}>
-            <div className="glass fade-in" style={{ width: "640px", maxWidth: "100%", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>
+          <div className="modal-overlay">
+            <div className="glass modal-card modal-card--lg fade-in" style={{ maxHeight: "92vh", display: "flex", flexDirection: "column" }}>
+              <div className="modal-header">
+                <span className="modal-header__title">
                   {showModal === "create" ? "Nova Campanha Recorrente" : `Editar — ${editTarget?.name}`}
-                </h3>
-                <button type="button" onClick={() => setShowModal(null)} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
+                </span>
+                <button type="button" className="modal-header__close" onClick={() => setShowModal(null)}>✕</button>
               </div>
 
-              <form onSubmit={handleSave} style={{ padding: "28px", display: "flex", flexDirection: "column", gap: "20px", maxHeight: "80vh", overflowY: "auto" }}>
-                {/* Name */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Nome da campanha *</label>
-                  <input
-                    type="text"
-                    placeholder="Ex: Newsletter Semanal, Promoção Mensal..."
-                    value={form.name}
-                    onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                    required
-                    style={{ padding: "11px 14px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
-                  />
-                </div>
-
-                {/* Template */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Template *</label>
-                  <select
-                    value={form.templateName}
-                    onChange={(e) => handleTemplateChange(e.target.value)}
-                    required
-                    style={{ padding: "11px 14px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: form.templateName ? "#fff" : "var(--text-muted)", outline: "none", fontSize: "0.9rem" }}
-                  >
-                    <option value="">Selecione um template aprovado</option>
-                    {templates.filter((t) => t.status === "APPROVED").map((t) => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Variable mappings */}
-                {form.variables.length > 0 && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "14px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                    <label style={{ fontSize: "0.8rem", fontWeight: "700", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Mapeamento de Variáveis</label>
-                    {form.variables.map((mapping, idx) => {
-                      const isStatic = mapping.startsWith("STATIC:") || mapping === "STATIC_VALUE";
-                      const staticVal = mapping.startsWith("STATIC:") ? mapping.slice(7) : "";
-                      return (
-                        <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                          <label style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{"{{" + (idx + 1) + "}}"}</label>
-                          <select
-                            value={isStatic ? "STATIC_VALUE" : mapping}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const updated = [...form.variables];
-                              updated[idx] = val === "STATIC_VALUE" ? "STATIC:" : val;
-                              setForm((f) => ({ ...f, variables: updated }));
-                            }}
-                            style={{ padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.82rem" }}
-                          >
-                            <option value="STATIC_VALUE">Valor Fixo</option>
-                            <option value="CONTACT_NAME">Nome do Contato</option>
-                            <option value="CONTACT_PHONE">Telefone do Contato</option>
-                            <option value="CONTACT_VAR_1">Variável da Lista 1</option>
-                            <option value="CONTACT_VAR_2">Variável da Lista 2</option>
-                            <option value="CONTACT_VAR_3">Variável da Lista 3</option>
-                          </select>
-                          {isStatic && (
-                            <input
-                              type="text"
-                              placeholder="Valor fixo"
-                              value={staticVal}
-                              onChange={(e) => {
-                                const updated = [...form.variables];
-                                updated[idx] = `STATIC:${e.target.value}`;
-                                setForm((f) => ({ ...f, variables: updated }));
-                              }}
-                              style={{ padding: "7px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.82rem", outline: "none" }}
-                            />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Media URL */}
-                {hasMedia && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>URL de Mídia ({headerComp.format})</label>
+              <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+                <div className="modal-body scroll-area" style={{ flex: 1, gap: "16px" }}>
+                  {/* Name */}
+                  <div className="field">
+                    <label className="field-label">Nome da campanha *</label>
                     <input
                       type="text"
-                      placeholder="https://..."
-                      value={form.mediaUrl}
-                      onChange={(e) => setForm((f) => ({ ...f, mediaUrl: e.target.value }))}
-                      style={{ padding: "11px 14px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                      className="field-input"
+                      placeholder="Ex: Newsletter Semanal, Promoção Mensal..."
+                      value={form.name}
+                      onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      required
                     />
                   </div>
-                )}
 
-                {/* Contact list */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Lista de Contatos</label>
-                  <select
-                    value={form.contactListId}
-                    onChange={(e) => setForm((f) => ({ ...f, contactListId: e.target.value }))}
-                    style={{ padding: "11px 14px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: form.contactListId ? "#fff" : "var(--text-muted)", outline: "none", fontSize: "0.9rem" }}
-                  >
-                    <option value="">Selecione (obrigatório para ativar)</option>
-                    {contactLists.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name} ({l._count?.contacts ?? 0} contatos)</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Schedule type */}
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "16px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                  <label style={{ fontSize: "0.8rem", fontWeight: "700", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Agendamento</label>
-
-                  <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-                    {(["ONCE", "DAILY", "WEEKLY", "MONTHLY"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, scheduleType: t, scheduleDays: [] }))}
-                        className={`btn ${form.scheduleType === t ? "btn-primary" : "btn-secondary"}`}
-                        style={{ padding: "7px 14px", fontSize: "0.82rem" }}
-                      >
-                        {t === "ONCE" ? "Uma vez" : t === "DAILY" ? "Diário" : t === "WEEKLY" ? "Semanal" : "Mensal"}
-                      </button>
-                    ))}
+                  {/* Template */}
+                  <div className="field">
+                    <label className="field-label">Template aprovado *</label>
+                    <select
+                      className="field-input"
+                      value={form.templateName}
+                      onChange={(e) => handleTemplateChange(e.target.value)}
+                      required
+                    >
+                      <option value="">Selecione um template aprovado</option>
+                      {templates.filter((t) => t.status === "APPROVED").map((t) => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                    </select>
                   </div>
 
-                  {form.scheduleType === "ONCE" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Data e hora de execução (UTC)</label>
+                  {/* Variable mappings */}
+                  {form.variables.length > 0 && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "14px 16px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                      <label className="field-label">Mapeamento de Variáveis</label>
+                      {form.variables.map((mapping, idx) => {
+                        const isStatic = mapping.startsWith("STATIC:") || mapping === "STATIC_VALUE";
+                        const staticVal = mapping.startsWith("STATIC:") ? mapping.slice(7) : "";
+                        return (
+                          <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                            <label style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>{"{{" + (idx + 1) + "}}"}</label>
+                            <select
+                              className="field-input"
+                              style={{ fontSize: "0.85rem", padding: "8px 12px" }}
+                              value={isStatic ? "STATIC_VALUE" : mapping}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updated = [...form.variables];
+                                updated[idx] = val === "STATIC_VALUE" ? "STATIC:" : val;
+                                setForm((f) => ({ ...f, variables: updated }));
+                              }}
+                            >
+                              <option value="STATIC_VALUE">Valor Fixo</option>
+                              <option value="CONTACT_NAME">Nome do Contato</option>
+                              <option value="CONTACT_PHONE">Telefone do Contato</option>
+                              <option value="CONTACT_VAR_1">Variável da Lista 1</option>
+                              <option value="CONTACT_VAR_2">Variável da Lista 2</option>
+                              <option value="CONTACT_VAR_3">Variável da Lista 3</option>
+                            </select>
+                            {isStatic && (
+                              <input
+                                type="text"
+                                className="field-input"
+                                style={{ fontSize: "0.85rem", padding: "8px 12px" }}
+                                placeholder="Valor fixo"
+                                value={staticVal}
+                                onChange={(e) => {
+                                  const updated = [...form.variables];
+                                  updated[idx] = `STATIC:${e.target.value}`;
+                                  setForm((f) => ({ ...f, variables: updated }));
+                                }}
+                              />
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Media URL */}
+                  {hasMedia && (
+                    <div className="field">
+                      <label className="field-label">URL de Mídia ({headerComp.format})</label>
                       <input
-                        type="datetime-local"
-                        value={form.scheduleDate}
-                        onChange={(e) => setForm((f) => ({ ...f, scheduleDate: e.target.value }))}
-                        required={form.scheduleType === "ONCE"}
-                        style={{ padding: "9px 12px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                        type="text"
+                        className="field-input"
+                        placeholder="https://..."
+                        value={form.mediaUrl}
+                        onChange={(e) => setForm((f) => ({ ...f, mediaUrl: e.target.value }))}
                       />
                     </div>
                   )}
 
-                  {(form.scheduleType === "DAILY" || form.scheduleType === "WEEKLY" || form.scheduleType === "MONTHLY") && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Horário de envio (UTC)</label>
-                      <input
-                        type="time"
-                        value={form.scheduleTime}
-                        onChange={(e) => setForm((f) => ({ ...f, scheduleTime: e.target.value }))}
-                        required
-                        style={{ padding: "9px 12px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem", width: "140px" }}
-                      />
-                    </div>
-                  )}
+                  {/* Contact list */}
+                  <div className="field">
+                    <label className="field-label">Lista de Contatos</label>
+                    <select
+                      className="field-input"
+                      value={form.contactListId}
+                      onChange={(e) => setForm((f) => ({ ...f, contactListId: e.target.value }))}
+                    >
+                      <option value="">Selecione (obrigatório para ativar)</option>
+                      {contactLists.map((l) => (
+                        <option key={l.id} value={l.id}>{l.name} ({l._count?.contacts ?? 0} contatos)</option>
+                      ))}
+                    </select>
+                  </div>
 
-                  {form.scheduleType === "WEEKLY" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Dias da semana</label>
-                      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                        {DAYS_PT.map((day, idx) => (
-                          <button
-                            key={idx}
-                            type="button"
-                            onClick={() => toggleWeekDay(idx)}
-                            className={`btn ${form.scheduleDays.includes(idx) ? "btn-primary" : "btn-secondary"}`}
-                            style={{ padding: "6px 12px", fontSize: "0.8rem", minWidth: "44px" }}
-                          >
-                            {day}
-                          </button>
-                        ))}
+                  {/* Schedule */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                    <label className="field-label">Agendamento</label>
+
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {(["ONCE", "DAILY", "WEEKLY", "MONTHLY"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, scheduleType: t, scheduleDays: [] }))}
+                          className={`btn btn-sm ${form.scheduleType === t ? "btn-primary" : "btn-secondary"}`}
+                        >
+                          {t === "ONCE" ? "Uma vez" : t === "DAILY" ? "Diário" : t === "WEEKLY" ? "Semanal" : "Mensal"}
+                        </button>
+                      ))}
+                    </div>
+
+                    {form.scheduleType === "ONCE" && (
+                      <div className="field">
+                        <label className="field-label">Data e hora (UTC)</label>
+                        <input
+                          type="datetime-local"
+                          className="field-input"
+                          value={form.scheduleDate}
+                          onChange={(e) => setForm((f) => ({ ...f, scheduleDate: e.target.value }))}
+                          required={form.scheduleType === "ONCE"}
+                        />
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {form.scheduleType === "MONTHLY" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                      <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Dia do mês (1–28)</label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={28}
-                        value={form.scheduleDays[0] ?? 1}
-                        onChange={(e) => setForm((f) => ({ ...f, scheduleDays: [parseInt(e.target.value) || 1] }))}
-                        style={{ padding: "9px 12px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem", width: "90px" }}
-                      />
-                    </div>
-                  )}
+                    {(form.scheduleType === "DAILY" || form.scheduleType === "WEEKLY" || form.scheduleType === "MONTHLY") && (
+                      <div className="field" style={{ maxWidth: "160px" }}>
+                        <label className="field-label">Horário de envio (UTC)</label>
+                        <input
+                          type="time"
+                          className="field-input"
+                          value={form.scheduleTime}
+                          onChange={(e) => setForm((f) => ({ ...f, scheduleTime: e.target.value }))}
+                          required
+                        />
+                      </div>
+                    )}
+
+                    {form.scheduleType === "WEEKLY" && (
+                      <div className="field">
+                        <label className="field-label">Dias da semana</label>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          {DAYS_PT.map((day, idx) => (
+                            <button
+                              key={idx}
+                              type="button"
+                              onClick={() => toggleWeekDay(idx)}
+                              className={`btn btn-sm ${form.scheduleDays.includes(idx) ? "btn-primary" : "btn-secondary"}`}
+                              style={{ minWidth: "44px" }}
+                            >
+                              {day}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {form.scheduleType === "MONTHLY" && (
+                      <div className="field" style={{ maxWidth: "120px" }}>
+                        <label className="field-label">Dia do mês (1–28)</label>
+                        <input
+                          type="number"
+                          className="field-input"
+                          min={1}
+                          max={28}
+                          value={form.scheduleDays[0] ?? 1}
+                          onChange={(e) => setForm((f) => ({ ...f, scheduleDays: [parseInt(e.target.value) || 1] }))}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "16px" }}>
+                <div className="modal-footer">
                   <button type="button" onClick={() => setShowModal(null)} className="btn btn-secondary">Cancelar</button>
-                  <button type="submit" disabled={saving} className="btn btn-primary" style={{ minWidth: "140px" }}>
+                  <button type="submit" disabled={saving} className="btn btn-primary" style={{ minWidth: "150px" }}>
                     {saving ? "Salvando..." : showModal === "create" ? "Criar Campanha" : "Salvar Alterações"}
                   </button>
                 </div>
