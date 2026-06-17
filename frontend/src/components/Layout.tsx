@@ -134,7 +134,7 @@ export default function Layout() {
           <span /><span /><span />
         </button>
         <div className="mobile-header__logo" onClick={() => navigate("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "6px" }}>
-          <div style={{ width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <div style={{ width: "32px", height: "32px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
             <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
           </div>
           <div style={{ fontSize: "1rem", fontWeight: 400, display: "flex", alignItems: "center" }}>
@@ -170,8 +170,8 @@ export default function Layout() {
               justifyContent: "center", 
               background: "transparent", 
               border: "none", 
-              width: "32px", 
-              height: "32px",
+              width: "42px", 
+              height: "42px",
               flexShrink: 0 
             }}>
               <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
