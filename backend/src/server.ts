@@ -3,14 +3,27 @@ import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
+
+// Carregar variáveis de ambiente antes de qualquer módulo que as consuma
+dotenv.config();
+
+// Validação de variáveis obrigatórias — falha rápido com mensagem clara
+const REQUIRED_ENV_VARS = ["JWT_SECRET", "ENCRYPTION_KEY", "DATABASE_URL"];
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
+if (missingVars.length > 0) {
+  console.error(
+    `\n❌ ERRO FATAL: As seguintes variáveis de ambiente são obrigatórias e não estão definidas:\n` +
+    missingVars.map((v) => `   - ${v}`).join("\n") +
+    `\n\nConsulte o arquivo backend/.env.example para configurar corretamente.\n`
+  );
+  process.exit(1);
+}
+
 import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
 import { prisma } from "./db";
-
-// Carregar variáveis de ambiente
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;

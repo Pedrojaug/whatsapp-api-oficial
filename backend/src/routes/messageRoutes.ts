@@ -1,4 +1,5 @@
 import { Router, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
@@ -11,8 +12,18 @@ const router = Router();
 // Aplica autenticação a todas as rotas de mensagens
 router.use(authMiddleware);
 
+// Rate limiter para envio individual: 120 mensagens por minuto por usuário
+const sendLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  keyGenerator: (req) => (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+  message: { error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Enviar mensagem via Template (scoped to user)
-router.post("/accounts/:accountId/messages/send", async (req: Request, res: Response) => {
+router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { to, templateName, language, variables, mediaUrl, scheduledAt } = req.body;
 
