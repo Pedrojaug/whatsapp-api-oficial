@@ -457,9 +457,7 @@ export default function ContactsPage() {
                       {list.tags && list.tags.length > 0 && (
                         <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "6px" }}>
                           {list.tags.map((tag: string) => (
-                            <span key={tag} style={{ background: "rgba(0,194,107,0.15)", color: "var(--primary)", padding: "2px 8px", borderRadius: "20px", fontSize: "0.72rem", fontWeight: "600", border: "1px solid rgba(0,194,107,0.3)" }}>
-                              #{tag}
-                            </span>
+                            <span key={tag} className="tag-chip">#{tag}</span>
                           ))}
                         </div>
                       )}
@@ -998,9 +996,9 @@ export default function ContactsPage() {
                         key={tag}
                         onClick={() => setTagModalTags(tagModalTags.filter((t) => t !== tag))}
                         title="Clique para remover"
-                        style={{ background: "rgba(0,194,107,0.15)", color: "var(--primary)", padding: "4px 10px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "600", border: "1px solid rgba(0,194,107,0.3)", cursor: "pointer", display: "flex", alignItems: "center", gap: "5px" }}
+                        className="tag-chip tag-chip--interactive"
                       >
-                        #{tag} <span style={{ opacity: 0.7, fontSize: "0.75rem" }}>✕</span>
+                        #{tag} <span style={{ opacity: 0.6, fontSize: "0.7rem" }}>✕</span>
                       </span>
                     ))
                   )}
