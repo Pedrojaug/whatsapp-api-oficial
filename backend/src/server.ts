@@ -127,6 +127,13 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// Recuperar mensagens travadas em PROCESSING por restart anterior
+prisma.message.updateMany({ where: { status: "PROCESSING" }, data: { status: "PENDING" } })
+  .then(({ count }) => {
+    if (count > 0) console.log(`[Startup] ${count} mensagem(ns) travadas em PROCESSING recuperadas para PENDING.`);
+  })
+  .catch((err: Error) => console.error("[Startup] Erro ao recuperar mensagens PROCESSING:", err.message));
+
 // Iniciar worker de background
 startBackgroundDispatcher();
 

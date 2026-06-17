@@ -5,6 +5,7 @@ import { prisma } from "../db";
 import { decryptToken } from "../utils/crypto";
 import { normalizePhone } from "../services/phoneService";
 import { messageEventEmitter } from "../utils/emitter";
+import { isOptOutMessage } from "../utils/optoutKeywords";
 
 const router = Router();
 
@@ -150,6 +151,22 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                 
                 if (type === "text") {
                   bodyText = messageObj.text?.body;
+
+                  // Detecção de opt-out: registrar automaticamente se o contato enviar STOP
+                  if (bodyText && isOptOutMessage(bodyText)) {
+                    const phoneIdForOptOut = value.metadata?.phone_number_id;
+                    if (phoneIdForOptOut) {
+                      const accForOptOut = await prisma.account.findFirst({ where: { phoneNumberId: phoneIdForOptOut } });
+                      if (accForOptOut) {
+                        await prisma.optOut.upsert({
+                          where: { phone_accountId: { phone: from, accountId: accForOptOut.id } },
+                          update: { reason: "KEYWORD" },
+                          create: { phone: from, accountId: accForOptOut.id, reason: "KEYWORD" },
+                        });
+                        console.log(`[Webhook] Opt-out registrado automaticamente para ${from} (conta ${accForOptOut.id}) — keyword detectada: "${bodyText}"`);
+                      }
+                    }
+                  }
                 } else if (type === "image") {
                   bodyText = messageObj.image?.caption || "Imagem recebida";
                   mediaUrl = messageObj.image?.id;

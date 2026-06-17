@@ -56,9 +56,36 @@ async function checkAndDispatch() {
       hasMore = true;
     }
 
+    // Verificar opt-outs em lote antes de processar
+    const optedOutRecords = await prisma.optOut.findMany({
+      where: {
+        phone: { in: pendingMessages.map((m) => m.to) },
+        accountId: { in: [...new Set(pendingMessages.map((m) => m.accountId))] },
+      },
+      select: { phone: true, accountId: true },
+    });
+    const optedOutSet = new Set(optedOutRecords.map((o) => `${o.accountId}:${o.phone}`));
+
     console.log(`[Worker] Processando lote de ${pendingMessages.length} mensagens pendentes...`);
 
     for (const msg of pendingMessages) {
+      // Bloquear envio para contatos que optaram por não receber mensagens (LGPD)
+      if (optedOutSet.has(`${msg.accountId}:${msg.to}`)) {
+        await prisma.message.update({
+          where: { id: msg.id },
+          data: { status: "CANCELLED", errorMessage: "Contato optou por não receber mensagens (LGPD opt-out)." },
+        });
+        messageEventEmitter.emit("messageUpdated", {
+          accountId: msg.accountId,
+          messageId: msg.id,
+          status: "CANCELLED",
+          to: msg.to,
+          errorMessage: "Contato optou por não receber mensagens (LGPD opt-out).",
+          updatedAt: new Date(),
+        });
+        console.log(`[Worker] Mensagem ${msg.id} para ${msg.to} cancelada — contato está na lista de opt-out.`);
+        continue;
+      }
       try {
         if (!msg.templateName) {
           throw new Error("Mensagem pendente na fila não possui nome do template.");

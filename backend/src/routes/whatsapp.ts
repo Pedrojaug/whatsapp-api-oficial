@@ -8,6 +8,7 @@ import webhookRouter from "./webhookRoutes";
 import n8nRouter from "./n8nRoutes";
 import oauthRouter from "./oauthRoutes";
 import mediaRouter from "./mediaRoutes";
+import optoutRouter from "./optoutRoutes";
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use(webhookRouter);
 router.use(n8nRouter);
 router.use(oauthRouter);
 router.use(mediaRouter);
+router.use(optoutRouter);
 
 export default router;

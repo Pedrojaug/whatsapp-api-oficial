@@ -33,6 +33,7 @@ model Account {
   contactLists     ContactList[]
   mediaAssets      MediaAsset[]
   whatsappContacts WhatsAppContact[]
+  optOuts          OptOut[]
 
   @@unique([userId, name])
 }
@@ -124,4 +125,16 @@ model MediaAsset {
   account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model OptOut {
+  id        String   @id @default(uuid())
+  phone     String
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  reason    String   @default("USER_REQUEST") // USER_REQUEST, MANUAL, KEYWORD
+  createdAt DateTime @default(now())
+
+  @@unique([phone, accountId])
+  @@index([accountId])
 }

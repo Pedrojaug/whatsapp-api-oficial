@@ -3,18 +3,19 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
-import { 
-  BarChart3, 
-  MessageSquare, 
-  FileText, 
-  Users, 
-  Send, 
-  Image as ImageIcon, 
-  Settings2, 
-  Wrench, 
-  LogOut, 
-  Sun, 
-  Moon
+import {
+  BarChart3,
+  MessageSquare,
+  FileText,
+  Users,
+  Send,
+  Image as ImageIcon,
+  Settings2,
+  Wrench,
+  LogOut,
+  Sun,
+  Moon,
+  ShieldOff
 } from "lucide-react";
 
 export default function Layout() {
@@ -229,6 +230,9 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/media" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <ImageIcon size={18} className="nav-icon" /> Galeria de Mídias
+            </NavLink>
+            <NavLink to="/optouts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+              <ShieldOff size={18} className="nav-icon" /> Opt-out (LGPD)
             </NavLink>
 
             <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
