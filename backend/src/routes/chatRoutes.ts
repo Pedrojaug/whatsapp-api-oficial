@@ -32,14 +32,9 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
     });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
-    // Buscar mensagens mais recentes agrupadas por número normalizado usando DISTINCT ON
+    // Buscar mensagens mais recentes agrupadas por número normalizado usando DISTINCT ON (simplificado e indexado)
     const messages: DBConversationMessage[] = await prisma.$queryRawUnsafe(`
-      SELECT DISTINCT ON (
-        CASE 
-          WHEN "to" ~ '^55\\d{10}$' THEN regexp_replace("to", '^55(\\d{2})(\\d{8})$', '55\\19\\2')
-          ELSE regexp_replace("to", '\\D', '', 'g')
-        END
-      )
+      SELECT DISTINCT ON ("to")
         "to" as phone,
         body,
         "templateName",
@@ -49,12 +44,7 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
         "createdAt"
       FROM "Message"
       WHERE "accountId" = $1
-      ORDER BY 
-        CASE 
-          WHEN "to" ~ '^55\\d{10}$' THEN regexp_replace("to", '^55(\\d{2})(\\d{8})$', '55\\19\\2')
-          ELSE regexp_replace("to", '\\D', '', 'g')
-        END,
-        "createdAt" DESC;
+      ORDER BY "to", "createdAt" DESC;
     `, accountId);
 
     // Buscar contatos salvos no WhatsAppContact para mapear nomes de perfil
@@ -141,6 +131,8 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
     return res.status(400).json({ error: "Telefone (to) e mensagem (body) são obrigatórios." });
   }
 
+  const normalizedTo = normalizePhone(to);
+
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const account = await prisma.account.findFirst({
@@ -155,7 +147,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
     const response = await metaService.sendMessage(account.phoneNumberId, decryptedToken, {
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to,
+      to: normalizedTo,
       type: "text",
       text: {
         preview_url: false,
@@ -170,7 +162,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       data: {
         accountId,
         wamid,
-        to,
+        to: normalizedTo,
         status: "SENT",
         direction: "OUTGOING",
         messageType: "TEXT",
@@ -179,7 +171,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       }
     });
 
-    console.log(`[Chat] Resposta enviada com sucesso para ${to}. Wamid: ${wamid}`);
+    console.log(`[Chat] Resposta enviada com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
 
     // Encaminhar resposta humana manual para o n8n para pausar o robô (takeover humano)
     const n8nWebhookUrl = process.env.N8N_SDR_WEBHOOK_URL;
@@ -191,8 +183,8 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
         const n8nPayload = {
           event: "on-message",
           type: "text",
-          from: to,
-          to: to,
+          from: normalizedTo,
+          to: normalizedTo,
           destiny: account.phoneNumberId,
           isgroup: false,
           isGroupMsg: false,

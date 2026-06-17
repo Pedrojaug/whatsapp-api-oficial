@@ -4,6 +4,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
+import { normalizePhone } from "../services/phoneService";
 
 const router = Router();
 
@@ -19,8 +20,8 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
     return res.status(400).json({ error: "Destinatário (to) e Template são obrigatórios." });
   }
 
-  const sanitizedTo = to.trim().replace(/\D/g, "");
-  if (sanitizedTo.length < 8) {
+  const normalizedTo = normalizePhone(to);
+  if (normalizedTo.length < 8) {
     return res.status(400).json({ error: "Número de telefone destinatário inválido." });
   }
 
@@ -42,7 +43,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
     const dbMessage = await prisma.message.create({
       data: {
         accountId,
-        to: sanitizedTo,
+        to: normalizedTo,
         templateName,
         variables: variables ? { variables, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
         status: "PENDING",
@@ -119,7 +120,7 @@ router.post("/accounts/:accountId/messages/send", async (req: Request, res: Resp
       const decryptedToken = decryptToken(account.accessToken);
       const response = await metaService.sendMessage(account.phoneNumberId, decryptedToken, {
         messaging_product: "whatsapp",
-        to: sanitizedTo,
+        to: normalizedTo,
         type: "template",
         template: {
           name: templateName,

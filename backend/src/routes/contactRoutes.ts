@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { normalizePhone } from "../services/phoneService";
 
 const router = Router();
 
@@ -89,7 +90,7 @@ router.post("/accounts/:accountId/lists", async (req: Request, res: Response) =>
         data: contacts.map(c => ({
           contactListId: list.id,
           name: c.name || null,
-          phone: c.phone.trim().replace(/\D/g, ""), // Limpar telefone
+          phone: normalizePhone(c.phone), // Normalizar telefone
           variables: c.variables || [],
         }))
       });
@@ -184,7 +185,7 @@ router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
         data: contactsToCreate.map(c => ({
           contactListId: listId,
           name: c.name || null,
-          phone: c.phone.trim().replace(/\D/g, ""),
+          phone: normalizePhone(c.phone),
           variables: c.variables || [],
         }))
       });
@@ -197,7 +198,7 @@ router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
         where: { id: c.id },
         data: {
           name: c.name || null,
-          phone: c.phone.trim().replace(/\D/g, ""),
+          phone: normalizePhone(c.phone),
           variables: c.variables || [],
         }
       });
@@ -259,7 +260,7 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
 
       return {
         accountId,
-        to: contact.phone,
+        to: normalizePhone(contact.phone),
         templateName,
         variables: resolvedVars ? { variables: resolvedVars, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
         status: "PENDING",

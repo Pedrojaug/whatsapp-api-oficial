@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
+import { normalizePhone } from "../services/phoneService";
 
 const router = Router();
 
@@ -46,10 +47,13 @@ router.post("/n8n/send", async (req: Request, res: Response) => {
   if (!phone_number_id || !to || !msgBody || !meta_token) {
     return res.status(400).json({ error: "phone_number_id, to, body e meta_token são obrigatórios" });
   }
+
+  const normalizedTo = normalizePhone(to);
+
   try {
     const metaRes = await metaService.sendMessage(phone_number_id, meta_token, {
       messaging_product: "whatsapp",
-      to,
+      to: normalizedTo,
       type: "text",
       text: { body: msgBody }
     });
@@ -61,7 +65,7 @@ router.post("/n8n/send", async (req: Request, res: Response) => {
       const savedMsg = await prisma.message.create({
         data: {
           wamid,
-          to,
+          to: normalizedTo,
           status: "SENT",
           direction: "OUTGOING",
           messageType: "TEXT",
@@ -76,7 +80,7 @@ router.post("/n8n/send", async (req: Request, res: Response) => {
         status: "SENT",
         direction: "OUTGOING",
         body: msgBody,
-        to,
+        to: normalizedTo,
         messageType: "TEXT",
         wamid: savedMsg.wamid,
         updatedAt: savedMsg.updatedAt,

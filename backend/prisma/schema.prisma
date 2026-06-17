@@ -72,6 +72,10 @@ model Message {
   nextRetryAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  @@index([accountId, to, createdAt])
+  @@index([accountId, status, createdAt])
+  @@index([status, scheduledAt, nextRetryAt])
 }
 
 model ContactList {
