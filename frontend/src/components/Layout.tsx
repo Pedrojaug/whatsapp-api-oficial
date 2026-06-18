@@ -87,6 +87,61 @@ export default function Layout() {
       <div className="ambient-glow-1"></div>
       <div className="ambient-glow-2"></div>
 
+      {/* ── Email verification banner ── */}
+      {user && !user.emailVerified && !isImpersonating && (
+        <div style={{
+          background: "linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06))",
+          borderBottom: "1px solid rgba(251,191,36,0.25)",
+          padding: "9px 24px",
+          fontSize: "0.83rem",
+          color: "#fbbf24",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "8px",
+          zIndex: 1001,
+        }}>
+          <span>⚠️</span>
+          <span>Confirme seu e-mail para garantir o acesso à sua conta. Verifique a caixa de entrada de <strong>{user.email}</strong>.</span>
+        </div>
+      )}
+
+      {/* ── Onboarding banner (new user, no accounts yet) ── */}
+      {user && accounts.length === 0 && !isImpersonating && (
+        <div style={{
+          background: "linear-gradient(90deg, rgba(0,194,107,0.1), rgba(0,194,107,0.04))",
+          borderBottom: "1px solid rgba(0,194,107,0.2)",
+          padding: "9px 24px",
+          fontSize: "0.83rem",
+          color: "#00c26b",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          zIndex: 1001,
+          flexWrap: "wrap",
+        }}>
+          <span>🚀 <strong>Bem-vindo!</strong> Conecte seu primeiro número WhatsApp Business para começar a disparar mensagens.</span>
+          <button
+            onClick={() => navigate("/accounts")}
+            style={{
+              background: "rgba(0,194,107,0.2)",
+              border: "1px solid rgba(0,194,107,0.4)",
+              color: "#00c26b",
+              padding: "5px 14px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Conectar agora →
+          </button>
+        </div>
+      )}
+
       {isImpersonating && (
         <div style={{
           backgroundColor: "#ffe4e6",

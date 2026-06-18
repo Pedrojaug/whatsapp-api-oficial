@@ -38,15 +38,27 @@ const getSafeUser = (): any | null => {
   }
 };
 
+export interface AuthUser {
+  id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  emailVerified: boolean;
+  onboardingCompleted: boolean;
+  planTier: string;
+  avatarUrl: string | null;
+}
+
 interface AuthContextType {
   token: string | null;
-  user: any | null;
+  user: AuthUser | null;
   isImpersonating: boolean;
   impersonatorName: string | null;
-  login: (token: string, user: any) => void;
+  login: (token: string, user: AuthUser) => void;
   logout: () => void;
   impersonate: (targetUserId: string) => Promise<void>;
   stopImpersonating: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -59,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     return t;
   });
-  const [user, setUser] = useState<any | null>(getSafeUser());
+  const [user, setUser] = useState<AuthUser | null>(getSafeUser());
   
   const decoded = token ? parseJwt(token) : null;
   const isImpersonating = !!decoded?.impersonatorId;
@@ -73,12 +85,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [token]);
 
-  const login = (newToken: string, newUser: any) => {
+  const login = (newToken: string, newUser: AuthUser) => {
     localStorage.setItem("token", newToken);
     localStorage.setItem("user", JSON.stringify(newUser));
     axios.defaults.headers.common["Authorization"] = `Bearer ${newToken}`;
     setToken(newToken);
     setUser(newUser);
+  };
+
+  const refreshUser = async () => {
+    if (!token) return;
+    try {
+      const res = await axios.get<AuthUser>(`${API_BASE_URL}/auth/me`);
+      setUser(res.data);
+      localStorage.setItem("user", JSON.stringify(res.data));
+    } catch {
+      // silently ignore — token may have expired
+    }
   };
 
   const logout = () => {
@@ -130,7 +153,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ token, user, isImpersonating, impersonatorName, login, logout, impersonate, stopImpersonating }}>
+    <AuthContext.Provider value={{ token, user, isImpersonating, impersonatorName, login, logout, impersonate, stopImpersonating, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

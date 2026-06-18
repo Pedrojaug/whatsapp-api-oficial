@@ -21,6 +21,11 @@ import LinkTrackingPage from "./pages/LinkTrackingPage";
 import ApiKeysPage from "./pages/ApiKeysPage";
 import CampaignsPage from "./pages/CampaignsPage";
 
+// Public auth pages (outside Layout — no sidebar/header)
+import AuthCallbackPage from "./pages/AuthCallbackPage";
+import VerifyEmailPage from "./pages/VerifyEmailPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+
 export default function App() {
   return (
     <AuthProvider>
@@ -28,12 +33,14 @@ export default function App() {
         <AlertProvider>
           <BrowserRouter>
             <Routes>
-              {/* Main Layout containing sidebar and header */}
+              {/* ── Public auth pages (no Layout wrapper) ── */}
+              <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+              {/* ── Main app (Layout with sidebar) ── */}
               <Route path="/" element={<Layout />}>
-                {/* Redirect home index to metrics page */}
                 <Route index element={<Navigate to="/metrics" replace />} />
-                
-                {/* Modular Pages */}
                 <Route path="metrics" element={<DashboardPage />} />
                 <Route path="chat" element={<ChatPage />} />
                 <Route path="templates" element={<TemplatesPage />} />
@@ -46,8 +53,6 @@ export default function App() {
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
                 <Route path="admin" element={<AdminPage />} />
-                
-                {/* Fallback redirect */}
                 <Route path="*" element={<Navigate to="/metrics" replace />} />
               </Route>
             </Routes>

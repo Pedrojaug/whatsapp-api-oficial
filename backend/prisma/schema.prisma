@@ -10,9 +10,18 @@ generator client {
 model User {
   id        String    @id @default(uuid())
   email     String    @unique
-  password  String    // Hashed password
+  password  String?   // Nullable — Google OAuth users have no password
   name      String?
   role      String    @default("USER")
+  googleId  String?   @unique
+  avatarUrl String?
+  emailVerified              Boolean   @default(false)
+  verificationToken          String?   @unique
+  verificationTokenExpiry    DateTime?
+  resetPasswordToken         String?   @unique
+  resetPasswordTokenExpiry   DateTime?
+  onboardingCompleted        Boolean   @default(false)
+  planTier                   String    @default("free")
   accounts  Account[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
