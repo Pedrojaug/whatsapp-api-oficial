@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import type { AuthUser } from "../contexts/AuthContext";
 
 const getApiUrl = () => {
   if (window.location.hostname.endsWith("vercel.app")) {
@@ -14,7 +15,7 @@ const getApiUrl = () => {
 const BASE_API_URL = getApiUrl();
 
 interface AuthPagesProps {
-  onLoginSuccess: (token: string, user: { id: string; email: string; name: string | null }) => void;
+  onLoginSuccess: (token: string, user: AuthUser) => void;
 }
 
 // ─── Interactive Dot Grid Canvas ───────────────────────────────────────────────

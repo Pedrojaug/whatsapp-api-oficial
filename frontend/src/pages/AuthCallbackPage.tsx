@@ -4,13 +4,6 @@ import axios from "axios";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import type { AuthUser } from "../contexts/AuthContext";
 
-const OAUTH_ERRORS: Record<string, string> = {
-  cancelled: "Login com Google cancelado.",
-  invalid_state: "Sessão expirada. Tente novamente.",
-  not_configured: "Login com Google não está configurado no servidor.",
-  failed: "Erro ao autenticar com o Google. Tente novamente.",
-};
-
 export default function AuthCallbackPage() {
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
