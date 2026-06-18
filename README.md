@@ -1,132 +1,188 @@
-# Send Inteligentte 🚀
+# Send Inteligentte
 
-Plataforma premium de automação e disparo em lote utilizando a **API Oficial do WhatsApp (Meta Graph API)**. O sistema conta com controle de acesso multi-inquilino (multi-tenant), gerenciador visual de templates, importador dinâmico de contatos CSV e um painel de métricas analítico com histórico de envios e funil de conversão.
-
----
-
-## 🎨 Principais Funcionalidades
-
-- **🔒 Login & Multi-Tenant:** Isolamento total de dados entre contas de clientes. Credenciais criptografadas de forma segura e sessões mantidas por tokens JWT.
-- **🛠️ Modo Suporte (Impersonação):** Usuários administradores (`SUPERUSER`) podem entrar na conta de qualquer cliente para prestar suporte e configurar o canal diretamente, com aviso visual dinâmico.
-- **⚡ Wizard de Pareamento Meta:** Assistente de conexão automatizado via pop-up OAuth do Facebook Login ou configuração manual passo a passo das chaves da Meta.
-- **📝 Construtor de Templates:** Construtor visual de templates de mensagens (suportando cabeçalhos dinâmicos com upload de imagens/vídeos, variáveis no corpo, rodapés e botões de chamada para ação) com simulador de WhatsApp em tempo real.
-- **👥 Listas de Contatos e Envio em Massa:** Importador de listas CSV com detecção automática de colunas. Mapeamento arrasta-e-solta das colunas do CSV para preencher variáveis dinâmicas de templates, processado de forma assíncrona em background.
-- **📊 Painel de Métricas e Gráficos:** Relatórios interativos por período preset ou personalizado, contadores em tempo real baseados em funil acumulado (mensagens lidas computam também como entregues/enviadas) e histórico de envios mostrando a relação de Enviados, Lidos e Falhas.
-- **💾 Salvamento Persistente de Mídias:** Armazenamento resiliente para contêineres efêmeros (como Render). Salva arquivos de imagem/vídeo codificados no banco Postgres, restaurando os arquivos locais no disco sob demanda caso o servidor seja reiniciado (Lazy Restore).
+Plataforma SaaS multi-tenant para disparo em massa e automação de mensagens WhatsApp via **Meta WhatsApp Business Cloud API v19**.
 
 ---
 
-## ⚙️ Pré-requisitos e Ambiente
+## Principais Funcionalidades
 
-Antes de iniciar as aplicações, certifique-se de possuir:
-- **Node.js** (versão 18 ou superior)
-- **npm** (ou yarn/pnpm)
-- Instância ativa de banco de dados **PostgreSQL** (ex: Neon Database)
+- **Login & Multi-Tenant** — isolamento total de dados entre contas; cada conta representa um número WhatsApp Business. Sessões por JWT (30 dias).
+- **Modo Suporte (Impersonação)** — administradores `SUPERUSER` entram em qualquer conta de cliente para prestar suporte, com banner de aviso visual.
+- **Wizard de Pareamento Meta** — conexão via OAuth do Facebook Login ou configuração manual das chaves da API.
+- **Construtor de Templates** — criação com cabeçalhos de mídia (imagem/vídeo), variáveis dinâmicas, rodapé e botões CTA; simulador de WhatsApp em tempo real.
+- **Campanhas** — disparo em lote para listas de contatos com variáveis dinâmicas (`CONTACT_NAME`, `CONTACT_PHONE`, `CONTACT_VAR_1/2/3`); suporte a campanhas únicas e recorrentes (diária, semanal, mensal).
+- **Listas de Contatos** — importação CSV com detecção automática de colunas, tags e segmentação.
+- **Opt-out LGPD** — detecção automática via webhook (palavras-chave como "SAIR", "PARAR") + gestão manual; disparos bloqueados automaticamente para contatos opt-out.
+- **Rastreamento de Links** — URLs encurtadas com contagem de cliques em tempo real para uso nos disparos.
+- **API Pública** — chaves `sk_...` com autenticação Bearer e rate limit de 60 req/min; permite disparos programáticos sem login.
+- **Relatórios** — painel de métricas com gráficos por período e exportação XLSX do histórico de envios.
+- **Real-time** — atualizações de status de mensagens via Server-Sent Events (SSE).
+- **Persistência de Mídias** — arquivos armazenados em Postgres (Base64) e restaurados automaticamente em caso de reinício do servidor (necessário no Render free tier).
 
 ---
 
-## 🚀 Como Iniciar o Projeto
+## Arquitetura
 
-### 🔌 1. Configurando o Backend
-1. Navegue até a pasta do servidor:
-   ```bash
-   cd backend
-   ```
-2. Instale as dependências:
-   ```bash
-   npm install
-   ```
-3. Crie um arquivo `.env` baseado no modelo de ambiente e insira as credenciais do banco e chaves da Meta:
-   ```env
-   DATABASE_URL="postgresql://USUARIO:SENHA@HOST/BANCO?sslmode=require"
-   JWT_SECRET="sua-chave-secreta-do-jwt"
-   PORT=3001
-   FACEBOOK_APP_ID="seu-app-id-meta"
-   FACEBOOK_APP_SECRET="seu-app-secret-meta"
-   WEBHOOK_VERIFY_TOKEN="sua-senha-do-webhook"
-   ENCRYPTION_KEY="sua-chave-aes-de-32-caracteres"
-   BACKEND_URL="http://localhost:3001"
-   FRONTEND_URL="http://localhost:5173"
-   ```
-4. Execute as migrações do banco de dados (Prisma):
-   ```bash
-   npx prisma db push
-   ```
-5. Inicie o servidor em modo de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
+### Padrão Transactional Outbox
 
-*(Opcional) Para povoar o painel com dados mockados de disparos dos últimos 15 dias para testes visuais, execute:*
-```bash
-node seed_metrics.js
+Mensagens nunca são enviadas inline. A API cria um registro `Message` com `status: PENDING` e um worker em background processa a fila a cada 5 segundos:
+
+```
+POST /api/.../messages
+        ↓
+  Message { status: PENDING }
+        ↓
+  dispatcher.ts (poll 5 s)
+        ↓
+  graph.facebook.com/v19.0/{phoneId}/messages
+        ↓
+  SENT | FAILED (retry exponencial: 1 min → 5 min → 15 min)
+```
+
+### Fluxo de requisições
+
+```
+Vercel (SPA)  →  AuthContext (JWT localStorage)
+                        ↓  Authorization: Bearer <jwt>
+Render (API)  →  /api/auth          — autenticação (público)
+              →  /api/admin         — painel super admin (SUPERUSER)
+              →  /api/v1            — API pública (Bearer sk_...)
+              →  /api               — rotas autenticadas (JWT)
+              →  /t/:shortCode      — redirect de links rastreados (público)
+```
+
+### Multi-tenancy
+
+```
+User → Account[] → Templates, Messages, ContactLists, Campaigns, ApiKeys, TrackedLinks, OptOuts
 ```
 
 ---
 
-## 💻 2. Configurando o Frontend
-1. Navegue até a pasta da interface:
-   ```bash
-   cd ../frontend
-   ```
-2. Instale as dependências:
-   ```bash
-   npm install
-   ```
-3. Crie um arquivo `.env` na raiz da pasta `frontend`:
-   ```env
-   VITE_API_BASE_URL="http://localhost:3001/api"
-   VITE_FACEBOOK_APP_ID="seu-app-id-meta"
-   ```
-4. Inicie o servidor Vite de desenvolvimento:
-   ```bash
-   npm run dev
-   ```
-5. Acesse o painel pelo navegador em: `http://localhost:5173/`
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Backend | Node.js · Express · TypeScript · Prisma ORM |
+| Frontend | React 19 · Vite · TypeScript |
+| Banco de dados | PostgreSQL (Neon serverless) |
+| Deploy backend | Render |
+| Deploy frontend | Vercel |
+| API de mensagens | Meta WhatsApp Business Cloud API v19 |
 
 ---
 
-## ☁️ Produção e Hospedagem (Render / Vercel)
+## Como Iniciar Localmente
 
-A plataforma está otimizada para rodar de forma contínua em ambientes de hospedagem na nuvem:
-- **💾 Resiliência de Mídias (Render Free tier):** O Render descarta os arquivos locais da pasta `uploads` quando o servidor hiberna ou é reiniciado. O backend resolve isso salvando o conteúdo binário (base64) no Postgres. Se o site requisitar um arquivo que sumiu do disco, o interceptador do backend o regenera localmente de forma invisível.
-- **⚖️ Páginas Legais (Política de Privacidade):** As páginas estáticas obrigatórias exigidas pela verificação de aplicativos da Meta estão configuradas na pasta pública em `/privacy.html` e `/terms.html` no frontend.
-- **Sincronismo Automático:** O comando de build do backend (`npm run build`) roda o `prisma db push` automaticamente para alinhar as tabelas de produção a cada deploy.
+### Backend
+
+```bash
+cd backend
+npm install
+```
+
+Crie `backend/.env`:
+
+```env
+DATABASE_URL="postgresql://USUARIO:SENHA@HOST/BANCO?sslmode=require"
+JWT_SECRET="string-aleatoria-segura"
+ENCRYPTION_KEY="chave-aes-256-cbc-32-bytes-hex"
+FACEBOOK_APP_ID="seu-app-id-meta"
+FACEBOOK_APP_SECRET="seu-app-secret-meta"
+FRONTEND_URL="http://localhost:5173"
+PORT=3001
+```
+
+```bash
+npx prisma db push   # sincroniza o schema (nunca usar migrate dev)
+npm run dev          # inicia em :3001
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+Crie `frontend/.env`:
+
+```env
+VITE_API_BASE_URL="http://localhost:3001/api"
+VITE_FACEBOOK_APP_ID="seu-app-id-meta"
+```
+
+```bash
+npm run dev   # inicia em :5173
+```
+
+### Comandos úteis
+
+```bash
+# Backend
+npm run test          # testes unitários (Vitest)
+npx tsc --noEmit      # verificação de tipos sem build
+
+# Frontend
+npm run lint          # ESLint
+npx tsc --noEmit      # verificação de tipos sem build
+```
 
 ---
 
-## 🔑 Credenciais Locais de Teste
+## API Pública
 
-Se o banco foi populado com o script `seed_metrics.js`, utilize as seguintes contas para testar:
+Autentique com `Authorization: Bearer sk_<chave>` obtida no painel em **API Pública**.
 
-*   **Painel Administrador / Suporte (`SUPERUSER`):**
-    *   **E-mail:** `pedro@teste.com`
-    *   **Senha:** `password123`
-*   **Painel Cliente Comum (`USER`):**
-    *   **E-mail:** `cliente@teste.com`
-    *   **Senha:** `password123`
+```http
+POST /api/v1/send
+Content-Type: application/json
+Authorization: Bearer sk_...
 
----
+{
+  "to": "5511999999999",
+  "templateName": "nome_do_template",
+  "variables": ["João", "Promoção X"]
+}
+```
 
-## 📡 Integração de Webhooks em Desenvolvimento (Ngrok)
+| Método | Endpoint | Descrição |
+|---|---|---|
+| `POST` | `/api/v1/send` | Disparar mensagem |
+| `GET` | `/api/v1/messages/:id` | Consultar status |
+| `GET` | `/api/v1/templates` | Listar templates aprovados |
 
-Para receber as atualizações de status de entrega de mensagens da Meta API localmente, utilize uma ferramenta de encaminhamento (ex: Ngrok):
-
-1. Com o backend rodando na porta `3001`, inicie o Ngrok:
-   ```bash
-   ngrok http 3001
-   ```
-2. Copie a URL gerada HTTPS (ex: `https://abcd-123.ngrok-free.app`).
-3. Configure nas definições de webhook do seu aplicativo do Facebook Developers:
-   - **URL de Retorno:** `https://abcd-123.ngrok-free.app/webhooks`
-   - **Token de Verificação:** O mesmo valor definido no `WEBHOOK_VERIFY_TOKEN` do seu backend.
-   - **Campos de Inscrição:** Ative a escuta para o evento `messages`.
+Limite: 60 req/min por chave · Máximo 10 chaves por conta.
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## Deploy (Render + Vercel)
 
-- **Backend:** Node.js, Express, TypeScript, Prisma ORM, Neon PostgreSQL, bcryptjs, jsonwebtoken.
-- **Frontend:** React, Vite, TypeScript, Axios, Vanilla CSS (Design em Glassmorphism e animações).
-- **Integração:** Meta Graph API (v19.0) e Webhooks.ios, Vanilla CSS (Design em Glassmorphism e animações).
-- **Integração:** Meta Graph API (v19.0) e Webhooks.
+| Serviço | Plataforma | Observações |
+|---|---|---|
+| Backend | Render (Web Service) | Variáveis de ambiente no painel Render; `npm run build && npm start` |
+| Frontend | Vercel | `VITE_API_BASE_URL` aponta para o backend no Render |
+| Banco | Neon | `DATABASE_URL` via connection string pooled |
+
+O `npm run build` do backend executa `prisma db push` automaticamente a cada deploy.
+
+### Webhooks em desenvolvimento (Ngrok)
+
+```bash
+ngrok http 3001
+```
+
+Configure no Facebook Developers:
+- **URL de Retorno:** `https://<url-ngrok>/webhooks`
+- **Campos de Inscrição:** `messages`
+
+---
+
+## Segurança
+
+- Access tokens Meta armazenados com **AES-256-CBC**
+- Senhas com **bcrypt** (salt 12)
+- Chaves de API com hash **SHA-256** (nunca armazenadas em texto puro)
+- Webhook Meta validado com **HMAC-SHA256** via `FACEBOOK_APP_SECRET`
+- CORS dinâmico para subdomínios `*.vercel.app`
+- Rate limiting global via `express-rate-limit`
