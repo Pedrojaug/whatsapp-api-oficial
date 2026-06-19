@@ -2,13 +2,23 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 async function main() {
-  // 1. Encontrar o usuário pedro@teste.com
-  const user = await prisma.user.findFirst({
-    where: { email: "pedro@teste.com" }
+  // 1. Encontrar o usuário ativo (pedro.j.augustos@gmail.com ou o primeiro disponível)
+  let user = await prisma.user.findUnique({
+    where: { email: "pedro.j.augustos@gmail.com" }
   });
 
   if (!user) {
-    console.error("Usuário pedro@teste.com não encontrado. Rode o register primeiro.");
+    user = await prisma.user.findFirst({
+      where: { email: "pedro@teste.com" }
+    });
+  }
+
+  if (!user) {
+    user = await prisma.user.findFirst();
+  }
+
+  if (!user) {
+    console.error("Nenhum usuário encontrado no sistema. Por favor, registre um usuário primeiro.");
     return;
   }
 
