@@ -150,4 +150,24 @@ startCampaignWorker();
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
+
+  // Keep-alive: previne hibernação do Render free tier (timeout de 15 min sem tráfego)
+  // Faz um self-ping a cada 13 minutos para manter o servidor acordado
+  const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
+  if (process.env.NODE_ENV !== "test") {
+    setInterval(async () => {
+      try {
+        const pingUrl = `${BACKEND_URL}/status`;
+        const protocol = pingUrl.startsWith("https") ? await import("https") : await import("http");
+        protocol.get(pingUrl, (res) => {
+          res.resume(); // Consumir a resposta para não vazar memória
+        }).on("error", (err: Error) => {
+          console.warn("[KeepAlive] Falha no self-ping:", err.message);
+        });
+      } catch (err: any) {
+        console.warn("[KeepAlive] Erro no keep-alive:", err.message);
+      }
+    }, 13 * 60 * 1000); // 13 minutos
+    console.log("[KeepAlive] Self-ping ativado para prevenir hibernação do servidor.");
+  }
 });
