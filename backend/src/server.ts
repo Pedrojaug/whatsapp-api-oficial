@@ -23,6 +23,7 @@ import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
 import webhookRouter from "./routes/webhookRoutes"; // Deve ser importado separadamente para registro antes do whatsappRouter
+import n8nRouter from "./routes/n8nRoutes";
 import { handleTrackingRedirect } from "./routes/trackingRoutes";
 import publicApiRouter from "./routes/publicApiRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
@@ -119,6 +120,7 @@ app.use("/api/v1", publicApiRouter);
 // ao webhookRouter dentro do agregador. Registrar aqui garante que as rotas
 // /api/webhooks (GET e POST) sejam sempre públicas e acessíveis pela Meta.
 app.use("/api", webhookRouter);
+app.use("/api", n8nRouter);
 
 // Rotas autenticadas
 app.use("/api/auth", authRouter);
