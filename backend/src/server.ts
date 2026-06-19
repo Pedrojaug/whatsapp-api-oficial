@@ -127,6 +127,15 @@ app.get("/status", async (req, res) => {
   }
 });
 
+// Rota de Versão — confirma qual build está em execução no Render
+app.get("/version", (req, res) => {
+  res.json({
+    commit: process.env.RENDER_GIT_COMMIT || "local",
+    deployedAt: new Date().toISOString(),
+    webhookPublic: true, // Rotas de webhook são públicas — sem authMiddleware
+  });
+});
+
 // Middleware de tratamento de erro global
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error("Erro não tratado na aplicação:", err);
