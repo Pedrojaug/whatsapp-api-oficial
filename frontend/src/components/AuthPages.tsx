@@ -331,37 +331,21 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
         {/* Top accent line */}
         <div style={{
           position: "absolute", top: 0, left: "20%", right: "20%", height: "1px",
-          background: "linear-gradient(90deg, transparent, rgba(0,194,107,0.5), transparent)",
+          background: "linear-gradient(90deg, transparent, rgba(37,211,102,0.5), transparent)",
           borderRadius: "1px",
         }} />
 
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* Logo */}
           <div style={{ textAlign: "center", marginBottom: "30px" }}>
-            <div style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "2px",
-              fontSize: "1.9rem",
-              fontWeight: "800",
-              letterSpacing: "-0.5px",
-              marginBottom: "8px",
-            }}>
-              <span style={{ color: "#e8eaed" }}>Send</span>
-              <span style={{
-                background: "linear-gradient(135deg, #00c26b 0%, #00e5a0 50%, #06b6d4 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                marginLeft: "4px",
-              }}>
-                Inteligentte
-              </span>
+            <div style={{ marginBottom: "12px", display: "flex", justifyContent: "center" }}>
+              <img src="/logo.png" alt="Send Inteligentte" style={{ height: "42px", width: "auto", objectFit: "contain" }} />
             </div>
 
             {/* Separator */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px", marginBottom: "10px" }}>
               <div style={{ height: "1px", width: "30px", background: "rgba(255,255,255,0.08)" }} />
-              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--primary)", boxShadow: "0 0 8px rgba(0,194,107,0.7)" }} />
+              <div style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--primary)", boxShadow: "0 0 8px rgba(37,211,102,0.7)" }} />
               <div style={{ height: "1px", width: "30px", background: "rgba(255,255,255,0.08)" }} />
             </div>
 
@@ -477,9 +461,9 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
                     cursor: loading ? "not-allowed" : "pointer",
                     border: "none",
                     borderRadius: "10px",
-                    background: loading ? "rgba(0,194,107,0.4)" : "linear-gradient(135deg, #00c26b 0%, #00a85c 100%)",
+                    background: loading ? "rgba(37,211,102,0.4)" : "linear-gradient(135deg, #25d366 0%, #128c5f 100%)",
                     color: "#fff",
-                    boxShadow: loading ? "none" : "0 4px 20px rgba(0,194,107,0.3), inset 0 1px 0 rgba(255,255,255,0.15)",
+                    boxShadow: loading ? "none" : "0 4px 20px rgba(37,211,102,0.3), inset 0 1px 0 rgba(255,255,255,0.15)",
                     transition: "all 0.2s ease",
                     display: "flex",
                     alignItems: "center",
@@ -488,12 +472,12 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
                   }}
                   onMouseEnter={e => {
                     if (!loading) {
-                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 28px rgba(0,194,107,0.45), inset 0 1px 0 rgba(255,255,255,0.15)";
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 6px 28px rgba(37,211,102,0.45), inset 0 1px 0 rgba(255,255,255,0.15)";
                       (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
                     }
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(0,194,107,0.3), inset 0 1px 0 rgba(255,255,255,0.15)";
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 20px rgba(37,211,102,0.3), inset 0 1px 0 rgba(255,255,255,0.15)";
                     (e.currentTarget as HTMLButtonElement).style.transform = "";
                   }}
                 >

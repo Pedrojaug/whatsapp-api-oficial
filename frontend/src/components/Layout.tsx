@@ -213,7 +213,7 @@ export default function Layout() {
         </button>
         <div className="mobile-header__logo" onClick={() => navigate("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
           <div style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
+            <img src="/logo-mark.jpg" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
           </div>
           <div style={{ fontSize: "1.15rem", fontWeight: 400, display: "flex", alignItems: "center" }}>
             <span style={{ color: "var(--primary)", fontWeight: 700 }}>Send</span>
@@ -252,7 +252,7 @@ export default function Layout() {
               height: "42px",
               flexShrink: 0 
             }}>
-              <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
+              <img src="/logo-mark.jpg" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div className="sidebar-logo-text" style={{ fontSize: "1.1rem", fontWeight: 400, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
