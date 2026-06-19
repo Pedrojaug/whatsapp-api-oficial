@@ -2,12 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
 
 export const getApiUrl = () => {
-  if (window.location.hostname.endsWith("vercel.app")) {
-    return "https://whatsapp-api-oficial-nls9.onrender.com/api";
-  }
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl && envUrl.startsWith("http")) {
-    return envUrl;
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (envUrl && envUrl.startsWith("http")) {
+      return envUrl;
+    }
+    return "http://localhost:3001/api";
   }
   return "https://whatsapp-api-oficial-nls9.onrender.com/api";
 };

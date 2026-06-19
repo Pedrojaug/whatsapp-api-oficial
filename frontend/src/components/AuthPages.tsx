@@ -3,12 +3,12 @@ import axios from "axios";
 import type { AuthUser } from "../contexts/AuthContext";
 
 const getApiUrl = () => {
-  if (window.location.hostname.endsWith("vercel.app")) {
-    return "https://whatsapp-api-oficial-nls9.onrender.com";
-  }
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl && envUrl.startsWith("http")) {
-    return envUrl.replace("/api", "");
+  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+    const envUrl = import.meta.env.VITE_API_BASE_URL;
+    if (envUrl && envUrl.startsWith("http")) {
+      return envUrl.replace("/api", "");
+    }
+    return "http://localhost:3001";
   }
   return "https://whatsapp-api-oficial-nls9.onrender.com";
 };

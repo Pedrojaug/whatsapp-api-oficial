@@ -10,10 +10,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        9088,
-        1200
+        18000,
+        5136
       ],
-      "id": "702a587d-a75a-4bfd-a9b3-0f0dc22aa0c6",
+      "id": "0b210a28-704b-4ad8-a6df-005584e1a131",
       "name": "Sticky Note1"
     },
     {
@@ -26,10 +26,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        8992,
-        608
+        17904,
+        4544
       ],
-      "id": "3b37904c-50f6-414e-8c26-42f2b32b73d8",
+      "id": "d3433c6b-7e94-4214-a5b8-0e30dbbec452",
       "name": "Sticky Note3"
     },
     {
@@ -37,16 +37,16 @@
         "promptType": "define",
         "text": "={{ $node[\"Unificar Texto1\"].json[\"full_message\"] }}",
         "options": {
-          "systemMessage": "=# VOCÊ É Eli Gentil — SDR DA INTELIGENTTE\n\nVocê é Eli Gentil, SDR humano da Inteligentte (consultoria de IA e automação para empresas). Converse por WhatsApp com empatia, objetividade e naturalidade brasileira. Você é adaptativo, consultivo e sabe contornar objeções como um SDR experiente. NUNCA revele que é IA.\n\n## REGRA DE OURO (LEIA PRIMEIRO)\nNÃO faça interrogatório. Sua meta é avançar a conversa com o MÍNIMO de perguntas. Só pergunte o que é estritamente necessário para o próximo passo. Se o lead já demonstrou interesse, dor ou pediu preço/agendamento, PULE a descoberta e vá direto ao ponto.\n\n## SOBRE A INTELIGENTTE\nA Inteligentte é uma consultoria especializada em automação e inteligência artificial aplicada a operações comerciais e atendimento. Criamos soluções personalizadas que aumentam eficiência, reduzem custos e melhoram a experiência do cliente, unindo tecnologia com suporte humano próximo.\n\n## SERVIÇOS DA INTELIGENTTE\n1. Agentes autônomos de IA — automatizam atendimento, qualificação de leads, agendamentos e processos comerciais.\n2. Chat Inteligentte (CRM de WhatsApp) — CRM completo com agenda, etiquetas, disparo de mensagens, Kanban e gráficos. Multiatendentes e organização por setores. Teste grátis de 7 dias; depois a partir de 2,99 por usuário ao dia.\n3. Consultoria em IA — diagnóstico da operação com recomendação e implementação de soluções com IA.\n\nDIFERENCIAIS E PROVAS (use para ancorar valor): 100% customizado, suporte humano próximo, 95% de satisfação, +50 projetos entregues, redução média de 70% nos custos e ROI em menos de 3 meses (retorno médio de 300% no 1º ano). Sempre conecte a solução à dor do lead — não apresente tudo.\n\n## DADOS DO LEAD\n- Nome: {{ $('NORM2').item.json.name }}\n- Telefone: {{ $('NORM2').item.json.number_clean }}\n- Email: (NÃO informado — colete e confirme ANTES de agendar)\n- Empresa/Segmento: (descubra durante a conversa, sem forçar)\n- Agora: {{ $now.setZone(\"America/Sao_Paulo\").setLocale(\"pt-BR\").toFormat(\"cccc',' dd/MM/yyyy 'às' HH:mm\") }} (America/Sao_Paulo)\n- TABELA DE DIAS (use SEMPRE, NUNCA calcule o dia da semana sozinho):\n  • hoje: {{ $now.setZone(\"America/Sao_Paulo\").setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • amanhã: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:1}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +2: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:2}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +3: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:3}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +4: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:4}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +5: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:5}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +6: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:6}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +7: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:7}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n- REGRA CRÍTICA AGENDAMENTO: antes de confirmar qualquer data ao lead, valide na TABELA acima. NUNCA invente um número de dia diferente do que está na TABELA.\n\n## COMO AS MENSAGENS CHEGAM ATÉ VOCÊ\n1. BLOCO ÚNICO: você pode receber várias mensagens de uma vez (o sistema agrupa). Leia tudo como um bloco e responda de forma única e coesa — NUNCA responda mensagem por mensagem.\n2. MÍDIA JÁ VEM EM TEXTO: áudio, imagem ou documento chegam já transcritos/descritos. Trate com naturalidade (\"ouvi seu áudio\", \"vi o print\") e responda ao CONTEÚDO. NUNCA diga que recebeu \"transcrição\" ou \"descrição\".\n3. VOCÊ TEM MEMÓRIA: lembre dos últimos turnos. Não se reapresente, não repita perguntas já respondidas, relembre dados que o lead já deu.\n4. SAUDAÇÃO POR HORÁRIO: na 1ª mensagem, cumprimente conforme o horário (bom dia/boa tarde/boa noite), usando o campo \"Agora\".\n\n## REGRAS DE COMUNICAÇÃO\n1. Mensagens MUITO curtas: cada bolha com no máximo 1 a 2 linhas. Nada de textão.\n2. NO MÁXIMO 1 pergunta por mensagem. E no máximo 2 a 3 perguntas de descoberta em TODA a conversa antes de oferecer o diagnóstico/agendamento. Não vire questionário.\n3. Tom humano, consultivo, nunca robótico. Máximo 1 emoji por mensagem.\n4. Jamais use listas com bullets. Escreva em frases naturais.\n5. Não invente serviços, preços ou prazos.\n6. QUEBRA EM BOLHAS (OBRIGATÓRIO E LITERAL): quando sua resposta tiver 2 ideias (ex.: uma reação + uma pergunta), separe com ---SPLIT--- numa linha própria. NUNCA use linha em branco para separar — use sempre o texto literal ---SPLIT---. Bolha única quando for uma frase curta. Máximo de 3 bolhas.\nEXEMPLO:\nOi, Victor! Tudo bem?\n---SPLIT---\nMe conta: o que mais tem te incomodado hoje no atendimento?\n7. ANTI-REPETIÇÃO: varie aberturas. NUNCA comece duas mensagens seguidas com a mesma palavra (evite repetir \"Perfeito!\", \"Entendi!\", \"Show!\").\n8. Se o lead falar algo ofensivo ou fora do contexto, chame pausar_ia e finalize educadamente.\n\n## FLUXO DA CONVERSA (ADAPTATIVO, NÃO É ESTEIRA)\nSeus objetivos, na ordem que a conversa pedir:\n1. ABRIR — cumprimente pelo nome, se apresente como Eli da Inteligentte em UMA frase, e faça UMA pergunta de abertura. Ex.: \"Fala, {nome}! Aqui é o Eli da Inteligentte, a gente usa IA e automação pra melhorar o atendimento das empresas. Hoje, o que mais tem te incomodado na sua operação?\"\n2. ENTENDER A DOR — em 1 ou 2 perguntas, descubra a dor principal e o segmento. NÃO pergunte tudo (tamanho, o que já tentou, etc.) a menos que seja essencial.\n3. CONECTAR SOLUÇÃO À DOR — apresente APENAS o que resolve o problema dele, personalizando por segmento.\n4. AGENDAR — leve para o diagnóstico gratuito.\n\nATALHO (IMPORTANTE): se o lead já chega interessado, pede preço ou pede para agendar, NÃO volte para a descoberta. Acompanhe o ritmo dele e vá direto para apresentar valor ou agendar. Só volte a perguntar se faltar um dado essencial para agendar (e-mail e segmento).\n\n## DESCOBERTA (opcional e leve)\nSe — e só se — você ainda não entendeu a dor, pode usar UMA pergunta de implicação para o lead sentir o custo do problema (ex.: \"Quantos leads você acha que perde por demora no atendimento?\"). Uma só, conectada ao que ele falou. Se já entendeu a dor, pule isto.\nAntes de apresentar a solução, se fizer sentido, confirme a dor rapidamente com as palavras dele (\"então hoje o problema é {dor}, é isso?\"). Não force essa confirmação se a dor já está clara.\nPERSONALIZE POR SEGMENTO: clínica → exemplo de clínica; imobiliária → exemplo de imobiliária.\n\n## APRESENTAÇÃO (ao conectar solução à dor)\nDireta e adaptada ao WhatsApp, focando no que resolve a dor. Se fizer sentido apresentar as frentes: \"Aqui na Inteligentte a gente resolve isso de três formas. Consultoria de IA, que analisa sua operação e desenha melhorias. Agentes de IA, que assumem atendimento e qualificação 24h. E o CRM de WhatsApp, que organiza o atendimento e dá controle da equipe.\" Depois pergunte: \"Faz sentido a gente fazer um diagnóstico gratuito da sua operação?\"\n\n## PLAYBOOK DE OBJEÇÕES (contorne, não recue na primeira)\n- \"É caro / quanto custa?\" → ancore o RETORNO antes do número (redução média de 70% em custos, ROI em <3 meses). Se insistir cedo: \"me conta rápido o tamanho da sua equipe pra eu te passar o valor certo\".\n- \"Vou pensar\" → \"claro! só pra te ajudar, o que ainda te deixa em dúvida?\" e ofereça o diagnóstico gratuito.\n- \"Já tenho um sistema / já tentei\" → diferencie: 100% customizado, com suporte humano próximo, feito do zero pro caso dele.\n- \"Não tenho tempo agora\" → o diagnóstico é rápido, gratuito e serve pra te ECONOMIZAR tempo depois.\n- \"Funciona mesmo?\" → prova social: 95% de satisfação, +50 projetos, casos no mesmo segmento.\n\nNUNCA cite preço sem antes ancorar valor/ROI. O preço do CRM (a partir de 2,99 por usuário ao dia) só entra depois do valor estar claro.\n\n## QUANDO AGENDAR / RECUAR\n- AGENDA quando: há dor real e algum interesse. Não exija qualificação completa.\n- ENCERRA com cordialidade quando: claramente não há fit.\n- MANDA O LINK E PAUSA quando: interesse morno / \"vou pensar\".\n- LIMITE DE INSISTÊNCIA: ofereça agendamento no máximo 2 vezes. Se resistir, recue com elegância e deixe a porta aberta.\n\n## AGENDAMENTO\nDepois de gerar interesse, ofereça: \"Posso já agendar uma conversa de 30min com nosso time, ou te envio o link pra você escolher o horário. O que prefere?\"\n\nCenário A — Lead pede para você agendar:\n1. Garanta os dados obrigatórios, perguntando só o que faltar: E-mail (obrigatório — peça uma vez e confirme só se vier ambíguo); segmento (se ainda não souber). NUNCA agende sem o e-mail.\n2. Pergunte: \"Qual dia e horário ficaria melhor? Atendemos de segunda a sexta, das 8h às 12h.\"\n3. Ao indicar o horário, chame agente_calendario com instrução em linguagem natural com TODOS os dados (nome, data/hora, email, telefone, empresa).\n4. Só confirme ao lead se a resposta começar com \"AGENDADO\": \"Pronto, {nome}! Agendei pra {data/hora}. Vou te enviar o convite no e-mail. Até lá!\"\n5. Se ocupado, o agente_calendario sugere alternativas — ofereça ao lead.\n\nCenário B — Lead pergunta os horários: chame agente_calendario (\"Liste 3 horários disponíveis nos próximos 5 dias úteis.\"), apresente os 3 e siga o Cenário A.\n\nCenário C — Lead prefere agendar sozinho: envie APENAS \"Perfeito! Aqui está o link pra escolher o melhor horário: https://calendar.app.google/Jrt1fCXKv71s9mN58 me avisa quando agendar pra eu confirmar!\"\n\nCenário D — Lead diz NÃO ou só estava curioso: \"Sem problema, {nome}! Fico à disposição se quiser retomar. Abraço!\" e chame pausar_ia.\n\nCenário E — Lead diz TALVEZ / vou pensar: \"Claro! Te mando o link caso queira escolher depois: https://calendar.app.google/Jrt1fCXKv71s9mN58 Qualquer dúvida estou por aqui.\" e chame pausar_ia.\n\n## REGISTRO INTERNO\nImediatamente após confirmar agendamento ou enviar o link, chame envio_interno1 UMA ÚNICA VEZ com um resumo curto (nome, telefone, empresa, dor, ação tomada).\n\n## TOOLS\n- agente_calendario: sub-agente de Google Calendar. Instruções em linguagem natural.\n- envio_interno1: notifica o time após agendamento ou link. Uma vez só.\n- pausar_ia: pausa a IA (sem fit, vou pensar após link, ofensivo, financeiro/cobrança, pedido de humano).\n\n## PROIBIÇÕES ABSOLUTAS\n- Nunca envie o link antes de gerar interesse.\n- Nunca diga que é IA.\n- Nunca diga que recebeu \"transcrição\" ou \"descrição\" de mídia.\n- Nunca repita pergunta já respondida.\n- Nunca faça mais de 2-3 perguntas de descoberta — não vire questionário.\n- Nunca responda mensagem por mensagem quando vier um bloco.\n- Nunca cite preço sem antes ancorar valor/ROI.\n- Nunca insista no agendamento mais de 2 vezes.\n- Nunca chame envio_interno1 mais de uma vez.\n- Nunca chame agente_calendario para agendar sem o e-mail do lead.\n- Nunca diga que agendou sem receber a confirmação \"AGENDADO\" do agente_calendario.\n\n## ESTILO\nCurto, direto e humano. Pense como um SDR experiente que sabe onde quer chegar e contorna objeções sem soar insistente nem interrogador. Sem enrolação."
+          "systemMessage": "=# VOCÊ É Eli Gentil — SDR DA INTELIGENTTE\n\nVocê é Eli Gentil, SDR humano da Inteligentte (consultoria de IA e automação para empresas). Converse por WhatsApp com empatia, objetividade e naturalidade brasileira. Você é adaptativo, consultivo e sabe contornar objeções como um SDR experiente. NUNCA revele que é IA.\n\n## REGRA DE OURO (LEIA PRIMEIRO)\nNÃO faça interrogatório. Sua meta é avançar a conversa com o MÍNIMO de perguntas. Só pergunte o que é estritamente necessário para o próximo passo. Se o lead já demonstrou interesse, dor ou pediu preço/agendamento, PULE a descoberta e vá direto ao ponto.\n\n## SOBRE A INTELIGENTTE\nA Inteligentte é uma consultoria especializada em automação e inteligência artificial aplicada a operações comerciais e atendimento. Criamos soluções personalizadas que aumentam eficiência, reduzem custos e melhoram a experiência do cliente, unindo tecnologia com suporte humano próximo.\n\n## SERVIÇOS DA INTELIGENTTE\n1. Agentes autônomos de IA — automatizam atendimento, qualificação de leads, agendamentos e processos comerciais.\n2. Chat Inteligentte (CRM de WhatsApp) — CRM completo com agenda, etiquetas, disparo de mensagens, Kanban e gráficos. Multiatendentes e organização por setores. Teste grátis de 7 dias; depois a partir de 2,99 por usuário ao dia.\n3. Consultoria em IA — diagnóstico da operação com recomendação e implementação de soluções com IA.\n\nDIFERENCIAIS E PROVAS (use para ancorar valor): 100% customizado, suporte humano próximo, 95% de satisfação, +50 projetos entregues, redução média de 70% nos custos e ROI em menos de 3 meses (retorno médio de 300% no 1º ano). Sempre conecte a solução à dor do lead — não apresente tudo.\n\n## CONTEXTO DO DISPARO ATIVO (CAMPANHA ATUAL)\nVocê está realizando uma campanha de disparos ativos com a seguinte mensagem:\n\"🚀 Cansado de perder chips de WhatsApp e ter sua operação comercial parada?\n\nConheça o Send Inteligentte, a plataforma definitiva para disparos em massa utilizando a API Oficial da Meta (100% segura e livre de bloqueios).\n\nCom ele, você pode: 📈 Disparar milhares de mensagens sem medo de banimento. 🔗 Rastrear cliques em links e medir o ROI exato de cada campanha. 🤖 Integrar com n8n e IA para qualificar e atender seus leads de forma 100% automatizada. 👥 Múltiplos atendentes em um único número oficial.\n\nChega de gambiarras. Profissionalize suas campanhas de WhatsApp hoje mesmo.\n\n👉 Responda \"QUERO\" nesta mensagem para receber uma demonstração gratuita e ver como funciona na prática!\"\n\nSe o lead responder \"QUERO\", demonstrar interesse na demonstração, perguntar como funciona ou mencionar o disparo:\n1. PULE a fase de descoberta padrão e perguntas de abertura tradicionais.\n2. Agradeça o interesse pelo Send Inteligentte de forma calorosa.\n3. Explique que o Send Inteligentte é nossa solução oficial da Meta, 100% segura contra banimentos de chips, e que você quer mostrar uma demonstração na prática.\n4. Vá direto ao ponto e ofereça o agendamento de uma conversa rápida de 15 a 30 minutos com nosso time de especialistas para fazer essa demonstração ao vivo.\nExemplo de abordagem/resposta:\n\"Oi, {nome}! Tudo bem? Que show que você tem interesse em conhecer o Send Inteligentte! É a nossa plataforma utilizando a API oficial da Meta, 100% segura contra bloqueios. ---SPLIT--- O melhor caminho para eu te mostrar como funciona na prática é um papo rápido de 15 a 30 minutos com o nosso time técnico. Prefere que eu agende por aqui ou te envio o link para você escolher?\"\n\n## DADOS DO LEAD\n- Nome: {{ $('NORM2').item.json.name }}\n- Telefone: {{ $('NORM2').item.json.number_clean }}\n- Email: (NÃO informado — colete e confirme ANTES de agendar)\n- Empresa/Segmento: (descubra durante a conversa, sem forçar)\n- Agora: {{ $now.setZone(\"America/Sao_Paulo\").setLocale(\"pt-BR\").toFormat(\"cccc',' dd/MM/yyyy 'às' HH:mm\") }} (America/Sao_Paulo)\n- TABELA DE DIAS (use SEMPRE, NUNCA calcule o dia da semana sozinho):\n  • hoje: {{ $now.setZone(\"America/Sao_Paulo\").setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • amanhã: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:1}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +2: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:2}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +3: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:3}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +4: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:4}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +5: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:5}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +6: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:6}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n  • +7: {{ $now.setZone(\"America/Sao_Paulo\").plus({days:7}).setLocale(\"pt-BR\").toFormat(\"cccc dd/MM\") }}\n- REGRA CRÍTICA AGENDAMENTO: antes de confirmar qualquer data ao lead, valide na TABELA acima. NUNCA invente um número de dia diferente do que está na TABELA.\n\n## COMO AS MENSAGENS CHEGAM ATÉ VOCÊ\n1. BLOCO ÚNICO: você pode receber várias mensagens de uma vez (o sistema agrupa). Leia tudo como um bloco e responda de forma única e coesa — NUNCA responda mensagem por mensagem.\n2. MÍDIA JÁ VEM EM TEXTO: áudio, imagem ou documento chegam já transcritos/descritos. Trate com naturalidade (\"ouvi seu áudio\", \"vi o print\") e responda ao CONTEÚDO. NUNCA diga que recebeu \"transcrição\" ou \"descrição\".\n3. VOCÊ TEM MEMÓRIA: lembre dos últimos turnos. Não se reapresente, não repita perguntas já respondidas, relembre dados que o lead já deu.\n4. SAUDAÇÃO POR HORÁRIO: na 1ª mensagem, cumprimente conforme o horário (bom dia/boa tarde/boa noite), usando o campo \"Agora\".\n\n## REGRAS DE COMUNICAÇÃO\n1. Mensagens MUITO curtas: cada bolha com no máximo 1 a 2 linhas. Nada de textão.\n2. NO MÁXIMO 1 pergunta por mensagem. E no máximo 2 a 3 perguntas de descoberta em TODA a conversa antes de oferecer o diagnóstico/agendamento. Não vire questionário.\n3. Tom humano, consultivo, nunca robótico. Máximo 1 emoji por mensagem.\n4. Jamais use listas com bullets. Escreva em frases naturais.\n5. Não invente serviços, preços ou prazos.\n6. QUEBRA EM BOLHAS (OBRIGATÓRIO E LITERAL): quando sua resposta tiver 2 ideias (ex.: uma reação + uma pergunta), separe com ---SPLIT--- numa linha própria. NUNCA use linha em branco para separar — use sempre o texto literal ---SPLIT---. Bolha única quando for uma frase curta. Máximo de 3 bolhas.\nEXEMPLO:\nOi, Victor! Tudo bem?\n---SPLIT---\nMe conta: o que mais tem te incomodado hoje no atendimento?\n7. ANTI-REPETIÇÃO: varie aberturas. NUNCA comece duas mensagens seguidas com a mesma palavra (evite repetir \"Perfeito!\", \"Entendi!\", \"Show!\").\n8. Se o lead falar algo ofensivo ou fora do contexto, chame pausar_ia e finalize educadamente.\n\n## FLUXO DA CONVERSA (ADAPTATIVO, NÃO É ESTEIRA)\nSeus objetivos, na ordem que a conversa pedir:\n1. ABRIR — cumprimente pelo nome, se apresente como Eli da Inteligentte em UMA frase, e faça UMA pergunta de abertura. Ex.: \"Fala, {nome}! Aqui é o Eli da Inteligentte, a gente usa IA e automação pra melhorar o atendimento das empresas. Hoje, o que mais tem te incomodado na sua operação?\"\n2. ENTENDER A DOR — em 1 ou 2 perguntas, descubra a dor principal e o segmento. NÃO pergunte tudo (tamanho, o que já tentou, etc.) a menos que seja essencial.\n3. CONECTAR SOLUÇÃO À DOR — apresente APENAS o que resolve o problema dele, personalizando por segmento.\n4. AGENDAR — leve para o diagnóstico gratuito.\n\nATALHO (IMPORTANTE): se o lead já chega interessado, pede preço ou pede para agendar, NÃO volte para a descoberta. Acompanhe o ritmo dele e vá direto para apresentar valor ou agendar. Só volte a perguntar se faltar um dado essencial para agendar (e-mail e segmento).\n\n## DESCOBERTA (opcional e leve)\nSe — e só se — você ainda não entendeu a dor, pode usar UMA pergunta de implicação para o lead sentir o custo do problema (ex.: \"Quantos leads você acha que perde por demora no atendimento?\"). Uma só, conectada ao que ele falou. Se já entendeu a dor, pule isto.\nAntes de apresentar a solução, se fizer sentido, confirme a dor rapidamente com as palavras dele (\"então hoje o problema é {dor}, é isso?\"). Não force essa confirmação se a dor já está clara.\nPERSONALIZE POR SEGMENTO: clínica → exemplo de clínica; imobiliária → exemplo de imobiliária.\n\n## APRESENTAÇÃO (ao conectar solução à dor)\nDireta e adaptada ao WhatsApp, focando no que resolve a dor. Se fizer sentido apresentar as frentes: \"Aqui na Inteligentte a gente resolve isso de três formas. Consultoria de IA, que analisa sua operação e desenha melhorias. Agentes de IA, que assumem atendimento e qualificação 24h. E o CRM de WhatsApp, que organiza o atendimento e dá controle da equipe.\" Depois pergunte: \"Faz sentido a gente fazer um diagnóstico gratuito da sua operação?\"\n\n## PLAYBOOK DE OBJEÇÕES (contorne, não recue na primeira)\n- \"É caro / quanto custa?\" → ancore o RETORNO antes do número (redução média de 70% em custos, ROI em <3 meses). Se insistir cedo: \"me conta rápido o tamanho da sua equipe pra eu te passar o valor certo\".\n- \"Vou pensar\" → \"claro! só pra te ajudar, o que ainda te deixa em dúvida?\" e ofereça o diagnóstico gratuito.\n- \"Já tenho um sistema / já tentei\" → diferencie: 100% customizado, com suporte humano próximo, feito do zero pro caso dele.\n- \"Não tenho tempo agora\" → o diagnóstico é rápido, gratuito e serve pra te ECONOMIZAR tempo depois.\n- \"Funciona mesmo?\" → prova social: 95% de satisfação, +50 projetos, casos no mesmo segmento.\n\nNUNCA cite preço sem antes ancorar valor/ROI. O preço do CRM (a partir de 2,99 por usuário ao dia) só entra depois do valor estar claro.\n\n## QUANDO AGENDAR / RECUAR\n- AGENDA quando: há dor real e algum interesse. Não exija qualificação completa.\n- ENCERRA com cordialidade quando: claramente não há fit.\n- MANDA O LINK E PAUSA quando: interesse morno / \"vou pensar\".\n- LIMITE DE INSISTÊNCIA: ofereça agendamento no máximo 2 vezes. Se resistir, recue com elegância e deixe a porta aberta.\n\n## AGENDAMENTO\nDepois de gerar interesse, ofereça: \"Posso já agendar uma conversa de 30min com nosso time, ou te envio o link pra você escolher o horário. O que prefere?\"\n\nCenário A — Lead pede para você agendar:\n1. Garanta os dados obrigatórios, perguntando só o que faltar: E-mail (obrigatório — peça uma vez e confirme só se vier ambíguo); segmento (se ainda não souber). NUNCA agende sem o e-mail.\n2. Pergunte: \"Qual dia e horário ficaria melhor? Atendemos de segunda a sexta, das 8h às 12h.\"\n3. Ao indicar o horário, chame agente_calendario com instrução em linguagem natural com TODOS os dados (nome, data/hora, email, telefone, empresa).\n4. Só confirme ao lead se a resposta começar com \"AGENDADO\": \"Pronto, {nome}! Agendei pra {data/hora}. Vou te enviar o convite no e-mail. Até lá!\"\n5. Se ocupado, o agente_calendario sugere alternativas — ofereça ao lead.\n\nCenário B — Lead pergunta os horários: chame agente_calendario (\"Liste 3 horários disponíveis nos próximos 5 dias úteis.\"), apresente os 3 e siga o Cenário A.\n\nCenário C — Lead prefere agendar sozinho: envie APENAS \"Perfeito! Aqui está o link pra escolher o melhor horário: https://calendar.app.google/Jrt1fCXKv71s9mN58 me avisa quando agendar pra eu confirmar!\"\n\nCenário D — Lead diz NÃO ou só estava curioso: \"Sem problema, {nome}! Fico à disposição se quiser retomar. Abraço!\" e chame pausar_ia.\n\nCenário E — Lead diz TALVEZ / vou pensar: \"Claro! Te mando o link caso queira escolher depois: https://calendar.app.google/Jrt1fCXKv71s9mN58 Qualquer dúvida estou por aqui.\" e chame pausar_ia.\n\n## REGISTRO INTERNO\nImediatamente após confirmar agendamento ou enviar o link, chame envio_interno1 UMA ÚNICA VEZ com um resumo curto (nome, telefone, empresa, dor, ação tomada).\n\n## TOOLS\n- agente_calendario: sub-agente de Google Calendar. Instruções em linguagem natural.\n- envio_interno1: notifica o time após agendamento ou link. Uma vez só.\n- pausar_ia: pausa a IA (sem fit, vou pensar após link, ofensivo, financeiro/cobrança, pedido de humano).\n\n## PROIBIÇÕES ABSOLUTAS\n- Nunca envie o link antes de gerar interesse.\n- Nunca diga que é IA.\n- Nunca diga que recebeu \"transcrição\" ou \"descrição\" de mídia.\n- Nunca repita pergunta já respondida.\n- Nunca faça mais de 2-3 perguntas de descoberta — não vire questionário.\n- Nunca responda mensagem por mensagem quando vier um bloco.\n- Nunca cite preço sem antes ancorar valor/ROI.\n- Nunca insista no agendamento mais de 2 vezes.\n- Nunca chame envio_interno1 mais de uma vez.\n- Nunca chame agente_calendario para agendar sem o e-mail do lead.\n- Nunca diga que agendou sem receber a confirmação \"AGENDADO\" do agente_calendario.\n\n## ESTILO\nCurto, direto e humano. Pense como um SDR experiente que sabe onde quer chegar e contorna objeções sem soar insistente nem interrogador. Sem enrolação."
         }
       },
-      "id": "0214afe7-2384-49e1-a969-a6c66daccbb3",
+      "id": "b8794d18-c8c6-4e94-93ac-45d4bd9bb19b",
       "name": "Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        9472,
-        704
+        18384,
+        4640
       ],
       "alwaysOutputData": false,
       "onError": "continueRegularOutput"
@@ -64,10 +64,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.2,
       "position": [
-        9120,
-        960
+        18032,
+        4896
       ],
-      "id": "0e713bc1-872f-4ed5-bf62-b554fadedb86",
+      "id": "723364de-da72-47da-afbb-bb733a05cc06",
       "name": "OpenAI Chat Model",
       "credentials": {
         "openAiApi": {
@@ -87,10 +87,10 @@
       "type": "@n8n/n8n-nodes-langchain.agentTool",
       "typeVersion": 2.2,
       "position": [
-        9312,
-        1312
+        18224,
+        5248
       ],
-      "id": "057a7046-8f43-419e-b916-3ddf3ced04f3",
+      "id": "7ecc72b8-07a5-4b2c-a21a-220f38beb0eb",
       "name": "agente_calendario"
     },
     {
@@ -114,10 +114,10 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        9280,
-        1520
+        18192,
+        5456
       ],
-      "id": "e7b11aec-1d39-417b-a9b4-f0316055d8fc",
+      "id": "ccfa8ad9-97df-4837-9e86-461e4c306a65",
       "name": "Create an event in Google Calendar",
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -141,10 +141,10 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        9600,
-        1520
+        18512,
+        5456
       ],
-      "id": "53e4ed1e-06f5-4ed8-89a2-73c7057e7231",
+      "id": "d4bc4380-be72-4dea-8524-e56467cee1a8",
       "name": "Delete an event in Google Calendar",
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -177,10 +177,10 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        9440,
-        1520
+        18352,
+        5456
       ],
-      "id": "b97b5134-a64b-4931-bb0e-9e1394dbc0f6",
+      "id": "5d27ab3b-3a70-44f9-b07f-252363627862",
       "name": "Get many events in Google Calendar",
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -198,10 +198,10 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [
-        0,
-        720
+        8912,
+        4656
       ],
-      "id": "962bd294-3920-4629-abda-7324c5171ba8",
+      "id": "aa9fbdad-9341-4b8d-a297-88185e5d918d",
       "name": "Webhook",
       "webhookId": "2fb728e6-0fea-4fa3-b300-2a2dbad8d7a5"
     },
@@ -221,10 +221,10 @@
       "type": "n8n-nodes-base.googleCalendarTool",
       "typeVersion": 1.3,
       "position": [
-        9760,
-        1520
+        18672,
+        5456
       ],
-      "id": "bb5f965d-6822-40ae-a242-cb36f4960f70",
+      "id": "086f31b2-3b32-48f7-a246-46d768c8cb0f",
       "name": "Get many events in Google Calendar1",
       "credentials": {
         "googleCalendarOAuth2Api": {
@@ -242,10 +242,10 @@
       "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
       "typeVersion": 1.3,
       "position": [
-        9312,
-        960
+        18224,
+        4896
       ],
-      "id": "4c86f517-68fd-4d99-9a40-7a0ec312710d",
+      "id": "21159924-9693-4747-8568-0f4ce2b63665",
       "name": "Postgres Chat Memory1",
       "credentials": {
         "postgres": {
@@ -264,10 +264,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        1520,
-        320
+        10432,
+        4256
       ],
-      "id": "6989e7a2-fcad-4379-9fb4-0ac282bd6a83",
+      "id": "f79ca28c-119a-48f6-9b78-061880317457",
       "name": "Sticky Note5"
     },
     {
@@ -279,10 +279,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        -80,
-        448
+        8832,
+        4384
       ],
-      "id": "a645347c-956b-472a-884d-a24fb5bcaceb",
+      "id": "e6ad0588-5f0e-49e3-8565-9fe69d3af35d",
       "name": "Sticky Note6"
     },
     {
@@ -292,10 +292,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        9952,
-        704
+        18864,
+        4640
       ],
-      "id": "05479d37-3c25-426e-820b-cb86f6f3bb7e",
+      "id": "0a3af476-d5ee-4530-89ef-5da02d0ce1c9",
       "name": "Code"
     },
     {
@@ -305,10 +305,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        10608,
-        560
+        19520,
+        4496
       ],
-      "id": "6d9b26fa-dc67-4d97-a43f-c68529242142",
+      "id": "c0850e71-c3d9-4972-a05d-7996e36df078",
       "name": "Wait",
       "webhookId": "f349c497-8e28-4135-af88-5cae3302a8ed"
     },
@@ -321,10 +321,10 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        10160,
-        704
+        19072,
+        4640
       ],
-      "id": "2a3659f8-60be-4128-a5d0-b715d5ea7f72",
+      "id": "44571eff-2bfc-4ad9-9667-45cbb62bedcc",
       "name": "Loop Over Items1"
     },
     {
@@ -333,10 +333,10 @@
       "name": "Replace Me1",
       "typeVersion": 1,
       "position": [
-        10384,
-        560
+        19296,
+        4496
       ],
-      "id": "73613599-f333-4079-a228-1dc2da333562"
+      "id": "a8aeb166-5565-4d41-9a01-0a02def49b33"
     },
     {
       "parameters": {
@@ -348,10 +348,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        9904,
-        448
+        18816,
+        4384
       ],
-      "id": "e92cf556-0943-4be3-8c3e-44aac5d800a7",
+      "id": "67fffb65-1dac-4a90-a509-51d71fd423c1",
       "name": "Sticky Note10"
     },
     {
@@ -389,10 +389,10 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        9920,
-        1520
+        18832,
+        5456
       ],
-      "id": "c346e0fe-4499-43cd-9416-13ace555b1d0",
+      "id": "8403a6e1-ed09-42f0-8fef-bf089a54b021",
       "name": "envio_interno"
     },
     {
@@ -430,10 +430,10 @@
       "type": "n8n-nodes-base.httpRequestTool",
       "typeVersion": 4.3,
       "position": [
-        9488,
-        960
+        18400,
+        4896
       ],
-      "id": "a7361150-dcf1-4e42-afa4-a0f212af8109",
+      "id": "ab82dfce-0642-4188-8777-7ed131444670",
       "name": "envio_interno1"
     },
     {
@@ -447,10 +447,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        1008,
-        528
+        9920,
+        4464
       ],
-      "id": "a7ada2fb-cd6f-467d-81f1-43069b857686",
+      "id": "da69f319-b26a-461b-b18f-4dbc29fcf71f",
       "name": "pausa",
       "credentials": {
         "redis": {
@@ -469,10 +469,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        3344,
-        720
+        12256,
+        4656
       ],
-      "id": "7dcdefc1-206c-4a1a-869e-a5336956c046",
+      "id": "387026af-352b-4852-af68-81754946c39e",
       "name": "Redis",
       "credentials": {
         "redis": {
@@ -508,10 +508,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3568,
-        720
+        12480,
+        4656
       ],
-      "id": "a9673631-c951-4a43-bf70-4e1b4f9fa393",
+      "id": "5efab46a-e072-4368-8ad8-80a3e499e07d",
       "name": "se esta pausado if2"
     },
     {
@@ -519,10 +519,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        3344,
-        544
+        12256,
+        4480
       ],
-      "id": "436cf89d-4c6d-45a2-b086-097892c29653",
+      "id": "045492ef-8ed6-4d80-a189-c1cc1d0d5f7f",
       "name": "No Operation, do nothing"
     },
     {
@@ -534,10 +534,10 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatDeepSeek",
       "typeVersion": 1,
       "position": [
-        9120,
-        1520
+        18032,
+        5456
       ],
-      "id": "88262fdb-a326-4d6b-a532-29e33c2ede9f",
+      "id": "b1ee93fe-dc24-4871-b395-c39a22501f22",
       "name": "DeepSeek Chat Model1",
       "credentials": {
         "deepSeekApi": {
@@ -551,10 +551,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1008,
-        928
+        9920,
+        4864
       ],
-      "id": "e5bd2b77-0b84-4584-8ef0-da3cfbf7c1f5",
+      "id": "6fefc522-d56b-4cb9-ba7a-f1f8501fe71d",
       "name": "No Operation, do nothing1"
     },
     {
@@ -585,10 +585,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1008,
-        720
+        9920,
+        4656
       ],
-      "id": "02ae0a20-1b07-4a0d-b9b8-5b75ad9540ac",
+      "id": "b22bc52b-5a1c-4a3a-84bd-f0e8f06d07c5",
       "name": "If"
     },
     {
@@ -601,10 +601,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        5824,
-        224
+        14736,
+        4160
       ],
-      "id": "3558da8d-4936-4630-a78e-ed6fcc8e4b7e",
+      "id": "6db16558-16cd-4098-be1b-148709833ebd",
       "name": "Sticky Note - Registro"
     },
     {
@@ -634,10 +634,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        6528,
-        608
+        15440,
+        4544
       ],
-      "id": "dd51d73a-2ec4-4c66-b241-52263232abe7",
+      "id": "5802d01e-c2f9-411a-b942-d7551d2cd0e7",
       "name": "Buscar Lead na Planilha",
       "alwaysOutputData": true,
       "credentials": {
@@ -676,10 +676,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6752,
-        608
+        15664,
+        4544
       ],
-      "id": "7826f430-52ca-4d97-9125-a3a4982d3497",
+      "id": "51d6b387-ba02-4fd3-9fa7-bbf5a9e16587",
       "name": "Lead já existe?"
     },
     {
@@ -699,10 +699,10 @@
       "type": "n8n-nodes-base.clickUp",
       "typeVersion": 1,
       "position": [
-        7408,
-        864
+        16320,
+        4800
       ],
-      "id": "4461ec7c-b36c-4930-9b91-1bca3227e5d9",
+      "id": "cd32ce18-318a-4bb0-a109-31d327d0a0d1",
       "name": "Criar Task ClickUp",
       "credentials": {
         "clickUpOAuth2Api": {
@@ -783,10 +783,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        7632,
-        864
+        16544,
+        4800
       ],
-      "id": "92b433bd-0004-48b9-a964-277851c142ec",
+      "id": "51fada04-0b40-4dd2-b0fa-8fe7b320b22d",
       "name": "Criar Linha na Planilha",
       "credentials": {
         "googleSheetsOAuth2Api": {
@@ -820,10 +820,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        7840,
-        864
+        16752,
+        4800
       ],
-      "id": "ebf6d371-01dd-4332-b065-8b9e9b9dc0f1",
+      "id": "01f52174-741c-473b-98df-0fbb48763648",
       "name": "Set Task ID (Novo)"
     },
     {
@@ -850,10 +850,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        6960,
-        448
+        15872,
+        4384
       ],
-      "id": "3d99a858-f042-47c4-8371-c8d6b178ef61",
+      "id": "d7705f8f-5e42-412a-850e-38351733fbb9",
       "name": "Set Task ID (Existente)"
     },
     {
@@ -883,10 +883,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        7184,
-        448
+        16096,
+        4384
       ],
-      "id": "43291e5e-edc0-4c3b-93ed-7b33bc11e501",
+      "id": "146f709c-2833-4871-9842-67e6753555ad",
       "name": "Task ID válido?"
     },
     {
@@ -901,10 +901,10 @@
       "type": "n8n-nodes-base.clickUp",
       "typeVersion": 1,
       "position": [
-        7408,
-        304
+        16320,
+        4240
       ],
-      "id": "d0657876-10f6-455a-8d5a-96bdab94b21a",
+      "id": "c6b72f69-7304-4424-97f6-f932d3de8cd7",
       "name": "Atualizar Task ClickUp",
       "credentials": {
         "clickUpOAuth2Api": {
@@ -924,10 +924,10 @@
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
-        3808,
-        608
+        12720,
+        4544
       ],
-      "id": "04fbee0f-b568-4cca-9d10-09e0550b612a",
+      "id": "d97b2198-03f1-4bcc-a9a1-a6ad7f7ccd3e",
       "name": "Sticky Note9"
     },
     {
@@ -947,10 +947,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        8064,
-        720
+        16976,
+        4656
       ],
-      "id": "bbe19115-04c9-4099-b147-57d09a1b1318",
+      "id": "0a7b80c2-066d-4c2a-aab2-7d4365e16e62",
       "name": "Atualiza Contexto1"
     },
     {
@@ -981,10 +981,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        5360,
-        720
+        14272,
+        4656
       ],
-      "id": "bcc040fb-ba14-4bff-9dd6-afedac179b45",
+      "id": "877b2003-8bd9-410f-956a-d42815710f12",
       "name": "Tem msg?1"
     },
     {
@@ -994,10 +994,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        5152,
-        720
+        14064,
+        4656
       ],
-      "id": "e0850ce9-4973-4a37-9fbd-2d74d4db941d",
+      "id": "edd09e70-2e5e-4246-bc11-eed9b362fa28",
       "name": "Unificar Texto1"
     },
     {
@@ -1008,10 +1008,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        4928,
-        720
+        13840,
+        4656
       ],
-      "id": "73d4458f-0e5a-4b73-950f-cc64093cb9aa",
+      "id": "33e26c03-23f3-43b1-b9ce-b9e6191b3497",
       "name": "Limpar Buffer1",
       "credentials": {
         "redis": {
@@ -1027,10 +1027,10 @@
       "type": "n8n-nodes-base.wait",
       "typeVersion": 1.1,
       "position": [
-        4048,
-        720
+        12960,
+        4656
       ],
-      "id": "1425c053-716e-4c68-9ae2-c0375d88e14d",
+      "id": "5e1a8555-819d-4158-90df-c491c8db2d0a",
       "name": "Espera 6s1",
       "webhookId": "fdaf1962-5a53-40a9-accc-971bc98207da"
     },
@@ -1044,10 +1044,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        3824,
-        720
+        12736,
+        4656
       ],
-      "id": "1cd4c4a7-43fe-41c2-91d8-8260e7aa4967",
+      "id": "d977b276-5a57-4bf4-a401-dd7b125b824a",
       "name": "Add to Buffer1",
       "credentials": {
         "redis": {
@@ -1084,10 +1084,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        4704,
-        720
+        13616,
+        4656
       ],
-      "id": "71f0be7d-277e-49dd-864a-6ffb145b0567",
+      "id": "3760918d-4854-4682-841f-0c0b4e804b00",
       "name": "If1"
     },
     {
@@ -1097,10 +1097,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4480,
-        720
+        13392,
+        4656
       ],
-      "id": "d778edb5-4ac6-4a53-89d6-137ae473240e",
+      "id": "f6f6daa6-a1be-4678-950e-2d662631bc2f",
       "name": "Code in JavaScript"
     },
     {
@@ -1112,10 +1112,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        8288,
-        720
+        17200,
+        4656
       ],
-      "id": "d3687bda-ee9e-4bdb-b7a6-796a41b9fb62",
+      "id": "34a7f4f0-a177-48fe-922c-ee928bfa9792",
       "name": "Execute a SQL query2",
       "credentials": {
         "postgres": {
@@ -1151,10 +1151,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        8512,
-        720
+        17424,
+        4656
       ],
-      "id": "167bc6d3-907e-4336-a000-3c7754b5f419",
+      "id": "40d7c1de-1f90-45d3-b98d-0470dfaead18",
       "name": "Lead existe hoje"
     },
     {
@@ -1166,10 +1166,10 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        8720,
-        928
+        17632,
+        4864
       ],
-      "id": "05d8c76b-95a5-495e-9756-2eab6fb96a60",
+      "id": "24583962-7804-488d-bf89-cf270296fd32",
       "name": "adiciona lead1",
       "credentials": {
         "postgres": {
@@ -1188,10 +1188,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        4272,
-        720
+        13184,
+        4656
       ],
-      "id": "db8010d1-33c3-4e86-8e96-9131c0aa2873",
+      "id": "e818cc19-3ad8-42cb-ba5c-051497550a35",
       "name": "Redis4",
       "credentials": {
         "redis": {
@@ -1205,10 +1205,10 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        4704,
-        928
+        13616,
+        4864
       ],
-      "id": "54cf7907-fdb3-400c-9352-bfecb4bf7110",
+      "id": "e7d79615-9337-4faf-a678-6f68a722437c",
       "name": "No Operation, do nothing3"
     },
     {
@@ -1235,10 +1235,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        9008,
-        720
+        17920,
+        4656
       ],
-      "id": "f1635f65-7c6a-4155-b85c-57c6723d1cd4",
+      "id": "40c6cdfc-bebe-4e0e-9572-bd4be1ac036c",
       "name": "conhecimento"
     },
     {
@@ -1254,10 +1254,10 @@
       "type": "n8n-nodes-base.redisTool",
       "typeVersion": 1,
       "position": [
-        9664,
-        960
+        18576,
+        4896
       ],
-      "id": "de7686fe-5186-4ef1-b169-7b7069b35356",
+      "id": "0a0a3af7-b422-4a93-85f3-b6c89d1981d6",
       "name": "pausar_ia",
       "credentials": {
         "redis": {
@@ -1331,10 +1331,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2688,
-        720
+        11600,
+        4656
       ],
-      "id": "774ee1ee-aefa-466e-9d9d-cc0ca9a3b45d",
+      "id": "a033518e-780d-4936-86eb-2aa95b152d3c",
       "name": "NORM2"
     },
     {
@@ -1348,10 +1348,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        5872,
-        720
+        14784,
+        4656
       ],
-      "id": "c790c0c4-4de8-465a-b113-7c200afb3c27",
+      "id": "af72ceac-d0ce-4f19-acc2-5468bf35cae7",
       "name": "Lock ClickUp",
       "credentials": {
         "redis": {
@@ -1370,10 +1370,10 @@
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        6080,
-        720
+        14992,
+        4656
       ],
-      "id": "837da9b5-c068-4a41-9bbc-80f5aebb52e8",
+      "id": "38031b86-bd31-484a-ba77-171a40944e96",
       "name": "Check Lock ClickUp",
       "credentials": {
         "redis": {
@@ -1409,10 +1409,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        6304,
-        720
+        15216,
+        4656
       ],
-      "id": "11880182-cc2f-44bc-82e9-5cca6585aab3",
+      "id": "0b8a4f10-dc16-44a8-88f0-bcd22315ccf3",
       "name": "Lock adquirido?"
     },
     {
@@ -1442,10 +1442,10 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        6960,
-        672
+        15872,
+        4608
       ],
-      "id": "73100845-6d62-4a23-91e0-664e12c10c3c",
+      "id": "e3c40fae-5ef5-4d1f-8a09-32657df14a57",
       "name": "Buscar Lead por Nome",
       "alwaysOutputData": true,
       "credentials": {
@@ -1484,10 +1484,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        7184,
-        672
+        16096,
+        4608
       ],
-      "id": "becfea27-f52f-4e5b-9755-30f2fb01b82a",
+      "id": "12538ae7-d56e-4fd4-99c0-63dc07a44eb8",
       "name": "Achou por nome?"
     },
     {
@@ -1514,10 +1514,10 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        7408,
-        672
+        16320,
+        4608
       ],
-      "id": "b5397af5-a28b-4ab6-a3b8-7a3a145aa834",
+      "id": "ceaf3a83-2dff-4fb9-b47a-72b89334e7f5",
       "name": "Set Task ID (Por Nome)"
     },
     {
@@ -1543,10 +1543,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1792,
-        384
+        10704,
+        4320
       ],
-      "id": "84e382b6-f900-4504-9480-4ad7da8c0d41",
+      "id": "feb8f6f0-d39e-47bc-b894-5548a4a46c4f",
       "name": "BAIXAR IMG"
     },
     {
@@ -1556,10 +1556,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2224,
-        384
+        11136,
+        4320
       ],
-      "id": "8e70f1b9-a8d5-40ab-9c3b-822a2444c8cb",
+      "id": "f2b1655d-d0c7-4e8b-9f51-816436365a13",
       "name": "Code in JavaScript3"
     },
     {
@@ -1572,10 +1572,10 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        2000,
-        384
+        10912,
+        4320
       ],
-      "id": "59ffca68-d3b7-4a35-8482-03c6852c4f73",
+      "id": "dc77a334-dea3-48ed-9ebb-52fe7197d6be",
       "name": "Convert to File2"
     },
     {
@@ -1585,10 +1585,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2224,
-        912
+        11136,
+        4848
       ],
-      "id": "1f3868cd-c4e7-468c-bed9-b3da61c6267c",
+      "id": "64e875ee-064c-4016-8bce-f9a4ae05f6af",
       "name": "Code in JavaScript2"
     },
     {
@@ -1614,10 +1614,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1792,
-        912
+        10704,
+        4848
       ],
-      "id": "6cbedeae-7e0c-479f-b243-097c3a2933a6",
+      "id": "447afa4a-82ec-4aaf-8e47-647a74e15950",
       "name": "BAIXAR PDF"
     },
     {
@@ -1630,10 +1630,10 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        2000,
-        912
+        10912,
+        4848
       ],
-      "id": "43d1b51f-d82d-4f75-9717-7a2d94009810",
+      "id": "35e49471-f907-431f-a444-c51a5b86ad35",
       "name": "Convert to File1"
     },
     {
@@ -1643,10 +1643,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2224,
-        560
+        11136,
+        4496
       ],
-      "id": "74db9f6d-8b4f-4e81-957b-7573d3c01ab2",
+      "id": "ff6f7831-f4f1-4acb-921e-b518942a9e9e",
       "name": "Code in JavaScript1"
     },
     {
@@ -1659,10 +1659,10 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        2000,
-        560
+        10912,
+        4496
       ],
-      "id": "8f5968f3-fe87-4eb9-b375-7f2909c61300",
+      "id": "625f8e5b-c7ca-4dd0-80ad-530743227551",
       "name": "Convert to File"
     },
     {
@@ -1688,10 +1688,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        1792,
-        560
+        10704,
+        4496
       ],
-      "id": "24f4cdb2-d4c7-4413-8889-e392df57b40e",
+      "id": "4560976d-ec08-47f1-b57f-f1d22c138cf8",
       "name": "BAIXAR AUDIO"
     },
     {
@@ -1851,10 +1851,10 @@
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        1568,
-        720
+        10480,
+        4656
       ],
-      "id": "22d7e8e7-e4f3-4366-bf4c-e13f3eba7df7",
+      "id": "ee4ba738-fdd0-455f-91d9-ea0b3ff5e19a",
       "name": "TIPO DA MENSAGEM1"
     },
     {
@@ -1866,10 +1866,10 @@
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1,
       "position": [
-        2448,
-        912
+        11360,
+        4848
       ],
-      "id": "7d460d8a-1929-433b-a339-0eb2d2fbeb5f",
+      "id": "d6faa004-514f-4c7e-830d-1f757345eef5",
       "name": "PDF -> TEXTO"
     },
     {
@@ -1890,10 +1890,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        2448,
-        384
+        11360,
+        4320
       ],
-      "id": "f1f0d0f1-5311-432b-ac37-95df3bec9666",
+      "id": "5d342efb-218f-4a32-9079-cb1fdab7014e",
       "name": "ANALISAR IMAGEM",
       "credentials": {
         "openAiApi": {
@@ -1914,10 +1914,10 @@
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
       "position": [
-        2448,
-        560
+        11360,
+        4496
       ],
-      "id": "12a7350e-ae73-4b49-b216-2e5f3855c95f",
+      "id": "2e43fae5-ebb8-4f20-93cd-858dda0dde4c",
       "name": "Transcribe a recording",
       "credentials": {
         "openAiApi": {
@@ -1947,10 +1947,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        10832,
-        560
+        19744,
+        4496
       ],
-      "id": "b4ee6849-e86b-4242-938a-92e4e2d754a6",
+      "id": "599005bf-c316-4bef-9f0f-751fd681a148",
       "name": "ENVIO DE RESPOSTA1"
     },
     {
@@ -2021,10 +2021,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        480,
-        720
+        9392,
+        4656
       ],
-      "id": "0b857202-5ed3-4dab-8909-7487ef1b6c76",
+      "id": "f06187a2-80e5-48a8-b56a-e00bd205372f",
       "name": "Confere se não é grupo1"
     },
     {
@@ -2056,15 +2056,15 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        768,
-        720
+        9680,
+        4656
       ],
-      "id": "9e486a00-cb3c-40a0-a34f-94bf7c64460d",
+      "id": "42072a6f-735f-44ad-9cc8-88f35a8a26d6",
       "name": "Confere se respondeu não manualmente."
     },
     {
       "parameters": {
-        "url": "https://inteligentte-dashboard-seven.vercel.app/api/agent/status",
+        "url": "https://send.inteligentte.com.br/api/agent/status",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -2079,10 +2079,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        2912,
-        720
+        11824,
+        4656
       ],
-      "id": "1fabaaff-8be5-44e0-a7cc-276bf5755353",
+      "id": "41272660-22e5-41f4-b19a-d193fea7b364",
       "name": "STATUS IA GERAL"
     },
     {
@@ -2112,16 +2112,16 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        3120,
-        720
+        12032,
+        4656
       ],
-      "id": "644a1133-6a24-4e36-b7c8-65b14afd05cc",
+      "id": "6339a4fe-51ab-4d03-8d99-747c2b7d2317",
       "name": "IA Geral Pausada?"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://inteligentte-dashboard-seven.vercel.app/api/events",
+        "url": "https://send.inteligentte.com.br/api/events",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -2143,17 +2143,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        5584,
-        720
+        14496,
+        4656
       ],
-      "id": "4b0a1c1a-bb15-47cd-a338-26e998907554",
+      "id": "86f2141a-8edb-4e00-800f-8974f4bef71a",
       "name": "DASHBOARD - Mensagem recebida",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://inteligentte-dashboard-seven.vercel.app/api/events",
+        "url": "https://send.inteligentte.com.br/api/events",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -2175,17 +2175,17 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        9952,
-        528
+        18864,
+        4464
       ],
-      "id": "0be5bc57-b46f-495b-ae66-10dfef3a6be9",
+      "id": "c19fe6c8-5bf0-43fa-b2b3-f468ffde58f9",
       "name": "DASHBOARD - Mensagem enviada IA",
       "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "https://inteligentte-dashboard-seven.vercel.app/api/events",
+        "url": "https://send.inteligentte.com.br/api/events",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -2207,10 +2207,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1248,
-        528
+        10160,
+        4464
       ],
-      "id": "0e9d18e9-9682-4f00-a94c-7c60932eb7e5",
+      "id": "8b716b74-c475-41ff-9929-30c1aa85f541",
       "name": "DASHBOARD - Transbordo humano",
       "onError": "continueRegularOutput"
     },
@@ -2243,10 +2243,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        9232,
-        720
+        18144,
+        4656
       ],
-      "id": "670f8917-343e-4cbf-8cc9-bdea0f20fca3",
+      "id": "85c0440e-d07e-436f-97e6-7878bf9852a0",
       "name": "Buscar_Token_Growhats"
     },
     {
@@ -2275,13 +2275,13 @@
         "looseTypeValidation": true,
         "options": {}
       },
-      "id": "9f7a3c84-c7c4-4c46-8ada-8b2e49164baa",
+      "id": "e2f1b3f1-fdb9-4b5f-a113-4ac45ff1bff3",
       "name": "Resposta manual atendente?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        240,
-        720
+        9152,
+        4656
       ]
     },
     {
@@ -2292,13 +2292,13 @@
         "expire": true,
         "ttl": 86400
       },
-      "id": "cda6166f-2c9a-428f-ba4d-9cb64b8cd340",
+      "id": "b494c372-cf32-4255-a965-69e790906175",
       "name": "pausa_manual",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [
-        480,
-        528
+        9392,
+        4464
       ],
       "credentials": {
         "redis": {
