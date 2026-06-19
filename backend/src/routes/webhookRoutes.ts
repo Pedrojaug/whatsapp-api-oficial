@@ -64,11 +64,10 @@ router.post("/webhooks", async (req: Request, res: Response) => {
       .digest("hex");
 
     try {
-      const isMatch = crypto.timingSafeEqual(
-        Buffer.from(signatureHash, "hex"),
-        Buffer.from(expectedHash, "hex")
-      );
-      if (!isMatch) {
+      const sigBuf = Buffer.from(signatureHash, "hex");
+      const expBuf = Buffer.from(expectedHash, "hex");
+
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
         console.warn(`[Webhook] Assinatura inválida. Recebida: ${signatureHash}, Esperada: ${expectedHash}`);
         return res.status(403).send("Signature mismatch");
       }
