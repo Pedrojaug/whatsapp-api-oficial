@@ -42,31 +42,50 @@ export default function Layout() {
     }
   }, [isDarkTheme]);
 
-  // Sincronização de status das mensagens em tempo real (SSE)
+  // Sincronização de status das mensagens em tempo real (SSE) com reconexão automática robusta
   useEffect(() => {
     if (!selectedAccount || !token) return;
 
-    const sseUrl = `${API_BASE_URL.replace("/api", "")}/api/accounts/${selectedAccount.id}/messages/events?token=${encodeURIComponent(token)}`;
-    const eventSource = new EventSource(sseUrl);
+    let eventSource: EventSource | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isMounted = true;
 
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "messageUpdated") {
-          // Dispara evento customizado para que qualquer página possa escutar
-          window.dispatchEvent(new CustomEvent("messageUpdated", { detail: data }));
+    const connect = () => {
+      if (!isMounted) return;
+      const sseUrl = `${API_BASE_URL.replace("/api", "")}/api/accounts/${selectedAccount.id}/messages/events?token=${encodeURIComponent(token)}`;
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "connected") {
+            // SSE conectou (ou reconectou) — dispara evento para páginas recarregarem dados
+            window.dispatchEvent(new CustomEvent("sseConnected"));
+          } else if (data.type === "messageUpdated") {
+            // Dispara evento customizado para que qualquer página possa escutar
+            window.dispatchEvent(new CustomEvent("messageUpdated", { detail: data }));
+          }
+        } catch (err) {
+          console.error("Erro ao processar atualização em tempo real:", err);
         }
-      } catch (err) {
-        console.error("Erro ao processar atualização em tempo real:", err);
-      }
+      };
+
+      eventSource.onerror = () => {
+        // Fecha a conexão com erro e reconecta manualmente após 3 segundos
+        eventSource?.close();
+        eventSource = null;
+        if (isMounted) {
+          reconnectTimeout = setTimeout(connect, 3000);
+        }
+      };
     };
 
-    eventSource.onerror = (err) => {
-      console.error("Erro na conexão com SSE de eventos. O navegador tentará reconectar automaticamente.", err);
-    };
+    connect();
 
     return () => {
-      eventSource.close();
+      isMounted = false;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      eventSource?.close();
     };
   }, [selectedAccount, token]);
 

@@ -142,6 +142,28 @@ export default function ChatPage() {
     }
   }, [selectedAccount]);
 
+  // Polling de fallback: atualiza conversas a cada 15s e o chat ativo a cada 10s
+  // Garante sincronização mesmo quando o SSE cair (Render free tier)
+  useEffect(() => {
+    if (!selectedAccount) return;
+
+    const convInterval = setInterval(() => {
+      fetchConversations(selectedAccount.id, true); // silent = sem loading spinner
+    }, 15000);
+
+    return () => clearInterval(convInterval);
+  }, [selectedAccount]);
+
+  useEffect(() => {
+    if (!selectedAccount || !selectedPhone) return;
+
+    const chatInterval = setInterval(() => {
+      fetchChatMessages(selectedAccount.id, selectedPhoneRef.current, true); // silent
+    }, 10000);
+
+    return () => clearInterval(chatInterval);
+  }, [selectedAccount, selectedPhone]);
+
   // Se inscreve no SSE de eventos para atualizar conversas e chat em tempo real
   useSSE((data: any) => {
     if (!selectedAccount) return;
@@ -211,6 +233,14 @@ export default function ChatPage() {
           }, ...prevConv];
         }
       });
+    }
+  }, () => {
+    // Quando o SSE reconectar, recarrega conversas e chat ativo do servidor
+    if (selectedAccount) {
+      fetchConversations(selectedAccount.id, true);
+      if (selectedPhoneRef.current) {
+        fetchChatMessages(selectedAccount.id, selectedPhoneRef.current, true);
+      }
     }
   });
 

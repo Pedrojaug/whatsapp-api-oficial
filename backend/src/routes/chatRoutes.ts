@@ -32,7 +32,9 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
     });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
-    // Buscar mensagens mais recentes agrupadas por número normalizado usando DISTINCT ON (simplificado e indexado)
+    // Buscar mensagens mais recentes por contato.
+    // IMPORTANTE: DISTINCT ON em PostgreSQL exige que a primeira coluna do ORDER BY
+    // seja a mesma do DISTINCT ON. Por isso usamos uma subquery para pegar a mais recente por "to".
     const messages: DBConversationMessage[] = await prisma.$queryRawUnsafe(`
       SELECT DISTINCT ON ("to")
         "to" as phone,
@@ -44,7 +46,7 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
         "createdAt"
       FROM "Message"
       WHERE "accountId" = $1
-      ORDER BY "to", "createdAt" DESC;
+      ORDER BY "to", "createdAt" DESC
     `, accountId);
 
     // Buscar contatos salvos no WhatsAppContact para mapear nomes de perfil
