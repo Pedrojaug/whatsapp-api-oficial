@@ -229,20 +229,20 @@ export default function Layout() {
               justifyContent: "center", 
               background: "transparent", 
               border: "none", 
-              width: "52px", 
-              height: "52px",
+              width: "42px", 
+              height: "42px",
               flexShrink: 0 
             }}>
               <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div className="sidebar-logo-text" style={{ fontSize: "1.2rem", fontWeight: 400, letterSpacing: "-0.01em", display: "flex", alignItems: "center" }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="sidebar-logo-text" style={{ fontSize: "1.1rem", fontWeight: 400, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
                 <span style={{ color: "var(--primary)", fontWeight: 700 }}>Send</span>
                 <span style={{ marginLeft: "4px", color: "var(--text-primary)" }}>Inteligentte</span>
+                <span className="sidebar-logo-badge" style={{ marginLeft: "4px", flexShrink: 0 }}>Beta</span>
               </div>
               <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "1px" }}>por Inteligentte Lab</div>
             </div>
-            <span className="sidebar-logo-badge">Beta</span>
           </div>
 
           {/* Account Switcher */}
