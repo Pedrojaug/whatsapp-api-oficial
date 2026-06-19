@@ -22,6 +22,7 @@ if (missingVars.length > 0) {
 import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
+import webhookRouter from "./routes/webhookRoutes"; // Deve ser importado separadamente para registro antes do whatsappRouter
 import { handleTrackingRedirect } from "./routes/trackingRoutes";
 import publicApiRouter from "./routes/publicApiRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
@@ -112,6 +113,13 @@ app.get("/t/:shortCode", handleTrackingRedirect);
 // API Pública por chave (sem JWT)
 app.use("/api/v1", publicApiRouter);
 
+// CRÍTICO: Rotas de webhook da Meta DEVEM ser registradas ANTES do whatsappRouter.
+// O whatsappRouter contém subroteadores com router.use(authMiddleware) que, no Express,
+// atuam como catch-all e interceptariam requisições da Meta (sem JWT) antes de chegar
+// ao webhookRouter dentro do agregador. Registrar aqui garante que as rotas
+// /api/webhooks (GET e POST) sejam sempre públicas e acessíveis pela Meta.
+app.use("/api", webhookRouter);
+
 // Rotas autenticadas
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
@@ -132,7 +140,8 @@ app.get("/version", (req, res) => {
   res.json({
     commit: process.env.RENDER_GIT_COMMIT || "local",
     deployedAt: new Date().toISOString(),
-    webhookPublic: true, // Rotas de webhook são públicas — sem authMiddleware
+    // webhookRouter registrado diretamente no app (linha ~122), antes do whatsappRouter
+    webhookFix: "registered-before-whatsappRouter",
   });
 });
 
