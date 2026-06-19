@@ -20,6 +20,7 @@ const sendLimiter = rateLimit({
   message: { error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 // Enviar mensagem via Template (scoped to user)

@@ -1,14 +1,20 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 /**
  * Hook para se inscrever em atualizações de mensagens em tempo real (Server-Sent Events)
  * @param onMessageUpdated Callback disparado a cada nova atualização
  */
 export function useSSE(onMessageUpdated: (data: any) => void) {
+  const callbackRef = useRef(onMessageUpdated);
+
+  useEffect(() => {
+    callbackRef.current = onMessageUpdated;
+  }, [onMessageUpdated]);
+
   useEffect(() => {
     const handler = (event: Event) => {
       const customEvent = event as CustomEvent;
-      onMessageUpdated(customEvent.detail);
+      callbackRef.current(customEvent.detail);
     };
 
     window.addEventListener("messageUpdated", handler);
@@ -16,5 +22,5 @@ export function useSSE(onMessageUpdated: (data: any) => void) {
     return () => {
       window.removeEventListener("messageUpdated", handler);
     };
-  }, [onMessageUpdated]);
+  }, []);
 }
