@@ -199,8 +199,12 @@ router.post("/accounts/:accountId/templates/draft", async (req: Request, res: Re
 function translateMetaTemplateError(metaErr: any): string {
   if (!metaErr) return "Erro desconhecido ao criar template na Meta.";
   const code = metaErr.code;
+  const subcode = metaErr.error_subcode;
   const msg: string = metaErr.message || "";
 
+  if (code === 2388024 || subcode === 2388024) {
+    return "A Meta ainda está processando a exclusão da versão anterior deste template. Por favor, mude levemente o nome (ex: adicione '_v2' no final) ou aguarde cerca de 15 minutos antes de tentar novamente.";
+  }
   if (code === 100) {
     if (msg.includes("header_handle")) return "Arquivo de exemplo inválido ou expirado. Faça o upload novamente.";
     if (msg.includes("name")) return "Nome do template inválido. Use apenas letras minúsculas, números e underscore.";
