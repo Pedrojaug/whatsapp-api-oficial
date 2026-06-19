@@ -167,9 +167,7 @@ export default function ChatPage() {
             return updated;
           }
 
-          const isAgentMsg = data.direction === "OUTGOING" && (data.variables as any)?.sentBy === "SDR";
-          if (data.direction !== "INCOMING" && !isAgentMsg) return prevMsgs;
-
+          // Se não estiver na lista, adiciona (cobre mensagens recebidas e enviadas por outros meios como campanhas, API, n8n/SDR, etc.)
           return [...prevMsgs, {
             id: data.messageId,
             wamid: data.wamid,
