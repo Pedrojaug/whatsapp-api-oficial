@@ -408,6 +408,7 @@ export default function Layout() {
         target="_blank"
         rel="noopener noreferrer"
         title="Falar com Suporte"
+        className="support-fab"
         style={{
           position: "fixed",
           bottom: "24px",
@@ -439,7 +440,7 @@ export default function Layout() {
         }}
       >
         <WhatsAppIcon />
-        Suporte
+        <span className="support-fab-text">Suporte</span>
       </a>
     </div>
   );

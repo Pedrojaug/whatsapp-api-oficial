@@ -1591,10 +1591,24 @@ body.light-theme .page-heading {
 @media (max-width: 767px) {
   .api-docs-grid  { grid-template-columns: 1fr; }
   .modal-card     { border-radius: var(--radius-lg); }
-  .modal-body     { padding: 16px; }
+  .modal-body     { padding: 16px; max-height: 65vh; overflow-y: auto; }
   .modal-footer   { padding: 12px 16px; }
   .modal-header   { padding: 14px 16px; }
   .section-card   { padding: 16px; gap: 14px; }
   .section-card--lg { padding: 20px; }
   .form-row { flex-direction: column; align-items: stretch; }
+  .page-header  { flex-wrap: wrap; }
+  .page-actions { flex-wrap: wrap; }
+  .section-header { flex-wrap: wrap; }
+  .card-header  { flex-wrap: wrap; gap: 10px; }
+  .page-title   { font-size: 1.4rem; }
+}
+
+/* Support button: icon-only on small phones */
+@media (max-width: 480px) {
+  .support-fab-text { display: none; }
+  .support-fab {
+    padding: 14px !important;
+    border-radius: 50% !important;
+  }
 }
