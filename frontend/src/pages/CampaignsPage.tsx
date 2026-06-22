@@ -172,7 +172,7 @@ export default function CampaignsPage() {
         scheduleType: form.scheduleType,
         scheduleTime: ["DAILY", "WEEKLY", "MONTHLY"].includes(form.scheduleType) ? form.scheduleTime : null,
         scheduleDays: ["WEEKLY", "MONTHLY"].includes(form.scheduleType) ? form.scheduleDays : [],
-        scheduleDate: form.scheduleType === "ONCE" ? (form.scheduleDate ? new Date(form.scheduleDate).toISOString() : null) : null,
+        scheduleDate: form.scheduleType === "ONCE" ? (form.scheduleDate ? `${form.scheduleDate}:00-03:00` : null) : null,
       };
 
       if (showModal === "create") {
