@@ -23,14 +23,14 @@ function describeSchedule(c: any): string {
     return `Uma vez em ${new Date(c.scheduleDate).toLocaleString("pt-BR")}`;
   }
   if (c.scheduleType === "DAILY" && c.scheduleTime) {
-    return `Diariamente às ${c.scheduleTime} UTC`;
+    return `Diariamente às ${c.scheduleTime} (Horário de Brasília)`;
   }
   if (c.scheduleType === "WEEKLY" && c.scheduleTime && c.scheduleDays?.length) {
     const days = c.scheduleDays.map((d: number) => DAYS_PT[d] ?? d).join(", ");
-    return `Semanal — ${days} às ${c.scheduleTime} UTC`;
+    return `Semanal — ${days} às ${c.scheduleTime} (Horário de Brasília)`;
   }
   if (c.scheduleType === "MONTHLY" && c.scheduleTime && c.scheduleDays?.length) {
-    return `Mensal — dia ${c.scheduleDays[0]} às ${c.scheduleTime} UTC`;
+    return `Mensal — dia ${c.scheduleDays[0]} às ${c.scheduleTime} (Horário de Brasília)`;
   }
   return c.scheduleType;
 }
@@ -148,7 +148,11 @@ export default function CampaignsPage() {
       scheduleType: c.scheduleType,
       scheduleTime: c.scheduleTime || "09:00",
       scheduleDays: c.scheduleDays || [],
-      scheduleDate: c.scheduleDate ? c.scheduleDate.slice(0, 16) : "",
+      scheduleDate: c.scheduleDate ? (() => {
+        const d = new Date(c.scheduleDate!);
+        const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+        return local.toISOString().slice(0, 16);
+      })() : "",
     });
     setEditTarget(c);
     setShowModal("edit");
@@ -168,7 +172,7 @@ export default function CampaignsPage() {
         scheduleType: form.scheduleType,
         scheduleTime: ["DAILY", "WEEKLY", "MONTHLY"].includes(form.scheduleType) ? form.scheduleTime : null,
         scheduleDays: ["WEEKLY", "MONTHLY"].includes(form.scheduleType) ? form.scheduleDays : [],
-        scheduleDate: form.scheduleType === "ONCE" ? form.scheduleDate || null : null,
+        scheduleDate: form.scheduleType === "ONCE" ? (form.scheduleDate ? new Date(form.scheduleDate).toISOString() : null) : null,
       };
 
       if (showModal === "create") {
@@ -512,7 +516,7 @@ export default function CampaignsPage() {
 
                     {form.scheduleType === "ONCE" && (
                       <div className="field">
-                        <label className="field-label">Data e hora (UTC)</label>
+                        <label className="field-label">Data e hora (Horário de Brasília)</label>
                         <input
                           type="datetime-local"
                           className="field-input"
@@ -525,7 +529,7 @@ export default function CampaignsPage() {
 
                     {(form.scheduleType === "DAILY" || form.scheduleType === "WEEKLY" || form.scheduleType === "MONTHLY") && (
                       <div className="field" style={{ maxWidth: "160px" }}>
-                        <label className="field-label">Horário de envio (UTC)</label>
+                        <label className="field-label">Horário de envio (Horário de Brasília)</label>
                         <input
                           type="time"
                           className="field-input"
