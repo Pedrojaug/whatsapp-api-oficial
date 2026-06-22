@@ -13,7 +13,11 @@ const router = Router();
 
 // Webhook Verification (GET)
 router.get("/webhooks", (req: Request, res: Response) => {
-  const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN || "minha-senha-super-secreta-do-webhook";
+  const verifyToken = process.env.WEBHOOK_VERIFY_TOKEN;
+  if (!verifyToken) {
+    console.error("[Webhook] WEBHOOK_VERIFY_TOKEN não definido nas variáveis de ambiente.");
+    return res.sendStatus(500);
+  }
 
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -33,7 +37,7 @@ router.get("/webhooks", (req: Request, res: Response) => {
 // Webhook Receiver (POST)
 router.post("/webhooks", async (req: Request, res: Response) => {
   const body = req.body;
-  console.log("[Webhook] POST recebido de Meta:", JSON.stringify(body, null, 2));
+  console.log(`[Webhook] POST recebido de Meta. object=${body?.object}, entries=${body?.entry?.length ?? 0}`);
 
   const appSecret = process.env.FACEBOOK_APP_SECRET;
   const signature = req.headers["x-hub-signature-256"] as string;
