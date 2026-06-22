@@ -119,7 +119,7 @@ export default function Layout() {
       <div className="ambient-glow-2"></div>
 
       {/* ── Email verification banner ── */}
-      {user && !user.emailVerified && !isImpersonating && (
+      {user && !user.emailVerified && !isImpersonating && user.role !== "SUPERUSER" && (
         <div style={{
           background: "linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06))",
           borderBottom: "1px solid rgba(251,191,36,0.25)",
