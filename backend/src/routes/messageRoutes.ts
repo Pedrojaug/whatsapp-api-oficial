@@ -48,6 +48,13 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
       where: { accountId, name: templateName },
     });
 
+    const optedOut = await prisma.optOut.findUnique({
+      where: { phone_accountId: { phone: normalizedTo, accountId } },
+    });
+    if (optedOut) {
+      return res.status(422).json({ error: "Este número está na lista de opt-out (LGPD).", code: "OPT_OUT" });
+    }
+
     const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : null;
     const isFutureScheduled = scheduledAtDate && scheduledAtDate.getTime() > Date.now();
 
