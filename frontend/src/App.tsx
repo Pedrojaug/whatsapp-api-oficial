@@ -22,6 +22,7 @@ import OptOutPage from "./pages/OptOutPage";
 import LinkTrackingPage from "./pages/LinkTrackingPage";
 import ApiKeysPage from "./pages/ApiKeysPage";
 import CampaignsPage from "./pages/CampaignsPage";
+import LandingPage from "./pages/LandingPage";
 
 // Public auth pages (outside Layout — no sidebar/header)
 import AuthCallbackPage from "./pages/AuthCallbackPage";
@@ -39,7 +40,8 @@ export default function App() {
         <AlertProvider>
           <BrowserRouter>
             <Routes>
-              {/* ── Public auth pages (no Layout wrapper) ── */}
+              {/* ── Public pages (no Layout, no auth required) ── */}
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
