@@ -42,7 +42,7 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
       },
     });
 
-    return () => tween.kill();
+    return () => { tween.kill(); };
   }, [onComplete]);
 
   return (
