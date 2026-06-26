@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { gsap } from "gsap";
+import { EASE, DUR } from "../utils/motion";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
@@ -38,6 +40,8 @@ export default function Layout() {
   const { accounts, selectedAccount, selectAccount } = useAccount();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
 
   // Theme state — default dark, persisted in localStorage
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
@@ -100,6 +104,18 @@ export default function Layout() {
       eventSource?.close();
     };
   }, [selectedAccount, token]);
+
+  // Stagger-reveal glass cards on every route change
+  useEffect(() => {
+    if (!mainRef.current) return;
+    const cards = mainRef.current.querySelectorAll<HTMLElement>(".glass");
+    if (!cards.length) return;
+    gsap.fromTo(
+      cards,
+      { opacity: 0, y: 20 },
+      { opacity: 1, y: 0, duration: DUR.base, ease: EASE, stagger: 0.07, clearProps: "transform" }
+    );
+  }, [location.pathname]);
 
   if (!token) {
     return <AuthPages onLoginSuccess={login} />;
@@ -397,7 +413,7 @@ export default function Layout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="app-main">
+        <main className="app-main" ref={mainRef}>
           <Outlet />
         </main>
       </div>

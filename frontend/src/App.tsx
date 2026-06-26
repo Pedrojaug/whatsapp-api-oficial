@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "./App.css";
 
@@ -5,6 +6,7 @@ import "./App.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AlertProvider } from "./contexts/AlertContext";
+import AppLoader from "./components/AppLoader";
 
 // Layout & Pages
 import Layout from "./components/Layout";
@@ -27,8 +29,12 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 export default function App() {
+  const [appReady, setAppReady] = useState(false);
+
   return (
-    <AuthProvider>
+    <>
+      {!appReady && <AppLoader onComplete={() => setAppReady(true)} />}
+      <AuthProvider>
       <AccountProvider>
         <AlertProvider>
           <BrowserRouter>
@@ -60,5 +66,6 @@ export default function App() {
         </AlertProvider>
       </AccountProvider>
     </AuthProvider>
+    </>
   );
 }

@@ -4,6 +4,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
+import { useCountup } from "../hooks/useCountup";
 
 export default function DashboardPage() {
   const { selectedAccount } = useAccount();
@@ -57,6 +58,12 @@ export default function DashboardPage() {
   const totalRead = metricsData.totals.read;
   const totalFailed = metricsData.totals.failed;
   const totalAll = metricsData.totals.total;
+
+  const countAll = useCountup(totalAll);
+  const countSent = useCountup(totalSent);
+  const countDelivered = useCountup(totalDelivered);
+  const countRead = useCountup(totalRead);
+  const countFailed = useCountup(totalFailed);
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
@@ -165,23 +172,23 @@ export default function DashboardPage() {
           <div className="metrics-stats-grid">
             <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
               <span className="stat-card__label">Total Disparado</span>
-              <span className="stat-card__value">{totalAll}</span>
+              <span className="stat-card__value">{countAll.toLocaleString("pt-BR")}</span>
             </div>
             <div className="glass glass-interactive hover-glow-purple stat-card stat-card--purple">
               <span className="stat-card__label">Enviado</span>
-              <span className="stat-card__value">{totalSent}</span>
+              <span className="stat-card__value">{countSent.toLocaleString("pt-BR")}</span>
             </div>
             <div className="glass glass-interactive hover-glow-cyan stat-card stat-card--cyan">
               <span className="stat-card__label">Entregue</span>
-              <span className="stat-card__value">{totalDelivered}</span>
+              <span className="stat-card__value">{countDelivered.toLocaleString("pt-BR")}</span>
             </div>
             <div className="glass glass-interactive hover-glow-success stat-card stat-card--success">
               <span className="stat-card__label">Lido</span>
-              <span className="stat-card__value">{totalRead}</span>
+              <span className="stat-card__value">{countRead.toLocaleString("pt-BR")}</span>
             </div>
             <div className="glass glass-interactive hover-glow-error stat-card stat-card--error">
               <span className="stat-card__label">Falhas</span>
-              <span className="stat-card__value">{totalFailed}</span>
+              <span className="stat-card__value">{countFailed.toLocaleString("pt-BR")}</span>
             </div>
           </div>
 
