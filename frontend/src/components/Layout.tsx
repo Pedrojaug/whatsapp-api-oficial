@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { gsap } from "gsap";
-import Lenis from "lenis";
 import { EASE, DUR } from "../utils/motion";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
@@ -43,7 +42,6 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
-  const lenisContentRef = useRef<HTMLDivElement>(null);
 
   // Theme state — default dark, persisted in localStorage
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
@@ -106,33 +104,6 @@ export default function Layout() {
       eventSource?.close();
     };
   }, [selectedAccount, token]);
-
-  // Lenis smooth scroll on main content area
-  useEffect(() => {
-    const wrapper = mainRef.current;
-    const content = lenisContentRef.current;
-    if (!wrapper || !content) return;
-
-    const lenis = new Lenis({
-      wrapper,
-      content,
-      duration: 1.1,
-      smoothWheel: true,
-      syncTouch: false,
-    } as ConstructorParameters<typeof Lenis>[0]);
-
-    let rafId: number;
-    const raf = (time: number) => {
-      lenis.raf(time);
-      rafId = requestAnimationFrame(raf);
-    };
-    rafId = requestAnimationFrame(raf);
-
-    return () => {
-      cancelAnimationFrame(rafId);
-      lenis.destroy();
-    };
-  }, []);
 
   // Stagger-reveal glass cards on every route change (with subtle scale)
   useEffect(() => {
@@ -443,7 +414,7 @@ export default function Layout() {
 
         {/* Main Content Area */}
         <main className="app-main" ref={mainRef}>
-          <div className="app-main-inner" ref={lenisContentRef}>
+          <div className="app-main-inner">
             <Outlet />
           </div>
         </main>

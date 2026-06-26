@@ -1075,8 +1075,8 @@ body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.015); }
 }
 
 /* ─── MAIN CONTENT ─── */
-.app-main { flex: 1; overflow: hidden; min-width: 0; }
-.app-main-inner { padding: 40px; min-height: 100%; }
+.app-main { flex: 1; overflow-y: auto; min-width: 0; scroll-behavior: smooth; }
+.app-main-inner { padding: 40px; }
 
 /* ─── MOBILE HEADER (hidden on desktop) ─── */
 .mobile-header {
