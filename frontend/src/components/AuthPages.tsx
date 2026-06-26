@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import type { AuthUser } from "../contexts/AuthContext";
+import ThreeBackground from "./ThreeBackground";
 
 const getApiUrl = () => {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -282,6 +283,9 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
 
       {/* Dot grid canvas */}
       <DotGridCanvas />
+
+      {/* Three.js icosahedron wireframes — z:1, between dot grid and card */}
+      <ThreeBackground />
 
       {/* Very subtle vignette */}
       <div style={{
