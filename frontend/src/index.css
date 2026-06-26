@@ -287,6 +287,11 @@ body.light-theme .badge-delivered {
   -webkit-backdrop-filter: blur(8px);
 }
 
+.btn:active:not(:disabled) {
+  transform: scale(0.96) translateY(1px) !important;
+  transition: transform 0.08s ease !important;
+}
+
 .btn-primary {
   background: linear-gradient(135deg, rgba(0, 194, 107, 0.16), rgba(0, 160, 80, 0.10));
   border: 1px solid rgba(0, 194, 107, 0.48);
@@ -1070,7 +1075,8 @@ body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.015); }
 }
 
 /* ─── MAIN CONTENT ─── */
-.app-main { flex: 1; padding: 40px; overflow-y: auto; min-width: 0; }
+.app-main { flex: 1; overflow: hidden; min-width: 0; }
+.app-main-inner { padding: 40px; min-height: 100%; }
 
 /* ─── MOBILE HEADER (hidden on desktop) ─── */
 .mobile-header {
@@ -1185,7 +1191,7 @@ body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.015); }
   .sidebar-overlay { display: block; }
 
   /* Main area: full width, reduced padding, account for sticky header */
-  .app-main { padding: 16px; }
+  .app-main-inner { padding: 16px; }
 
   /* Grids: single column */
   .messages-grid { grid-template-columns: 1fr; }
@@ -1221,7 +1227,7 @@ body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.015); }
   .metrics-stats-grid { grid-template-columns: repeat(2, 1fr); }
   .stat-card { padding: 16px; }
   .stat-card__value { font-size: 1.8rem; }
-  .app-main { padding: 12px; }
+  .app-main-inner { padding: 12px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1277,7 +1283,7 @@ body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.015); }
   max-width: 100%;
   border-radius: var(--radius-xl);
   overflow: hidden;
-  animation: modal-slide-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: modal-slide-in 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 .modal-card--sm { width: 380px; }
 .modal-card--lg { width: 640px; }
@@ -1321,8 +1327,8 @@ body.light-theme .data-table tbody tr:hover { background: rgba(0,0,0,0.015); }
   background: rgba(0, 0, 0, 0.06);
 }
 @keyframes modal-slide-in {
-  from { opacity: 0; transform: translateY(14px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+  from { opacity: 0; transform: translateY(22px) scale(0.93); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 body.light-theme .modal-header { background: rgba(0,0,0,0.03); }
 body.light-theme .modal-footer { background: rgba(0,0,0,0.02); }
