@@ -64,7 +64,14 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
     // 6. Hold — let the brand breathe
     tl.to({}, { duration: 0.42 });
 
-    // 7. Exit: snap background to green, then slide the whole overlay up
+    // 7. Fade out content before green (prevents "Send" vanishing into same-color bg)
+    tl.to([logoRef.current, textWrapRef.current, taglineRef.current], {
+      opacity: 0,
+      duration: 0.18,
+      ease: "power2.in",
+    });
+
+    // 8. Snap background to green, then slide the whole overlay up
     tl.call(() => {
       if (overlayRef.current) overlayRef.current.style.background = "#25d366";
     });
@@ -72,7 +79,7 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
       yPercent: -100,
       duration: 0.85,
       ease: "power4.inOut",
-      delay: 0.06,
+      delay: 0.05,
       onComplete,
     });
 
