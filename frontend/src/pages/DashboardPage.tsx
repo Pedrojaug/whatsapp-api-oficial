@@ -14,6 +14,7 @@ export default function DashboardPage() {
   const [metricsPeriod, setMetricsPeriod] = useState<"today" | "yesterday" | "7days" | "30days" | "custom">("7days");
   const [metricsStartDate, setMetricsStartDate] = useState("");
   const [metricsEndDate, setMetricsEndDate] = useState("");
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
   const [metricsData, setMetricsData] = useState<{
     totals: { sent: number; delivered: number; read: number; failed: number; total: number };
     chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
@@ -25,6 +26,7 @@ export default function DashboardPage() {
   });
 
   const fetchMetrics = async (accountId: string) => {
+    setIsLoadingMetrics(true);
     try {
       let url = `${API_BASE_URL}/accounts/${accountId}/metrics?period=${metricsPeriod}`;
       if (metricsPeriod === "custom" && metricsStartDate) {
@@ -37,6 +39,8 @@ export default function DashboardPage() {
       setMetricsData(res.data);
     } catch (err: any) {
       console.error("Erro ao buscar métricas:", err);
+    } finally {
+      setIsLoadingMetrics(false);
     }
   };
 
@@ -169,28 +173,36 @@ export default function DashboardPage() {
       ) : (
         <>
           {/* Metrics cards grid */}
-          <div className="metrics-stats-grid">
-            <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
-              <span className="stat-card__label">Total Disparado</span>
-              <span className="stat-card__value">{countAll.toLocaleString("pt-BR")}</span>
+          {isLoadingMetrics ? (
+            <div className="metrics-stats-grid">
+              {[1,2,3,4,5].map((i) => (
+                <div key={i} className="skeleton" style={{ height: "100px", borderRadius: "var(--radius-xl)" }} />
+              ))}
             </div>
-            <div className="glass glass-interactive hover-glow-purple stat-card stat-card--purple">
-              <span className="stat-card__label">Enviado</span>
-              <span className="stat-card__value">{countSent.toLocaleString("pt-BR")}</span>
+          ) : (
+            <div className="metrics-stats-grid">
+              <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
+                <span className="stat-card__label">Total Disparado</span>
+                <span className="stat-card__value">{countAll.toLocaleString("pt-BR")}</span>
+              </div>
+              <div className="glass glass-interactive hover-glow-purple stat-card stat-card--purple">
+                <span className="stat-card__label">Enviado</span>
+                <span className="stat-card__value">{countSent.toLocaleString("pt-BR")}</span>
+              </div>
+              <div className="glass glass-interactive hover-glow-cyan stat-card stat-card--cyan">
+                <span className="stat-card__label">Entregue</span>
+                <span className="stat-card__value">{countDelivered.toLocaleString("pt-BR")}</span>
+              </div>
+              <div className="glass glass-interactive hover-glow-success stat-card stat-card--success">
+                <span className="stat-card__label">Lido</span>
+                <span className="stat-card__value">{countRead.toLocaleString("pt-BR")}</span>
+              </div>
+              <div className="glass glass-interactive hover-glow-error stat-card stat-card--error">
+                <span className="stat-card__label">Falhas</span>
+                <span className="stat-card__value">{countFailed.toLocaleString("pt-BR")}</span>
+              </div>
             </div>
-            <div className="glass glass-interactive hover-glow-cyan stat-card stat-card--cyan">
-              <span className="stat-card__label">Entregue</span>
-              <span className="stat-card__value">{countDelivered.toLocaleString("pt-BR")}</span>
-            </div>
-            <div className="glass glass-interactive hover-glow-success stat-card stat-card--success">
-              <span className="stat-card__label">Lido</span>
-              <span className="stat-card__value">{countRead.toLocaleString("pt-BR")}</span>
-            </div>
-            <div className="glass glass-interactive hover-glow-error stat-card stat-card--error">
-              <span className="stat-card__label">Falhas</span>
-              <span className="stat-card__value">{countFailed.toLocaleString("pt-BR")}</span>
-            </div>
-          </div>
+          )}
 
           <div className="metrics-chart-grid">
             {/* Delivery Funnel */}

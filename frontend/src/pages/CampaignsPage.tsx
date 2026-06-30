@@ -423,8 +423,13 @@ export default function CampaignsPage() {
                   {/* Variable mappings */}
                   {form.variables.length > 0 && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", padding: "14px 16px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                      <label className="field-label">Mapeamento de Variáveis</label>
-                      {form.variables.map((mapping, idx) => {
+                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                        <label className="field-label">Mapeamento de Variáveis</label>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          Var 1, 2, 3 correspondem às colunas extras da lista (além de nome e telefone).
+                        </span>
+                      </div>
+                      {form.variables.map((mapping: string, idx: number) => {
                         const isStatic = mapping.startsWith("STATIC:") || mapping === "STATIC_VALUE";
                         const staticVal = mapping.startsWith("STATIC:") ? mapping.slice(7) : "";
                         return (

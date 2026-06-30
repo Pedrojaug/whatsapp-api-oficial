@@ -26,6 +26,7 @@ export default function TemplatesPage() {
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [syncingTemplates, setSyncingTemplates] = useState(false);
   const [deleteConfirmTemplate, setDeleteConfirmTemplate] = useState<{ id: string; name: string } | null>(null);
 
@@ -49,6 +50,7 @@ export default function TemplatesPage() {
   const [sampleFilePreviewUrl, setSampleFilePreviewUrl] = useState("");
 
   const fetchTemplates = async (accountId: string, sync = false) => {
+    if (!sync) setLoadingTemplates(true);
     try {
       const url = sync
         ? `${API_BASE_URL}/accounts/${accountId}/templates?sync=true`
@@ -57,6 +59,8 @@ export default function TemplatesPage() {
       setTemplates(res.data);
     } catch (err: any) {
       console.error(err);
+    } finally {
+      if (!sync) setLoadingTemplates(false);
     }
   };
 
@@ -401,8 +405,8 @@ export default function TemplatesPage() {
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>Gestão de Templates</h1>
-          <p style={{ color: "var(--text-secondary)" }}>Veja o status de aprovação da Meta ou crie novos templates</p>
+          <h1 className="page-heading">Gestão de Templates</h1>
+          <p className="page-subheading">Veja o status de aprovação da Meta ou crie novos templates</p>
         </div>
         <div style={{ display: "flex", gap: "10px" }}>
           <button onClick={syncTemplates} disabled={syncingTemplates || !selectedAccount} className="btn btn-secondary">
@@ -417,6 +421,12 @@ export default function TemplatesPage() {
       {!selectedAccount ? (
         <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
           <p style={{ color: "var(--text-muted)" }}>Cadastre uma conta da Meta primeiro nas Configurações.</p>
+        </div>
+      ) : loadingTemplates ? (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
+          {[1,2,3,4,5,6].map((i) => (
+            <div key={i} className="skeleton" style={{ height: "180px", borderRadius: "var(--radius-lg)" }} />
+          ))}
         </div>
       ) : templates.length === 0 ? (
         <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)", color: "var(--text-muted)" }}>

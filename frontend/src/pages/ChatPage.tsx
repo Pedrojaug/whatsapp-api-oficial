@@ -41,6 +41,7 @@ export default function ChatPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Template states for quick sending
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -141,6 +142,13 @@ export default function ChatPage() {
       setChatMessages([]);
     }
   }, [selectedAccount]);
+
+  // Auto-scroll para a última mensagem quando as mensagens carregam ou chegam novas
+  useEffect(() => {
+    if (!isChatLoading && chatMessages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, isChatLoading]);
 
   // Polling de fallback: atualiza conversas a cada 15s e o chat ativo a cada 10s
   // Garante sincronização mesmo quando o SSE cair (Render free tier)
@@ -471,8 +479,8 @@ export default function ChatPage() {
                         );
                       })}
                       
-                      {/* Ref para scroll automático */}
-                      <div ref={(el) => el?.scrollIntoView({ behavior: 'smooth' })} />
+                      {/* Âncora para auto-scroll */}
+                      <div ref={messagesEndRef} />
                     </>
                   )}
                 </div>

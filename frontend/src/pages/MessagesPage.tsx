@@ -488,7 +488,14 @@ export default function MessagesPage() {
           {/* Dynamic Variables Inputs / Mapper */}
           {templateVariables.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "12px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
-              <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Variáveis do Template</label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Variáveis do Template</label>
+                {recipientType === "list" && (
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
+                    Var 1, 2, 3 correspondem às colunas extras da lista (além de nome e telefone).
+                  </span>
+                )}
+              </div>
               {templateVariables.map((variable, idx) => {
                 if (recipientType === "single") {
                   return (
@@ -871,8 +878,8 @@ export default function MessagesPage() {
                           {totalMessages === 0 ? "Nenhum registro" : `${((messagesPage - 1) * messagesLimit) + 1}–${Math.min(messagesPage * messagesLimit, totalMessages)} de ${totalMessages} disparos`}
                         </span>
                         <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                          <button disabled={messagesPage === 1} onClick={() => goTo(1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>«</button>
-                          <button disabled={messagesPage === 1} onClick={() => goTo(messagesPage - 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>‹</button>
+                          <button aria-label="Primeira página" disabled={messagesPage === 1} onClick={() => goTo(1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>«</button>
+                          <button aria-label="Página anterior" disabled={messagesPage === 1} onClick={() => goTo(messagesPage - 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>‹</button>
                           {pageNumbers.map((p, i) =>
                             p === "..." ? (
                               <span key={`ellipsis-${i}`} style={{ padding: "5px 8px", color: "var(--text-muted)", fontSize: "0.82rem" }}>…</span>
@@ -893,8 +900,8 @@ export default function MessagesPage() {
                               >{p}</button>
                             )
                           )}
-                          <button disabled={messagesPage >= totalPages} onClick={() => goTo(messagesPage + 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>›</button>
-                          <button disabled={messagesPage >= totalPages} onClick={() => goTo(totalPages)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>»</button>
+                          <button aria-label="Próxima página" disabled={messagesPage >= totalPages} onClick={() => goTo(messagesPage + 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>›</button>
+                          <button aria-label="Última página" disabled={messagesPage >= totalPages} onClick={() => goTo(totalPages)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>»</button>
                         </div>
                       </div>
                     );

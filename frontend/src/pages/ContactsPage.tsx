@@ -400,8 +400,8 @@ export default function ContactsPage() {
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "8px" }}>👥 Listas de Contatos</h1>
-          <p style={{ color: "var(--text-secondary)" }}>Crie e gerencie contatos para seus disparos em massa</p>
+          <h1 className="page-heading">Listas de Contatos</h1>
+          <p className="page-subheading">Crie e gerencie contatos para seus disparos em massa</p>
         </div>
         <button onClick={() => setShowNewListModal(true)} disabled={!selectedAccount} className="btn btn-primary">
           👥 Nova Lista
