@@ -17,8 +17,8 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
     // Measure rendered text width so the brush travels the exact right distance
     const w = textWrapRef.current?.offsetWidth ?? 380;
 
-    // Brush starts hidden just off the left edge
-    gsap.set(brushRef.current, { x: -(w * 0.12 + 82) });
+    // Block starts just off the left edge of the text (hidden before "S")
+    gsap.set(brushRef.current, { x: -48 });
     // Bright text fully clipped (invisible)
     gsap.set(brightRef.current, { clipPath: "inset(0 100% 0 0)" });
 
@@ -41,9 +41,9 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
     // 3. Brief pause — build anticipation
     tl.to({}, { duration: 0.24 });
 
-    // 4a. Brush sweeps left → right across the text
+    // 4a. Block sweeps left → right, exits just past the last letter
     tl.to(brushRef.current, {
-      x: w + 90,
+      x: w + 6,
       duration: 0.72,
       ease: "power2.inOut",
     });
@@ -144,21 +144,17 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
             <span style={{ color: "#fff" }}> Inteligentte</span>
           </div>
 
-          {/* Paint brush — sweeps across, reveals text */}
+          {/* Block cursor — solid square sweeps left→right, same height as text */}
           <div
             ref={brushRef}
             style={{
               position: "absolute",
-              top: "-26%",
+              top: 0,
               left: 0,
-              width: "72px",
-              height: "152%",
+              width: "44px",
+              height: "100%",
               pointerEvents: "none",
-              background:
-                "linear-gradient(90deg, transparent 0%, rgba(37,211,102,0.26) 20%, rgba(37,211,102,0.8) 50%, rgba(37,211,102,0.26) 80%, transparent 100%)",
-              // Organic brush-tip shape: slight taper at both leading and trailing edges
-              clipPath:
-                "polygon(0% 26%, 8% 1%, 93% 6%, 100% 0%, 100% 74%, 92% 100%, 7% 94%, 0% 82%)",
+              background: "#25d366",
             }}
           />
         </div>
