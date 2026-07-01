@@ -41,6 +41,7 @@ function safeUser(user: any) {
     onboardingCompleted: user.onboardingCompleted,
     planTier: user.planTier,
     avatarUrl: user.avatarUrl ?? null,
+    createdAt: user.createdAt,
   };
 }
 

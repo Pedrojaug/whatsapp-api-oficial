@@ -47,6 +47,7 @@ export interface AuthUser {
   onboardingCompleted: boolean;
   planTier: string;
   avatarUrl: string | null;
+  createdAt?: string;
 }
 
 interface AuthContextType {

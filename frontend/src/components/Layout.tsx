@@ -121,6 +121,16 @@ export default function Layout() {
     return <AuthPages onLoginSuccess={login} />;
   }
 
+  // ── Trial logic ──────────────────────────────────────────────────────────────
+  const TRIAL_DAYS = 3;
+  const isPaid      = user?.planTier === "paid";
+  const isSuperUser = user?.role === "SUPERUSER";
+  const createdAt   = user?.createdAt ? new Date(user.createdAt) : null;
+  const daysSince   = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / 86_400_000) : 0;
+  const daysLeft    = Math.max(0, TRIAL_DAYS - daysSince);
+  const trialExpired  = !isPaid && !isSuperUser && daysSince >= TRIAL_DAYS;
+  const showTrialBanner = !isPaid && !isSuperUser && !trialExpired;
+
   const handleAccountChange = (accountId: string) => {
     const acc = accounts.find((a) => a.id === accountId);
     selectAccount(acc || null);
@@ -128,11 +138,75 @@ export default function Layout() {
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
+  const PAYMENT_WA = `https://wa.me/5583920017106?text=${encodeURIComponent("Olá! Quero assinar o Send Inteligentte. Meu e-mail é: " + (user?.email || ""))}`;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", position: "relative" }}>
       {/* Background Ambient Glows */}
       <div className="ambient-glow-1"></div>
       <div className="ambient-glow-2"></div>
+
+      {/* ── Trial expired paywall ── */}
+      {trialExpired && !isImpersonating && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 10000,
+          background: "rgba(5,7,15,0.92)",
+          backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          padding: "24px",
+        }}>
+          <div className="glass" style={{
+            maxWidth: "460px", width: "100%",
+            padding: "40px 36px", borderRadius: "var(--radius-xl)",
+            border: "1px solid rgba(255,255,255,0.08)",
+            display: "flex", flexDirection: "column", alignItems: "center",
+            gap: "20px", textAlign: "center",
+          }}>
+            <div style={{
+              width: "60px", height: "60px", borderRadius: "50%",
+              background: "rgba(251,191,36,0.1)",
+              border: "1.5px solid rgba(251,191,36,0.35)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "1.7rem",
+            }}>⏰</div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                Seu período de teste encerrou
+              </h2>
+              <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+                Seus <strong>3 dias gratuitos</strong> expiraram há {daysSince - TRIAL_DAYS} dia{daysSince - TRIAL_DAYS !== 1 ? "s" : ""}.
+                Para continuar enviando mensagens pelo Send Inteligentte, ative seu plano.
+              </p>
+            </div>
+
+            <a
+              href={PAYMENT_WA}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-primary"
+              style={{ width: "100%", textAlign: "center", textDecoration: "none", fontSize: "0.95rem", padding: "14px" }}
+            >
+              Assinar agora via WhatsApp
+            </a>
+
+            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+              Após a confirmação do pagamento, seu acesso é reativado em até 24h.<br />
+              Dúvidas? Fale com a equipe Inteligentte.
+            </p>
+
+            <button
+              onClick={logout}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-muted)", fontSize: "0.8rem", textDecoration: "underline",
+              }}
+            >
+              Sair da conta
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Email verification banner ── */}
       {user && !user.emailVerified && !isImpersonating && user.role !== "SUPERUSER" && (
@@ -150,6 +224,47 @@ export default function Layout() {
         }}>
           <span>⚠️</span>
           <span>Confirme seu e-mail para garantir o acesso à sua conta. Verifique a caixa de entrada de <strong>{user.email}</strong>.</span>
+        </div>
+      )}
+
+      {/* ── Trial countdown banner ── */}
+      {showTrialBanner && !isImpersonating && (
+        <div style={{
+          background: "linear-gradient(90deg, rgba(251,191,36,0.1), rgba(251,191,36,0.04))",
+          borderBottom: "1px solid rgba(251,191,36,0.22)",
+          padding: "9px 24px",
+          fontSize: "0.83rem",
+          color: "#fbbf24",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          zIndex: 1001,
+          flexWrap: "wrap",
+        }}>
+          <span>
+            ⏳ <strong>{daysLeft} dia{daysLeft !== 1 ? "s" : ""} restante{daysLeft !== 1 ? "s" : ""}</strong> no seu período de teste gratuito.
+          </span>
+          <a
+            href={PAYMENT_WA}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              background: "rgba(251,191,36,0.15)",
+              border: "1px solid rgba(251,191,36,0.35)",
+              color: "#fbbf24",
+              padding: "5px 14px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              fontFamily: "inherit",
+              whiteSpace: "nowrap",
+              textDecoration: "none",
+            }}
+          >
+            Assinar agora →
+          </a>
         </div>
       )}
 
