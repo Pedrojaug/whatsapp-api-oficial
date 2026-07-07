@@ -8,16 +8,12 @@ type Status = "loading" | "success" | "error";
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<Status>("loading");
-  const [message, setMessage] = useState("");
+  const token = searchParams.get("token");
+  const [status, setStatus] = useState<Status>(token ? "loading" : "error");
+  const [message, setMessage] = useState(token ? "" : "Link inválido.");
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    if (!token) {
-      setStatus("error");
-      setMessage("Link inválido.");
-      return;
-    }
+    if (!token) return;
     axios
       .get(`${API_BASE_URL}/auth/verify-email?token=${encodeURIComponent(token)}`)
       .then(() => {
@@ -29,7 +25,7 @@ export default function VerifyEmailPage() {
         setStatus("error");
         setMessage(err.response?.data?.error || "Link inválido ou expirado.");
       });
-  }, []);
+  }, [token, navigate]);
 
   const icon = status === "loading" ? (
     <div style={{

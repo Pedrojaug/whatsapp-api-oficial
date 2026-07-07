@@ -126,7 +126,8 @@ export default function Layout() {
   const isPaid      = user?.planTier === "paid";
   const isSuperUser = user?.role === "SUPERUSER";
   const createdAt   = user?.createdAt ? new Date(user.createdAt) : null;
-  const daysSince   = createdAt ? Math.floor((Date.now() - createdAt.getTime()) / 86_400_000) : 0;
+  const [now]       = useState(() => Date.now());
+  const daysSince   = createdAt ? Math.floor((now - createdAt.getTime()) / 86_400_000) : 0;
   const daysLeft    = Math.max(0, TRIAL_DAYS - daysSince);
   const trialExpired  = !isPaid && !isSuperUser && daysSince >= TRIAL_DAYS;
   const showTrialBanner = !isPaid && !isSuperUser && !trialExpired;

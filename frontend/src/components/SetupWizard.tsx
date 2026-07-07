@@ -101,6 +101,31 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     }
   };
 
+  const handleEmbeddedSignupExchange = async (code: string, wabaId: string, phoneNumberId: string) => {
+    try {
+      setOnboardLoading(true);
+      const res = await axios.post(`${API_BASE_URL}/accounts/facebook-onboard/exchange`, {
+        code,
+        wabaId,
+        phoneNumberId,
+        redirectUri: window.location.origin,
+      }, { headers: getAuthHeaders() });
+
+      const { longLivedToken: llt, wabaName, phoneDisplay } = res.data;
+      setLongLivedToken(llt);
+      // Pré-preencher e ir direto para seleção/confirmação
+      setWabas([{ id: wabaId, name: wabaName || `WABA ${wabaId}`, phoneNumbers: [{ id: phoneNumberId, displayPhoneNumber: phoneDisplay || phoneNumberId }] }]);
+      setSelectedWabaIndex(0);
+      setSelectedPhoneId(phoneNumberId);
+      setStep(5);
+    } catch (err: any) {
+      const errMsg = err.response?.data?.details || err.response?.data?.error || err.message;
+      setOnboardError(`Falha ao processar conexão com a Meta: ${errMsg}`);
+    } finally {
+      setOnboardLoading(false);
+    }
+  };
+
   // Embedded Signup: escutar mensagens do SDK do Facebook
   useEffect(() => {
     const handleEmbeddedSignupMessage = async (event: MessageEvent) => {
@@ -197,30 +222,6 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     }
   };
 
-  const handleEmbeddedSignupExchange = async (code: string, wabaId: string, phoneNumberId: string) => {
-    try {
-      setOnboardLoading(true);
-      const res = await axios.post(`${API_BASE_URL}/accounts/facebook-onboard/exchange`, {
-        code,
-        wabaId,
-        phoneNumberId,
-        redirectUri: window.location.origin,
-      }, { headers: getAuthHeaders() });
-
-      const { longLivedToken: llt, wabaName, phoneDisplay } = res.data;
-      setLongLivedToken(llt);
-      // Pré-preencher e ir direto para seleção/confirmação
-      setWabas([{ id: wabaId, name: wabaName || `WABA ${wabaId}`, phoneNumbers: [{ id: phoneNumberId, displayPhoneNumber: phoneDisplay || phoneNumberId }] }]);
-      setSelectedWabaIndex(0);
-      setSelectedPhoneId(phoneNumberId);
-      setStep(5);
-    } catch (err: any) {
-      const errMsg = err.response?.data?.details || err.response?.data?.error || err.message;
-      setOnboardError(`Falha ao processar conexão com a Meta: ${errMsg}`);
-    } finally {
-      setOnboardLoading(false);
-    }
-  };
 
   const handleSaveOnboardedAccount = async (e: React.FormEvent) => {
     e.preventDefault();

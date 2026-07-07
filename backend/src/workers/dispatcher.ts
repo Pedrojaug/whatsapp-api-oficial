@@ -96,8 +96,8 @@ async function checkAndDispatch() {
         
         // Reconstruir variáveis mapeadas salvas
         const varsObj = msg.variables as any;
-        const resolvedVars = varsObj?.variables || [];
-        const mediaUrl = varsObj?.mediaUrl || null;
+        const resolvedVars = Array.isArray(varsObj) ? varsObj : (varsObj?.variables || []);
+        const mediaUrl = msg.mediaUrl || varsObj?.mediaUrl || null;
         
         // Buscar template associado à conta para ler idioma e componentes
         const template = await prisma.template.findFirst({

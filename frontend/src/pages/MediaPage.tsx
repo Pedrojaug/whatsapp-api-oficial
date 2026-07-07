@@ -107,7 +107,10 @@ export default function MediaPage() {
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
         <div>
-          <h1 className="page-heading">🖼️ Galeria de Mídias</h1>
+          <h1 className="page-heading">
+            <span style={{ display: "inline-block", WebkitTextFillColor: "initial", background: "none", marginRight: "8px" }}>🖼️</span>
+            Galeria de Mídias
+          </h1>
           <p className="page-subheading">Faça upload de imagens, vídeos e documentos para utilizar em suas mensagens e templates</p>
         </div>
 
