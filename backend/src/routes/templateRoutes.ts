@@ -135,11 +135,23 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
     // 2. Enviar para a Meta
     try {
       const decryptedToken = decryptToken(account.accessToken);
+
+      // Normalizar componentes: converter tipos legados/incorretos para o schema atual da Meta
+      const normalizedComponents = (components as any[]).map((c: any) => {
+        const type = String(c.type || "").toUpperCase();
+        // Corrige caso antigo onde o tipo era "image", "video", "document" em vez de "HEADER"
+        if (["IMAGE", "VIDEO", "DOCUMENT", "AUDIO"].includes(type) && !c.format) {
+          return { ...c, type: "HEADER", format: type };
+        }
+        // Garantir que tipos conhecidos estejam em maiúsculas
+        return { ...c, type };
+      });
+
       const response = await metaService.createTemplate(account.wabaId, decryptedToken, {
         name,
         category,
         language: language || "pt_BR",
-        components,
+        components: normalizedComponents,
       });
 
       // Meta retorna o ID do template criado
