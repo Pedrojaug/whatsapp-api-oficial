@@ -22,7 +22,8 @@ model User {
   resetPasswordTokenExpiry   DateTime?
   onboardingCompleted        Boolean   @default(false)
   planTier                   String    @default("free")
-  accounts  Account[]
+  accounts       Account[]
+  sharedAccounts AccountShare[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
@@ -46,8 +47,22 @@ model Account {
   trackedLinks     TrackedLink[]
   apiKeys          ApiKey[]
   campaigns        Campaign[]
+  shares           AccountShare[]
 
   @@unique([userId, name])
+}
+
+model AccountShare {
+  id        String   @id @default(uuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      String   @default("MEMBER") // MEMBER = acesso total exceto excluir conta/gerenciar shares
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, userId])
+  @@index([userId])
 }
 
 

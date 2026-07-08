@@ -1,8 +1,9 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { metaService } from "../services/metaService";
+import { findAccountForUser } from "../utils/accountAccess";
 
 const router = Router();
 
@@ -190,8 +191,8 @@ router.post("/accounts/:accountId/templates/draft", async (req: Request, res: Re
   }
 
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Account not found" });
 
     const templateNameFormatted = name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");

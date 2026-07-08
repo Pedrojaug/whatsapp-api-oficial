@@ -8,6 +8,7 @@ export interface Account {
   wabaId: string;
   phoneNumberId: string;
   accessToken: string;
+  isShared?: boolean;
 }
 
 interface AccountContextType {

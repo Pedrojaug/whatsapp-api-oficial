@@ -1,9 +1,10 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { normalizePhone, phoneVariants } from "../services/phoneService";
 import { metaService } from "../services/metaService";
+import { findAccountForUser } from "../utils/accountAccess";
 import { messageEventEmitter } from "../utils/emitter";
 import axios from "axios";
 
@@ -101,8 +102,8 @@ router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Req
 router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Response) => {
   const { accountId, mediaId } = req.params;
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada." });
 
     const token = decryptToken(account.accessToken);

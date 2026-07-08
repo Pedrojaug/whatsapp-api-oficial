@@ -1,14 +1,15 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { normalizePhone } from "../services/phoneService";
+import { findAccountForUser } from "../utils/accountAccess";
 
 const router = Router();
 router.use(authMiddleware);
 
 /** Verifica se o usuário autenticado tem acesso à conta. */
 async function getAccount(accountId: string, userId: string) {
-  return prisma.account.findFirst({ where: { id: accountId, userId } });
+  return await findAccountForUser(accountId, userId);
 }
 
 // GET /accounts/:accountId/optouts — lista com busca e paginação

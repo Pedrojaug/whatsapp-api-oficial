@@ -1,7 +1,8 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import crypto from "crypto";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { findAccountForUser } from "../utils/accountAccess";
 
 // ── Rotas autenticadas (CRUD) ────────────────────────────────────────────────
 const router = Router();
@@ -12,7 +13,7 @@ function generateShortCode(): string {
 }
 
 async function getAccount(accountId: string, userId: string) {
-  return prisma.account.findFirst({ where: { id: accountId, userId } });
+  return await findAccountForUser(accountId, userId);
 }
 
 // GET /accounts/:accountId/tracked-links — listar links rastreados

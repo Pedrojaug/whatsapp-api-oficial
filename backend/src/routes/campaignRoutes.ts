@@ -1,13 +1,14 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { calculateNextRun } from "../utils/campaignScheduler";
+import { findAccountForUser } from "../utils/accountAccess";
 
 const router = Router();
 router.use(authMiddleware);
 
 async function getAccount(accountId: string, userId: string) {
-  return prisma.account.findFirst({ where: { id: accountId, userId } });
+  return await findAccountForUser(accountId, userId);
 }
 
 // GET /accounts/:accountId/campaigns

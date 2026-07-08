@@ -1,13 +1,14 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import ExcelJS from "exceljs";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { findAccountForUser } from "../utils/accountAccess";
 
 const router = Router();
 router.use(authMiddleware);
 
 async function getAccount(accountId: string, userId: string) {
-  return prisma.account.findFirst({ where: { id: accountId, userId } });
+  return await findAccountForUser(accountId, userId);
 }
 
 // GET /accounts/:accountId/reports/export?type=messages|metrics&period=7days&status=...
