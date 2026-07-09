@@ -130,7 +130,7 @@ async function checkAndDispatch() {
         if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
           const typeLower = headerComp.format.toLowerCase();
           components.push({
-            type: typeLower,
+            type: "header",
             parameters: [
               {
                 type: typeLower,
