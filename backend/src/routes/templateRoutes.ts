@@ -253,10 +253,17 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
 
     const decryptedToken = decryptToken(account.accessToken);
 
-    // 1. Usar o App ID configurado no servidor
-    const appId = process.env.FACEBOOK_APP_ID;
+    // 1. Descobrir o App ID dono do token desta conta (suporta múltiplos apps da Meta).
+    //    Fallback para o FACEBOOK_APP_ID do ambiente caso a consulta falhe.
+    let appId: string | undefined;
+    try {
+      appId = await metaService.getAppIdFromToken(decryptedToken);
+    } catch (err: any) {
+      console.warn("[Templates] Falha ao descobrir App ID pelo token, usando FACEBOOK_APP_ID do ambiente:", err.response?.data?.error?.message || err.message);
+      appId = process.env.FACEBOOK_APP_ID;
+    }
     if (!appId) {
-      return res.status(500).json({ error: "FACEBOOK_APP_ID não configurado no servidor." });
+      return res.status(500).json({ error: "Não foi possível determinar o App ID da Meta para esta conta." });
     }
 
     // Converter base64 para Buffer

@@ -76,6 +76,18 @@ export const metaService = {
   },
 
   /**
+   * Descobre o App ID dono de um token de acesso.
+   * O nó especial /app retorna o aplicativo ao qual o token pertence,
+   * permitindo suportar múltiplos apps da Meta sem depender de env vars.
+   */
+  async getAppIdFromToken(accessToken: string): Promise<string> {
+    const response = await axios.get(`https://graph.facebook.com/v19.0/app`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    return String(response.data.id);
+  },
+
+  /**
    * Inicia uma sessão de upload resumível na Meta (Resumable Uploads)
    */
   async initiateResumableUpload(appId: string, accessToken: string, params: { filename: string; file_size: number; file_type: string }) {
