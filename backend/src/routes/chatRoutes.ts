@@ -50,6 +50,39 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
       ORDER BY "to", "createdAt" DESC
     `, accountId);
 
+    // Agregados por contato: permite filtrar chats por "cliente respondeu",
+    // "mensagem entregue/lida" ou "houve falha" — essencial após grandes disparos.
+    const aggregates: {
+      phone: string;
+      hasIncoming: boolean;
+      hasFailed: boolean;
+      hasDelivered: boolean;
+      hasRead: boolean;
+    }[] = await prisma.$queryRawUnsafe(`
+      SELECT
+        "to" as phone,
+        bool_or(direction = 'INCOMING') as "hasIncoming",
+        bool_or(status = 'FAILED') as "hasFailed",
+        bool_or(status = 'DELIVERED') as "hasDelivered",
+        bool_or(status = 'READ') as "hasRead"
+      FROM "Message"
+      WHERE "accountId" = $1
+      GROUP BY "to"
+    `, accountId);
+
+    // Mesclar agregados por telefone normalizado (cobre variantes com/sem 9º dígito)
+    const aggMap = new Map<string, { hasIncoming: boolean; hasFailed: boolean; hasDelivered: boolean; hasRead: boolean }>();
+    for (const agg of aggregates) {
+      const key = normalizePhone(agg.phone);
+      const prev = aggMap.get(key);
+      aggMap.set(key, {
+        hasIncoming: (prev?.hasIncoming || false) || agg.hasIncoming,
+        hasFailed: (prev?.hasFailed || false) || agg.hasFailed,
+        hasDelivered: (prev?.hasDelivered || false) || agg.hasDelivered,
+        hasRead: (prev?.hasRead || false) || agg.hasRead,
+      });
+    }
+
     // Buscar contatos salvos no WhatsAppContact para mapear nomes de perfil
     const contacts = await prisma.whatsAppContact.findMany({ where: { accountId } });
     const contactMap = new Map(contacts.map((c: any) => [c.phone, c.profileName]));
@@ -57,6 +90,7 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
     // Mapear conversas finais
     const conversations = messages.map((msg) => {
       const normalizedKey = normalizePhone(msg.phone);
+      const agg = aggMap.get(normalizedKey);
       return {
         phone: normalizedKey,
         profileName: contactMap.get(normalizedKey) || null,
@@ -65,6 +99,10 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
         status: msg.status,
         direction: msg.direction,
         messageType: msg.messageType,
+        hasIncoming: agg?.hasIncoming || false,
+        hasFailed: agg?.hasFailed || false,
+        hasDelivered: agg?.hasDelivered || false,
+        hasRead: agg?.hasRead || false,
       };
     });
 

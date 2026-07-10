@@ -37,6 +37,7 @@ export default function ChatPage() {
 
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [convFilter, setConvFilter] = useState<string>("ALL");
   const [replyBody, setReplyBody] = useState("");
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -107,6 +108,29 @@ export default function ChatPage() {
     if (statusFilter === "INCOMING") return msg.direction === "INCOMING";
     return msg.direction !== "INCOMING" && msg.status === statusFilter;
   });
+
+  // Filtro da lista de conversas (chats), baseado nos agregados do histórico
+  const CONV_FILTERS: { key: string; label: string; title: string }[] = [
+    { key: "ALL", label: "Todas", title: "Todas as conversas" },
+    { key: "REPLIED", label: "💬 Respondidas", title: "O cliente respondeu — chats mais importantes" },
+    { key: "READ", label: "✓✓ Lidas", title: "Cliente leu a mensagem (mas pode não ter respondido)" },
+    { key: "DELIVERED", label: "✓✓ Entregues", title: "Mensagem chegou no aparelho do cliente" },
+    { key: "UNDELIVERED", label: "✉️ Não entregues", title: "Apenas enviadas — nunca chegaram ao cliente" },
+    { key: "FAILED", label: "⚠️ Com falha", title: "Chats com pelo menos uma mensagem que falhou" },
+  ];
+
+  const matchesConvFilter = (c: any) => {
+    switch (convFilter) {
+      case "REPLIED": return !!c.hasIncoming;
+      case "READ": return !!c.hasRead;
+      case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
+      case "UNDELIVERED": return !c.hasDelivered && !c.hasRead && !c.hasIncoming && !c.hasFailed;
+      case "FAILED": return !!c.hasFailed;
+      default: return true;
+    }
+  };
+
+  const filteredConversations = conversations.filter(matchesConvFilter);
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -233,6 +257,14 @@ export default function ChatPage() {
         const idx = prevConv.findIndex((c) => normalizePhone(c.phone) === incomingPhone);
         const msgPreview = data.body || "Mídia";
 
+        // Atualização dos agregados do chat em tempo real
+        const flagPatch = (c: any) => ({
+          hasIncoming: c?.hasIncoming || data.direction === "INCOMING",
+          hasFailed: c?.hasFailed || data.status === "FAILED",
+          hasDelivered: c?.hasDelivered || data.status === "DELIVERED",
+          hasRead: c?.hasRead || data.status === "READ",
+        });
+
         if (idx !== -1) {
           const updated = [...prevConv];
           updated[idx] = {
@@ -241,6 +273,7 @@ export default function ChatPage() {
             updatedAt: data.updatedAt || new Date().toISOString(),
             status: data.status,
             direction: data.direction,
+            ...flagPatch(updated[idx]),
             ...(data.profileName ? { profileName: data.profileName } : {}),
           };
           const item = updated.splice(idx, 1)[0];
@@ -255,6 +288,7 @@ export default function ChatPage() {
             status: data.status,
             direction: data.direction,
             messageType: data.messageType,
+            ...flagPatch(null),
           }, ...prevConv];
         }
       });
@@ -291,14 +325,56 @@ export default function ChatPage() {
           <div className={`chat-panel-list${selectedPhone ? " mobile-hidden" : ""}`}>
             <div style={{ padding: "16px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontSize: "1rem", fontWeight: "600" }}>Conversas Recentes</h3>
-              <button 
-                type="button" 
-                onClick={() => fetchConversations(selectedAccount.id)} 
+              <button
+                type="button"
+                onClick={() => fetchConversations(selectedAccount.id)}
                 style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.1rem" }}
                 title="Atualizar lista"
               >
                 🔄
               </button>
+            </div>
+
+            {/* Filtros de conversas (chats) */}
+            <div style={{ display: "flex", gap: "6px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap" }}>
+              {CONV_FILTERS.map(f => {
+                const isActive = convFilter === f.key;
+                const count = f.key === "ALL"
+                  ? conversations.length
+                  : conversations.filter(c => {
+                      switch (f.key) {
+                        case "REPLIED": return !!c.hasIncoming;
+                        case "READ": return !!c.hasRead;
+                        case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
+                        case "UNDELIVERED": return !c.hasDelivered && !c.hasRead && !c.hasIncoming && !c.hasFailed;
+                        case "FAILED": return !!c.hasFailed;
+                        default: return true;
+                      }
+                    }).length;
+                return (
+                  <button
+                    key={f.key}
+                    type="button"
+                    title={f.title}
+                    onClick={() => setConvFilter(f.key)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "20px",
+                      fontSize: "0.72rem",
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                      cursor: "pointer",
+                      border: isActive ? "1px solid var(--primary)" : "1px solid var(--border-color)",
+                      background: isActive ? "rgba(0,194,107,0.15)" : "transparent",
+                      color: isActive ? "var(--primary)" : "var(--text-muted)",
+                      transition: "all 0.15s",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {f.label} ({count})
+                  </button>
+                );
+              })}
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
@@ -307,13 +383,17 @@ export default function ChatPage() {
                   <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
                   <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
                 </div>
-              ) : conversations.length === 0 ? (
+              ) : filteredConversations.length === 0 ? (
                 <div className="empty-state">
-                  <span className="empty-state__icon">💬</span>
-                  <span className="empty-state__desc">Nenhuma conversa ativa encontrada.</span>
+                  <span className="empty-state__icon">{conversations.length === 0 ? "💬" : "🔍"}</span>
+                  <span className="empty-state__desc">
+                    {conversations.length === 0
+                      ? "Nenhuma conversa ativa encontrada."
+                      : "Nenhum chat corresponde ao filtro selecionado."}
+                  </span>
                 </div>
               ) : (
-                conversations.map((c) => {
+                filteredConversations.map((c) => {
                   const isActive = selectedPhone === c.phone;
                   const initials = c.profileName
                     ? c.profileName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
@@ -341,6 +421,35 @@ export default function ChatPage() {
                         <div className="conv-item__preview" style={{ fontStyle: c.direction === "INCOMING" ? "italic" : "normal" }}>
                           {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
                         </div>
+                        {/* Badge de situação do chat */}
+                        {(() => {
+                          const badge = c.hasIncoming
+                            ? { text: "💬 Respondeu", color: "var(--primary)", bg: "rgba(0,194,107,0.12)" }
+                            : c.hasFailed && !c.hasDelivered && !c.hasRead
+                              ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239,68,68,0.12)" }
+                              : c.hasRead
+                                ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34,211,238,0.1)" }
+                                : c.hasDelivered
+                                  ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255,255,255,0.06)" }
+                                  : c.direction === "OUTGOING"
+                                    ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255,255,255,0.04)" }
+                                    : null;
+                          if (!badge) return null;
+                          return (
+                            <span style={{
+                              fontSize: "0.65rem",
+                              fontWeight: 600,
+                              color: badge.color,
+                              background: badge.bg,
+                              padding: "1px 8px",
+                              borderRadius: "10px",
+                              marginTop: "3px",
+                              alignSelf: "flex-start",
+                            }}>
+                              {badge.text}
+                            </span>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
