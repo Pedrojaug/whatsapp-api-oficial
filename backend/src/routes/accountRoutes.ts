@@ -70,6 +70,21 @@ router.post("/accounts", async (req: Request, res: Response) => {
   }
 });
 
+// Reveal decrypted token (only owner)
+router.get("/accounts/:id/token", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = (req as AuthenticatedRequest).userId;
+  try {
+    const account = await prisma.account.findFirst({ where: { id, userId } });
+    if (!account) return res.status(403).json({ error: "Acesso negado." });
+    const token = decryptToken(account.accessToken);
+    if (!token) return res.status(500).json({ error: "Falha ao descriptografar token." });
+    res.json({ token });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Validate Meta credentials
 router.post("/accounts/verify", async (req: Request, res: Response) => {
   const { wabaId, phoneNumberId, accessToken } = req.body;
