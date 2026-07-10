@@ -39,10 +39,15 @@ router.post("/webhooks", async (req: Request, res: Response) => {
   const body = req.body;
   console.log(`[Webhook] POST recebido de Meta. object=${body?.object}, entries=${body?.entry?.length ?? 0}`);
 
-  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  // Suporta múltiplos apps da Meta: FACEBOOK_APP_SECRET pode conter várias
+  // chaves secretas separadas por vírgula (uma por app/cliente).
+  const appSecrets = (process.env.FACEBOOK_APP_SECRET || "")
+    .split(",")
+    .map(s => s.trim())
+    .filter(Boolean);
   const signature = req.headers["x-hub-signature-256"] as string;
 
-  if (appSecret) {
+  if (appSecrets.length > 0) {
     if (!signature) {
       console.warn("[Webhook] Assinatura ausente (x-hub-signature-256).");
       return res.status(401).send("Signature missing");
@@ -62,22 +67,24 @@ router.post("/webhooks", async (req: Request, res: Response) => {
       return res.status(400).send("Raw body not available");
     }
 
-    const expectedHash = crypto
-      .createHmac("sha256", appSecret)
-      .update(rawBody)
-      .digest("hex");
-
+    let sigBuf: Buffer;
     try {
-      const sigBuf = Buffer.from(signatureHash, "hex");
-      const expBuf = Buffer.from(expectedHash, "hex");
-
-      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-        console.warn(`[Webhook] Assinatura inválida. Recebida: ${signatureHash}, Esperada: ${expectedHash}`);
-        return res.status(403).send("Signature mismatch");
-      }
+      sigBuf = Buffer.from(signatureHash, "hex");
     } catch (err: any) {
-      console.error("[Webhook] Erro ao validar assinatura do webhook:", err.message);
+      console.error("[Webhook] Erro ao processar assinatura recebida:", err.message);
       return res.status(403).send("Signature verification error");
+    }
+
+    // Válido se a assinatura bater com QUALQUER uma das chaves configuradas
+    const matched = appSecrets.some(secret => {
+      const expectedHash = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+      const expBuf = Buffer.from(expectedHash, "hex");
+      return sigBuf.length === expBuf.length && crypto.timingSafeEqual(sigBuf, expBuf);
+    });
+
+    if (!matched) {
+      console.warn(`[Webhook] Assinatura inválida para todas as ${appSecrets.length} chave(s) configurada(s). Recebida: ${signatureHash}`);
+      return res.status(403).send("Signature mismatch");
     }
   }
 
