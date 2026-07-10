@@ -178,17 +178,48 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                     }
                   }
                 } else if (type === "image") {
-                  bodyText = messageObj.image?.caption || "Imagem recebida";
+                  bodyText = messageObj.image?.caption || "📷 Imagem";
                   mediaUrl = messageObj.image?.id;
                 } else if (type === "document") {
-                  bodyText = messageObj.document?.filename || "Documento recebido";
+                  bodyText = messageObj.document?.filename || "📄 Documento";
                   mediaUrl = messageObj.document?.id;
                 } else if (type === "video") {
-                  bodyText = messageObj.video?.caption || "Vídeo recebido";
+                  bodyText = messageObj.video?.caption || "🎬 Vídeo";
                   mediaUrl = messageObj.video?.id;
                 } else if (type === "audio") {
-                  bodyText = "Áudio recebido";
+                  bodyText = messageObj.audio?.voice ? "🎤 Mensagem de voz" : "🎵 Áudio";
                   mediaUrl = messageObj.audio?.id;
+                } else if (type === "sticker") {
+                  bodyText = "🩵 Figurinha";
+                  mediaUrl = messageObj.sticker?.id;
+                } else if (type === "button") {
+                  // Cliente clicou em um botão de resposta rápida de um template
+                  bodyText = messageObj.button?.text || messageObj.button?.payload || "Resposta de botão";
+                } else if (type === "interactive") {
+                  // Cliente respondeu a uma mensagem interativa (botões ou lista)
+                  const interactive = messageObj.interactive;
+                  bodyText =
+                    interactive?.button_reply?.title ||
+                    interactive?.list_reply?.title ||
+                    "Resposta interativa";
+                } else if (type === "location") {
+                  const loc = messageObj.location;
+                  const label = loc?.name || loc?.address;
+                  bodyText = label
+                    ? `📍 Localização: ${label}`
+                    : `📍 Localização (${loc?.latitude}, ${loc?.longitude})`;
+                } else if (type === "contacts") {
+                  const names = (messageObj.contacts as any[] | undefined)
+                    ?.map((c: any) => c.name?.formatted_name)
+                    .filter(Boolean)
+                    .join(", ");
+                  bodyText = names ? `👤 Contato: ${names}` : "👤 Contato compartilhado";
+                } else if (type === "reaction") {
+                  bodyText = `Reagiu com ${messageObj.reaction?.emoji || "👍"} a uma mensagem`;
+                } else if (type === "order") {
+                  bodyText = "🛒 Pedido recebido via catálogo";
+                } else if (type === "unsupported" || type === "unknown") {
+                  bodyText = "Mensagem não suportada pelo WhatsApp Business API (ex: enquete, evento ou formato novo)";
                 } else {
                   bodyText = `Mensagem do tipo ${type} recebida`;
                 }

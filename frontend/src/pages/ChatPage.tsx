@@ -36,6 +36,7 @@ export default function ChatPage() {
   }, [selectedPhone]);
 
   const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [replyBody, setReplyBody] = useState("");
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -90,6 +91,22 @@ export default function ChatPage() {
       if (!silent) setIsChatLoading(false);
     }
   };
+
+  // Filtro de status das mensagens do chat
+  const FILTERS: { key: string; label: string }[] = [
+    { key: "ALL", label: "Todas" },
+    { key: "INCOMING", label: "📥 Recebidas" },
+    { key: "SENT", label: "✓ Enviadas" },
+    { key: "DELIVERED", label: "✓✓ Entregues" },
+    { key: "READ", label: "✓✓ Lidas" },
+    { key: "FAILED", label: "⚠️ Falhas" },
+  ];
+
+  const filteredMessages = chatMessages.filter((msg) => {
+    if (statusFilter === "ALL") return true;
+    if (statusFilter === "INCOMING") return msg.direction === "INCOMING";
+    return msg.direction !== "INCOMING" && msg.status === statusFilter;
+  });
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -306,6 +323,7 @@ export default function ChatPage() {
                       key={c.phone}
                       onClick={() => {
                         setSelectedPhone(c.phone);
+                        setStatusFilter("ALL");
                         fetchChatMessages(selectedAccount.id, c.phone);
                       }}
                       className={`conv-item${isActive ? " active" : ""}`}
@@ -366,14 +384,47 @@ export default function ChatPage() {
                         : "Canal Oficial do WhatsApp"}
                     </span>
                   </div>
-                  <button 
-                    type="button" 
-                    onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)} 
+                  <button
+                    type="button"
+                    onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)}
                     className="btn btn-secondary"
                     style={{ padding: "6px 12px", fontSize: "0.8rem" }}
                   >
                     🔄 Atualizar Chat
                   </button>
+                </div>
+
+                {/* Barra de filtros por status */}
+                <div style={{ display: "flex", gap: "6px", padding: "10px 20px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.03)", overflowX: "auto", flexWrap: "nowrap" }}>
+                  {FILTERS.map(f => {
+                    const isActive = statusFilter === f.key;
+                    const count = f.key === "ALL"
+                      ? chatMessages.length
+                      : f.key === "INCOMING"
+                        ? chatMessages.filter(m => m.direction === "INCOMING").length
+                        : chatMessages.filter(m => m.direction !== "INCOMING" && m.status === f.key).length;
+                    return (
+                      <button
+                        key={f.key}
+                        type="button"
+                        onClick={() => setStatusFilter(f.key)}
+                        style={{
+                          padding: "5px 12px",
+                          borderRadius: "20px",
+                          fontSize: "0.76rem",
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                          cursor: "pointer",
+                          border: isActive ? "1px solid var(--primary)" : "1px solid var(--border-color)",
+                          background: isActive ? "rgba(0,194,107,0.15)" : "transparent",
+                          color: isActive ? "var(--primary)" : "var(--text-muted)",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {f.label} {count > 0 ? `(${count})` : ""}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Mensagens do chat */}
@@ -383,9 +434,18 @@ export default function ChatPage() {
                       <div className="skeleton" style={{ width: "60%", height: "40px", borderRadius: "12px", alignSelf: "flex-start" }} />
                       <div className="skeleton" style={{ width: "40%", height: "40px", borderRadius: "12px", alignSelf: "flex-end" }} />
                     </div>
+                  ) : filteredMessages.length === 0 ? (
+                    <div className="empty-state" style={{ flex: 1, justifyContent: "center" }}>
+                      <span className="empty-state__icon">🔍</span>
+                      <span className="empty-state__desc">
+                        {chatMessages.length === 0
+                          ? "Nenhuma mensagem nesta conversa ainda."
+                          : "Nenhuma mensagem corresponde ao filtro selecionado."}
+                      </span>
+                    </div>
                   ) : (
                     <>
-                      {chatMessages.map((msg, index) => {
+                      {filteredMessages.map((msg, index) => {
                         const isIncoming = msg.direction === "INCOMING";
                         return (
                           <div
