@@ -78,6 +78,10 @@ async function executeCampaign(campaign: {
 
     if (messagesToCreate.length > 0) {
       await prisma.message.createMany({ data: messagesToCreate });
+    } else if (contacts.length === 0) {
+      console.warn(`[CampaignWorker] Campanha "${campaign.name}" executada SEM contatos — lista ${campaign.contactListId ?? "não definida"} está vazia ou inexistente. Nada foi enfileirado.`);
+    } else {
+      console.warn(`[CampaignWorker] Campanha "${campaign.name}": todos os ${contacts.length} contatos da lista estão em opt-out. Nada foi enfileirado.`);
     }
 
     await prisma.campaignRun.update({
