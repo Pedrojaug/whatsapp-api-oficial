@@ -21,6 +21,10 @@ const sendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   validate: { trustProxy: false },
+  handler: (req, res) => {
+    console.warn(`[RateLimit] Envio bloqueado (limite 120/min) para usuário ${(req as AuthenticatedRequest).userId ?? req.ip}. As mensagens excedentes NÃO foram enfileiradas.`);
+    res.status(429).json({ error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." });
+  },
 });
 
 // Enviar mensagem via Template (scoped to user)
@@ -189,7 +193,7 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
 // List messages logs (scoped to user) with filters and pagination
 router.get("/accounts/:accountId/messages", async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { search, status, templateName, page = "1", limit = "50" } = req.query;
+  const { search, status, templateName, direction, page = "1", limit = "50" } = req.query;
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
@@ -205,6 +209,14 @@ router.get("/accounts/:accountId/messages", async (req: Request, res: Response) 
     const whereClause: any = {
       accountId,
     };
+
+    // Por padrão o histórico lista apenas envios (OUTGOING); mensagens recebidas
+    // via webhook só aparecem com ?direction=INCOMING ou filtro de status explícito.
+    if (direction) {
+      whereClause.direction = direction as string;
+    } else if (!status) {
+      whereClause.direction = "OUTGOING";
+    }
 
     if (status) {
       whereClause.status = status as string;
@@ -345,6 +357,7 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
     const messages = await prisma.message.findMany({
       where: {
         accountId,
+        direction: "OUTGOING",
         createdAt: {
           gte: start,
           lte: end
