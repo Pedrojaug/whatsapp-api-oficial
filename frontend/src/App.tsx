@@ -30,11 +30,24 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 export default function App() {
-  const [appReady, setAppReady] = useState(false);
+  // A intro (AppLoader) só deve aparecer na primeira visita da sessão.
+  // Nunca na volta do OAuth (/auth/callback) nem em recargas subsequentes —
+  // caso contrário o overlay preto cobre a tela justamente nas transições de login/logout.
+  const [appReady, setAppReady] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (sessionStorage.getItem("introShown") === "1") return true;
+    if (window.location.pathname.startsWith("/auth/callback")) return true;
+    return false;
+  });
+
+  const handleLoaderComplete = () => {
+    sessionStorage.setItem("introShown", "1");
+    setAppReady(true);
+  };
 
   return (
     <>
-      {!appReady && <AppLoader onComplete={() => setAppReady(true)} />}
+      {!appReady && <AppLoader onComplete={handleLoaderComplete} />}
       <AuthProvider>
       <AccountProvider>
         <AlertProvider>
