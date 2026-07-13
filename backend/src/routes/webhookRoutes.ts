@@ -138,6 +138,8 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                     errorMessage: updatedMsg.errorMessage,
                     updatedAt: updatedMsg.updatedAt,
                   });
+                } else {
+                  console.warn(`[Webhook] Status "${status}" recebido para wamid desconhecido (${wamid}) — nenhuma mensagem correspondente no banco. Evento descartado.`);
                 }
               }
             }
