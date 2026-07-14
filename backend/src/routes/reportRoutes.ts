@@ -124,7 +124,8 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
     }
 
     const messages = await prisma.message.findMany({
-      where: { accountId, createdAt: { gte: start, lte: end } },
+      // Mesmo criterio do painel de metricas: apenas disparos de template enviados.
+      where: { accountId, direction: "OUTGOING", messageType: "TEMPLATE", createdAt: { gte: start, lte: end } },
       select: { status: true, createdAt: true, templateName: true },
     });
 
