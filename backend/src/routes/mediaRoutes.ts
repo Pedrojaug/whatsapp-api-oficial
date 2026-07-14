@@ -21,7 +21,13 @@ router.get("/accounts/:accountId/media", async (req: Request, res: Response) => 
 
     const media = await prisma.mediaAsset.findMany({
       where: { accountId },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      // Não retorna o blob Base64 (fileData) na listagem — evita respostas
+      // gigantes e picos de memória. O binário é servido por /uploads.
+      select: {
+        id: true, filename: true, url: true, mimeType: true,
+        size: true, accountId: true, createdAt: true, updatedAt: true,
+      },
     });
 
     res.json(media);
