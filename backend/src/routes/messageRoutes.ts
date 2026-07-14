@@ -358,6 +358,9 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       where: {
         accountId,
         direction: "OUTGOING",
+        // Painel de metricas mede DISPAROS (templates); mensagens de chat (TEXT)
+        // enviadas pela caixa de entrada ou pelo bot SDR nao entram no funil.
+        messageType: "TEMPLATE",
         createdAt: {
           gte: start,
           lte: end
