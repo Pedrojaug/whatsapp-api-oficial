@@ -76,7 +76,10 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
     }
 
     // Gerar um nome único para evitar colisões
-    const uniqueFilename = `${Date.now()}-${filename.replace(/\s+/g, "_")}`;
+    // path.basename remove qualquer componente de diretorio (../) do nome
+    // enviado pelo cliente — impede escrita fora de uploads/.
+    const safeName = path.basename(filename).replace(/\s+/g, "_");
+    const uniqueFilename = `${Date.now()}-${safeName}`;
     const uploadsDir = path.join(__dirname, "../../uploads");
     
     // Garantir que a pasta uploads existe
