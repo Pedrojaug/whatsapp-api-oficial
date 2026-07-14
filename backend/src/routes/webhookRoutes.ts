@@ -47,6 +47,13 @@ router.post("/webhooks", async (req: Request, res: Response) => {
     .filter(Boolean);
   const signature = req.headers["x-hub-signature-256"] as string;
 
+  // Fail-closed: sem nenhum segredo configurado a assinatura nao pode ser
+  // verificada — recusar em vez de aceitar POSTs anonimos como validos.
+  if (appSecrets.length === 0) {
+    console.error("[Webhook] FACEBOOK_APP_SECRET nao configurado — recusando webhook (fail-closed).");
+    return res.status(503).send("Webhook signature verification not configured");
+  }
+
   if (appSecrets.length > 0) {
     if (!signature) {
       console.warn("[Webhook] Assinatura ausente (x-hub-signature-256).");
@@ -116,6 +123,14 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                 // Procurar mensagem por wamid e atualizar status
                 const msg = await prisma.message.findUnique({ where: { wamid } });
                 if (msg) {
+                  // A Meta entrega eventos de status fora de ordem e com retries;
+                  // nao deixar um DELIVERED atrasado rebaixar uma mensagem ja READ.
+                  const RANK: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3 };
+                  const curRank = RANK[msg.status] ?? 0;
+                  const newRank = RANK[status] ?? 0;
+                  if (status !== "FAILED" && newRank !== 0 && newRank <= curRank) {
+                    continue; // evento redundante ou fora de ordem — ignora
+                  }
                   const updatedMsg = await prisma.message.update({
                     where: { wamid },
                     data: {
