@@ -1,5 +1,5 @@
 import { Router, Response } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db";
 import { apiKeyMiddleware, ApiKeyRequest } from "../middlewares/apiKeyAuth";
 
@@ -8,7 +8,7 @@ const router = Router();
 const apiRateLimit = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
-  keyGenerator: (req) => (req as ApiKeyRequest).apiKeyId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => (req as ApiKeyRequest).apiKeyId ?? ipKeyGenerator(req.ip ?? "unknown"),
   message: { error: "Limite de taxa excedido. Máximo 60 requisições/min por chave." },
   validate: { trustProxy: false },
 });
