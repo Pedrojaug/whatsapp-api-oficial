@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import axios from "axios";
 import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
+import { resolveMetaMediaId } from "../utils/mediaUpload";
 
 let isProcessing = false;
 
@@ -84,6 +85,10 @@ async function checkAndDispatch() {
       : [];
     const templateMap = new Map(templateList.map((t) => [`${t.accountId}::${t.name}`, t]));
 
+    // Cache de media id por (conta, mídia) dentro do lote: sobe cada mídia
+    // para a Meta uma única vez e reusa em todos os destinatários.
+    const mediaIdCache = new Map<string, string | null>();
+
     for (const msg of pendingMessages) {
       // Bloquear envio para contatos que optaram por não receber mensagens (LGPD)
       if (optedOutSet.has(`${msg.accountId}:${msg.to}`)) {
@@ -151,20 +156,21 @@ async function checkAndDispatch() {
 
         const components: any[] = [];
 
-        // 1. Cabeçalho de Mídia
+        // 1. Cabeçalho de Mídia — sobe para a Meta e envia por id (a Meta
+        // hospeda), com fallback para link se o upload falhar.
         if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
           const typeLower = headerComp.format.toLowerCase();
+          const cacheKey = `${msg.accountId}::${mediaUrl}`;
+          let mediaId = mediaIdCache.get(cacheKey);
+          if (mediaId === undefined) {
+            mediaId = await resolveMetaMediaId(account.phoneNumberId, decryptedToken, mediaUrl, msg.accountId);
+            mediaIdCache.set(cacheKey, mediaId);
+          }
+          const mediaObj: any = mediaId ? { id: mediaId } : { link: mediaUrl };
+          if (typeLower === "document") mediaObj.filename = mediaUrl.split("/").pop() || "document.pdf";
           components.push({
             type: "header",
-            parameters: [
-              {
-                type: typeLower,
-                [typeLower]: {
-                  link: mediaUrl,
-                  ...(typeLower === "document" ? { filename: mediaUrl.split("/").pop() || "document.pdf" } : {})
-                }
-              }
-            ]
+            parameters: [{ type: typeLower, [typeLower]: mediaObj }],
           });
         }
 
