@@ -27,7 +27,9 @@ interface MessageLog {
   to: string;
   status: string;
   errorMessage: string | null;
-  templateName: string;
+  templateName: string | null;
+  messageType?: string;
+  body?: string | null;
   variables: any;
   createdAt: string;
 }
@@ -831,7 +833,16 @@ export default function MessagesPage() {
                         {messageLogs.map((log) => (
                           <tr key={log.id}>
                             <td style={{ fontWeight: "500" }}>{log.to}</td>
-                            <td>{log.templateName}</td>
+                            <td>
+                              {log.templateName || (
+                                <span
+                                  title={log.body || "Mensagem de texto livre enviada pelo chat"}
+                                  style={{ color: "var(--text-muted)", fontSize: "0.8rem", whiteSpace: "nowrap" }}
+                                >
+                                  💬 Chat{log.variables?.sentBy === "SDR" ? " (bot)" : ""}
+                                </span>
+                              )}
+                            </td>
                             <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
                               {new Date(log.createdAt).toLocaleString()}
                             </td>
