@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AlertProvider } from "./contexts/AlertContext";
 import AppLoader from "./components/AppLoader";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Layout & Pages
 import Layout from "./components/Layout";
@@ -46,7 +47,7 @@ export default function App() {
   };
 
   return (
-    <>
+    <ErrorBoundary>
       {!appReady && <AppLoader onComplete={handleLoaderComplete} />}
       <AuthProvider>
       <AccountProvider>
@@ -81,6 +82,6 @@ export default function App() {
         </AlertProvider>
       </AccountProvider>
     </AuthProvider>
-    </>
+    </ErrorBoundary>
   );
 }
