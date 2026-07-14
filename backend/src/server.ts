@@ -163,6 +163,15 @@ prisma.message.updateMany({ where: { status: "PROCESSING" }, data: { status: "PE
   })
   .catch((err: Error) => console.error("[Startup] Erro ao recuperar mensagens PROCESSING:", err.message));
 
+// Rede de segurança: uma promise rejeitada fora de try/catch (ex.: num emit
+// de SSE ou numa lib) não deve derrubar o processo inteiro no free tier.
+process.on("unhandledRejection", (reason) => {
+  console.error("[Process] unhandledRejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[Process] uncaughtException:", err);
+});
+
 // Iniciar workers de background
 startBackgroundDispatcher();
 startCampaignWorker();
