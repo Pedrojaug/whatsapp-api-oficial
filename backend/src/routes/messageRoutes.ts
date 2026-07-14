@@ -5,6 +5,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
+import { resolveMetaMediaId } from "../utils/mediaUpload";
 import { normalizePhone } from "../services/phoneService";
 
 const router = Router();
@@ -88,6 +89,7 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
       data: { status: "PROCESSING" },
     });
 
+    const decryptedToken = decryptToken(account.accessToken);
     const components: any[] = [];
 
     // 1. Processar cabeçalho de mídia se necessário
@@ -114,17 +116,13 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
 
     if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
       const typeLower = headerComp.format.toLowerCase();
+      // Sobe para a Meta e envia por id (a Meta hospeda), com fallback para link.
+      const mediaId = await resolveMetaMediaId(account.phoneNumberId, decryptedToken, mediaUrl, accountId);
+      const mediaObj: any = mediaId ? { id: mediaId } : { link: mediaUrl };
+      if (typeLower === "document") mediaObj.filename = mediaUrl.split("/").pop() || "document.pdf";
       components.push({
         type: "header",
-        parameters: [
-          {
-            type: typeLower,
-            [typeLower]: {
-              link: mediaUrl,
-              ...(typeLower === "document" ? { filename: mediaUrl.split("/").pop() || "document.pdf" } : {})
-            }
-          }
-        ]
+        parameters: [{ type: typeLower, [typeLower]: mediaObj }],
       });
     }
 
@@ -140,7 +138,6 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
     }
 
     try {
-      const decryptedToken = decryptToken(account.accessToken);
       const response = await metaService.sendMessage(account.phoneNumberId, decryptedToken, {
         messaging_product: "whatsapp",
         to: normalizedTo,
