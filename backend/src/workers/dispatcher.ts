@@ -68,6 +68,22 @@ async function checkAndDispatch() {
 
     console.log(`[Worker] Processando lote de ${pendingMessages.length} mensagens pendentes...`);
 
+    // Pré-carrega os templates distintos do lote numa única query
+    // (evita N+1: antes havia um findFirst de template por mensagem).
+    const seenTpl = new Set<string>();
+    const tplPairs: { accountId: string; name: string }[] = [];
+    for (const m of pendingMessages) {
+      if (!m.templateName) continue;
+      const k = `${m.accountId}::${m.templateName}`;
+      if (seenTpl.has(k)) continue;
+      seenTpl.add(k);
+      tplPairs.push({ accountId: m.accountId, name: m.templateName });
+    }
+    const templateList = tplPairs.length
+      ? await prisma.template.findMany({ where: { OR: tplPairs } })
+      : [];
+    const templateMap = new Map(templateList.map((t) => [`${t.accountId}::${t.name}`, t]));
+
     for (const msg of pendingMessages) {
       // Bloquear envio para contatos que optaram por não receber mensagens (LGPD)
       if (optedOutSet.has(`${msg.accountId}:${msg.to}`)) {
@@ -87,6 +103,17 @@ async function checkAndDispatch() {
         continue;
       }
       try {
+        // Claim atômico PENDING -> PROCESSING: só processa se ESTA instância
+        // conseguir a transição. Impede que dois processos (ex.: sobreposição
+        // de containers durante um deploy do Render) enviem a mesma mensagem
+        // em duplicidade. Mensagens travadas em PROCESSING por um crash são
+        // devolvidas a PENDING no startup (server.ts).
+        const claim = await prisma.message.updateMany({
+          where: { id: msg.id, status: "PENDING" },
+          data: { status: "PROCESSING" },
+        });
+        if (claim.count === 0) continue;
+
         if (!msg.templateName) {
           throw new Error("Mensagem pendente na fila não possui nome do template.");
         }
@@ -99,10 +126,8 @@ async function checkAndDispatch() {
         const resolvedVars = Array.isArray(varsObj) ? varsObj : (varsObj?.variables || []);
         const mediaUrl = msg.mediaUrl || varsObj?.mediaUrl || null;
         
-        // Buscar template associado à conta para ler idioma e componentes
-        const template = await prisma.template.findFirst({
-          where: { accountId: msg.accountId, name: msg.templateName }
-        });
+        // Template já pré-carregado no início do lote (sem query por mensagem)
+        const template = templateMap.get(`${msg.accountId}::${msg.templateName}`) || null;
 
         const templateComponents = template?.components as any[];
         const headerComp = templateComponents && Array.isArray(templateComponents)
@@ -242,6 +267,7 @@ async function checkAndDispatch() {
           const updatedMsg = await prisma.message.update({
             where: { id: msg.id },
             data: {
+              status: "PENDING", // devolve à fila (saiu de PROCESSING pelo claim)
               retryCount: nextRetryCount,
               nextRetryAt: nextRetryAtDate,
               errorMessage: `Tentativa #${nextRetryCount} falhou: ${errMsg}`
