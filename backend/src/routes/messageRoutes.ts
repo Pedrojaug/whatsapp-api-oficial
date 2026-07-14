@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
@@ -17,7 +17,7 @@ router.use(authMiddleware);
 const sendLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
-  keyGenerator: (req) => (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown"),
   message: { error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." },
   standardHeaders: true,
   legacyHeaders: false,
