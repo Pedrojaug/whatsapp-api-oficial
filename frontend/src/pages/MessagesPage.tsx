@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
@@ -324,6 +324,19 @@ export default function MessagesPage() {
     }
   }, [selectedAccount]);
 
+  // Coalesce de refetch: durante um disparo em massa chegam centenas de
+  // eventos SSE; sem isto cada um refazia buscas completas (auto-DDoS).
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefetch = () => {
+    if (refetchTimer.current || !selectedAccount) return;
+    refetchTimer.current = setTimeout(() => {
+      refetchTimer.current = null;
+      if (selectedAccount) {
+        fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+      }
+    }, 4000);
+  };
+
   // Se inscreve em atualizações SSE em tempo real
   useSSE((data: any) => {
     if (!selectedAccount) return;
@@ -341,13 +354,10 @@ export default function MessagesPage() {
           };
           return updated;
         }
-        // Se for um novo envio que não está na lista, recarrega logs
-        fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+        // Novo envio fora da página atual — agenda um refetch coalescido
+        scheduleRefetch();
         return prevLogs;
       });
-
-      // Recarrega mensagens agendadas se necessário
-      fetchScheduledMessages(selectedAccount.id);
     }
   });
 
