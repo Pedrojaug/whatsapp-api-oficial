@@ -534,14 +534,16 @@ export default function ChatPage() {
                       }}
                       className={`conv-item${isActive ? " active" : ""}`}
                     >
-                      <button
-                        type="button"
-                        className="conv-ban"
-                        title="Mover para a Lista Negra"
-                        onClick={(e) => blacklistContact(c.phone, e)}
-                      >
-                        🚫
-                      </button>
+                      <div className="conv-actions">
+                        <button
+                          type="button"
+                          className="conv-action-btn"
+                          title="Mover para a Lista Negra"
+                          onClick={(e) => blacklistContact(c.phone, e)}
+                        >
+                          🚫
+                        </button>
+                      </div>
                       <div className="conv-avatar">{initials}</div>
                       <div className="conv-item__body">
                         <div className="conv-item__top">

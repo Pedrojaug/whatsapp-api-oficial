@@ -750,20 +750,64 @@ body.light-theme .msg-bubble-in {
   cursor: pointer;
   transition: background 0.15s ease;
   border: 1px solid transparent;
+  position: relative;
 }
 .conv-item:hover { background: rgba(255,255,255,0.05); }
 .conv-item.active { background: rgba(0,194,107,0.07); border-color: rgba(0,194,107,0.15); }
-.conv-item { position: relative; }
-.conv-ban {
-  position: absolute; top: 8px; right: 8px; opacity: 0;
-  transition: opacity 0.15s ease;
-  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
-  border-radius: 6px; cursor: pointer; font-size: 0.78rem; line-height: 1;
-  padding: 3px 6px; color: #ef4444;
+.conv-actions {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+  transform: translateX(5px);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
 }
-.conv-item:hover .conv-ban { opacity: 1; }
-.conv-ban:hover { background: rgba(239,68,68,0.22); }
-@media (hover: none) { .conv-ban { opacity: 0.7; } }
+.conv-item:hover .conv-actions {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(0);
+}
+.conv-item:hover .conv-item__time {
+  opacity: 0;
+  visibility: hidden;
+}
+.conv-item__time {
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+.conv-action-btn {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  color: #ef4444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+.conv-action-btn:hover {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.45);
+  transform: scale(1.05);
+}
+.conv-action-btn:active {
+  transform: scale(0.95);
+}
+@media (hover: none) {
+  .conv-actions {
+    opacity: 0.8;
+    visibility: visible;
+    transform: none;
+  }
+}
 .conv-avatar {
   width: 40px; height: 40px;
   border-radius: 50%;

@@ -208,10 +208,12 @@ router.get("/accounts/:accountId/messages", async (req: Request, res: Response) 
     };
 
     // Por padrão o histórico lista apenas envios (OUTGOING); mensagens recebidas
-    // via webhook só aparecem com ?direction=INCOMING ou filtro de status explícito.
+    // via webhook só aparecem com ?direction=INCOMING ou se o status for explicitamente RECEIVED.
     if (direction) {
       whereClause.direction = direction as string;
-    } else if (!status) {
+    } else if (status === "RECEIVED") {
+      whereClause.direction = "INCOMING";
+    } else {
       whereClause.direction = "OUTGOING";
     }
 

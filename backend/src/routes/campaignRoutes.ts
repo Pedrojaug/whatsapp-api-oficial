@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { calculateNextRun } from "../utils/campaignScheduler";
@@ -156,6 +156,7 @@ router.post("/accounts/:accountId/campaigns/:id/activate", async (req: Request, 
         });
 
   if (!nextRunAt) {
+    console.warn(`[CampaignRoutes] Falha ao ativar campanha "${campaign.name}" (${campaign.id}): Configuração de agendamento inválida ou data no passado.`);
     return res.status(400).json({ error: "Configuração de agendamento inválida. Verifique os campos de horário." });
   }
 
