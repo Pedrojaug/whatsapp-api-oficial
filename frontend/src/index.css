@@ -753,6 +753,17 @@ body.light-theme .msg-bubble-in {
 }
 .conv-item:hover { background: rgba(255,255,255,0.05); }
 .conv-item.active { background: rgba(0,194,107,0.07); border-color: rgba(0,194,107,0.15); }
+.conv-item { position: relative; }
+.conv-ban {
+  position: absolute; top: 8px; right: 8px; opacity: 0;
+  transition: opacity 0.15s ease;
+  background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 6px; cursor: pointer; font-size: 0.78rem; line-height: 1;
+  padding: 3px 6px; color: #ef4444;
+}
+.conv-item:hover .conv-ban { opacity: 1; }
+.conv-ban:hover { background: rgba(239,68,68,0.22); }
+@media (hover: none) { .conv-ban { opacity: 0.7; } }
 .conv-avatar {
   width: 40px; height: 40px;
   border-radius: 50%;
