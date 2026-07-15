@@ -93,6 +93,7 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
 
   const contacts = await prisma.whatsAppContact.findMany({ where: { accountId } });
   const contactMap = new Map(contacts.map((c: any) => [c.phone, c.profileName]));
+  const blacklistedSet = new Set(contacts.filter((c: any) => c.blacklisted).map((c: any) => normalizePhone(c.phone)));
 
   const conversations: ConversationRow[] = messages.map((msg) => {
     const normalizedKey = normalizePhone(msg.phone);
@@ -112,8 +113,10 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
     };
   });
 
-  conversations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-  return conversations;
+  // Oculta contatos na Lista Negra por padrão
+  const visible = conversations.filter((c) => !blacklistedSet.has(c.phone));
+  visible.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  return visible;
 }
 
 // Filtro de status equivalente ao matchesConvFilter do frontend.
@@ -186,6 +189,41 @@ router.get("/accounts/:accountId/conversations/export", async (req: Request, res
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="leads_${accountId.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send(csv);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Mover contato para a Lista Negra (ou remover). Também espelha no OptOut para
+// que disparos futuros ignorem o contato (o dispatcher já pula opt-outs).
+router.patch("/accounts/:accountId/conversations/:phone/blacklist", async (req: Request, res: Response) => {
+  const { accountId, phone } = req.params;
+  const { blacklisted = true } = req.body;
+  try {
+    const userId = (req as AuthenticatedRequest).userId;
+    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const normalized = normalizePhone(phone);
+    const isBlack = !!blacklisted;
+
+    await prisma.whatsAppContact.upsert({
+      where: { accountId_phone: { accountId, phone: normalized } },
+      update: { blacklisted: isBlack },
+      create: { accountId, phone: normalized, blacklisted: isBlack },
+    });
+
+    if (isBlack) {
+      await prisma.optOut.upsert({
+        where: { phone_accountId: { phone: normalized, accountId } },
+        update: { reason: "BLACKLIST" },
+        create: { phone: normalized, accountId, reason: "BLACKLIST" },
+      });
+    } else {
+      await prisma.optOut.deleteMany({ where: { phone: normalized, accountId, reason: "BLACKLIST" } });
+    }
+
+    res.json({ success: true, phone: normalized, blacklisted: isBlack });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
