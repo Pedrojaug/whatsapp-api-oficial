@@ -38,6 +38,10 @@ export default function ChatPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [convFilter, setConvFilter] = useState<string>("ALL");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
+  const dateFilterRef = useRef({ startDate: "", endDate: "" });
   const [replyBody, setReplyBody] = useState("");
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -72,12 +76,46 @@ export default function ChatPage() {
   const fetchConversations = async (accountId: string, silent = false) => {
     if (!silent) setIsConversationsLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations`);
+      const { startDate: sd, endDate: ed } = dateFilterRef.current;
+      const qs = sd && ed ? `?startDate=${sd}&endDate=${ed}` : "";
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations${qs}`);
       setConversations(res.data);
     } catch (err) {
       console.error("Erro ao buscar conversas:", err);
     } finally {
       if (!silent) setIsConversationsLoading(false);
+    }
+  };
+
+  // Refaz a busca (e mantém o ref em dia para o polling) quando o período muda
+  useEffect(() => {
+    dateFilterRef.current = { startDate, endDate };
+    if (selectedAccount) fetchConversations(selectedAccount.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
+
+  // Exporta os contatos filtrados (período + status ativo) para CSV
+  const exportCsv = async () => {
+    if (!selectedAccount) return;
+    setIsExporting(true);
+    try {
+      const { startDate: sd, endDate: ed } = dateFilterRef.current;
+      const params = new URLSearchParams({ filter: convFilter });
+      if (sd && ed) { params.set("startDate", sd); params.set("endDate", ed); }
+      const res = await axios.get(
+        `${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/export?${params.toString()}`,
+        { responseType: "blob" }
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showAlert("Erro ao exportar CSV.", "error");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -333,6 +371,51 @@ export default function ChatPage() {
               >
                 🔄
               </button>
+            </div>
+
+            {/* Filtro por período + exportação de leads */}
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <input
+                  type="date"
+                  value={startDate}
+                  max={endDate || undefined}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="field-input"
+                  style={{ fontSize: "0.75rem", padding: "5px 8px", flex: 1, minWidth: 0 }}
+                  title="Data inicial"
+                />
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>até</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate || undefined}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="field-input"
+                  style={{ fontSize: "0.75rem", padding: "5px 8px", flex: 1, minWidth: 0 }}
+                  title="Data final"
+                />
+              </div>
+              <div style={{ display: "flex", gap: "6px" }}>
+                {(startDate || endDate) && (
+                  <button
+                    type="button"
+                    onClick={() => { setStartDate(""); setEndDate(""); }}
+                    style={{ fontSize: "0.72rem", padding: "5px 10px", background: "transparent", border: "1px solid var(--border-color)", borderRadius: "6px", color: "var(--text-secondary)", cursor: "pointer" }}
+                  >
+                    Limpar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={isExporting}
+                  style={{ flex: 1, fontSize: "0.75rem", padding: "5px 10px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600 }}
+                  title="Exportar os contatos filtrados para CSV"
+                >
+                  {isExporting ? "Exportando..." : "⬇️ Exportar CSV"}
+                </button>
+              </div>
             </div>
 
             {/* Filtros de conversas (chats) */}
