@@ -135,6 +135,7 @@ model WhatsAppContact {
   id          String   @id @default(uuid())
   phone       String   // Número normalizado (13 dígitos BR)
   profileName String?  // Nome de perfil do WhatsApp (contacts[].profile.name)
+  blacklisted Boolean  @default(false) // Contato movido para a Lista Negra
   accountId   String
   account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
