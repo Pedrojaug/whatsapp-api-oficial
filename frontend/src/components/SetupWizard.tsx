@@ -39,6 +39,9 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
   const [selectedWabaIndex, setSelectedWabaIndex] = useState<number>(-1);
   const [selectedPhoneId, setSelectedPhoneId] = useState("");
 
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState(false);
+
   const totalSteps = 4;
 
   const handleNext = () => {
@@ -339,6 +342,50 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
             >
               {onboardLoading ? "Carregando Contas..." : "🔵 Conectar via Facebook"}
             </button>
+
+            {/* Guia / Tutorial Expansível */}
+            <div style={{ marginTop: "8px", borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setShowTutorial(!showTutorial)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--primary)",
+                  fontSize: "0.82rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: 0
+                }}
+              >
+                {showTutorial ? "📖 Ocultar guia de pré-requisitos ▲" : "📖 O que preciso ter pronto para conectar? ▼"}
+              </button>
+
+              {showTutorial && (
+                <div className="fade-in" style={{ background: "rgba(0,0,0,0.2)", padding: "12px 14px", borderRadius: "8px", marginTop: "10px", fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: "1.5", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div>
+                    <strong style={{ color: "#fff" }}>1. Conta de Facebook:</strong> Usar o perfil pessoal que administra a sua empresa.
+                  </div>
+                  <div>
+                    <strong style={{ color: "#fff" }}>2. Número de Telefone Disponível:</strong> Capaz de receber SMS ou ligação de teste. 
+                    <br />
+                    <span style={{ color: "#f59e0b" }}>⚠️ Importante:</span> Se o número estiver em uso no app WhatsApp do celular, apague a conta no aplicativo antes de conectar.
+                  </div>
+                  <div>
+                    <strong style={{ color: "#fff" }}>3. O que acontece durante a conexão:</strong>
+                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                      <li>Fazer login na Meta</li>
+                      <li>Selecionar/Criar sua Conta Comercial (WABA)</li>
+                      <li>Informar o Nome de Exibição da Empresa</li>
+                      <li>Inserir o número e digitar o código de 6 dígitos</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Opção 2: Configuração Manual */}
