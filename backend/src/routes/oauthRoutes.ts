@@ -17,11 +17,11 @@ router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Res
     return res.status(400).json({ error: "code, wabaId e phoneNumberId são obrigatórios." });
   }
 
-  const appId = process.env.FACEBOOK_APP_ID;
+  const appId = process.env.FACEBOOK_APP_ID || "1395411182414690";
   const appSecret = process.env.FACEBOOK_APP_SECRET;
 
-  if (!appId || !appSecret) {
-    return res.status(500).json({ error: "Credenciais do aplicativo do Facebook não configuradas no servidor." });
+  if (!appSecret) {
+    return res.status(500).json({ error: "Segredo do aplicativo do Facebook (FACEBOOK_APP_SECRET) não configurado no servidor." });
   }
 
   try {
