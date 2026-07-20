@@ -198,5 +198,19 @@ export const metaService = {
     return axios.get(`https://graph.facebook.com/v21.0/${phoneNumberId}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
+  },
+
+  /**
+   * Inscreve a WABA comercial nos webhooks do aplicativo Tech Provider na Meta
+   */
+  async subscribeWabaToApp(wabaId: string, accessToken: string) {
+    return axios.post(
+      `https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
   }
 };
+

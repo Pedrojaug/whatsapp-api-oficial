@@ -33,7 +33,17 @@ router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Res
     const longTokenResponse = await metaService.exchangeLongLivedToken(shortToken, appId, appSecret);
     const longLivedToken = longTokenResponse.data.access_token;
 
-    // 3. Buscar nome da WABA e número de telefone para exibição
+    // 3. Inscrever a WABA no aplicativo Tech Provider (subscribed_apps para webhooks automáticos)
+    let webhookSubscribed = false;
+    try {
+      await metaService.subscribeWabaToApp(wabaId, longLivedToken);
+      webhookSubscribed = true;
+      console.log(`[Tech Provider] Webhook inscrito com sucesso para a WABA ${wabaId}`);
+    } catch (subErr: any) {
+      console.warn(`[Tech Provider] Aviso ao inscrever webhook para WABA ${wabaId}:`, subErr.response?.data || subErr.message);
+    }
+
+    // 4. Buscar nome da WABA e número de telefone para exibição
     let wabaName = `WABA ${wabaId}`;
     let phoneDisplay = phoneNumberId;
 
@@ -47,7 +57,7 @@ router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Res
       if (phoneRes.data.display_phone_number) phoneDisplay = phoneRes.data.display_phone_number;
     } catch (_) {}
 
-    res.json({ longLivedToken, wabaName, phoneDisplay });
+    res.json({ longLivedToken, wabaName, phoneDisplay, webhookSubscribed });
   } catch (error: any) {
     console.error("Erro no Embedded Signup exchange:", error.response?.data || error.message);
     const details = error.response?.data?.error?.message || error.message;
@@ -66,6 +76,14 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
   try {
     const userId = (req as AuthenticatedRequest).userId!;
     const encryptedToken = encryptToken(accessToken.trim());
+
+    // Garantia secundária de inscrição de webhook
+    try {
+      await metaService.subscribeWabaToApp(wabaId, accessToken.trim());
+      console.log(`[Tech Provider] Webhook reconfirmado/inscrito com sucesso ao salvar conta ${wabaId}`);
+    } catch (subErr: any) {
+      console.warn(`[Tech Provider] Aviso ao confirmar webhook para WABA ${wabaId}:`, subErr.response?.data || subErr.message);
+    }
 
     const account = await prisma.account.upsert({
       where: {
