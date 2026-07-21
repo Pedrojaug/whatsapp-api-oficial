@@ -7,6 +7,7 @@ import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
 import { resolveMetaMediaId } from "../utils/mediaUpload";
 import { normalizePhone } from "../services/phoneService";
+import { triggerDispatcher } from "../workers/dispatcher";
 
 const router = Router();
 
@@ -77,6 +78,7 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
 
     // Se a mensagem está agendada para o futuro, o dispatcher vai processá-la depois
     if (isFutureScheduled) {
+      triggerDispatcher();
       return res.status(201).json({
         ...dbMessage,
         message: "Mensagem agendada com sucesso para envio posterior."

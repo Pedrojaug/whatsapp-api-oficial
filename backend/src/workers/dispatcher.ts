@@ -5,6 +5,20 @@ import { messageEventEmitter } from "../utils/emitter";
 import { resolveMetaMediaId } from "../utils/mediaUpload";
 
 let isProcessing = false;
+let dispatchTimer: NodeJS.Timeout | null = null;
+
+/**
+ * Acorda o dispatcher em background imediatamente (Event-driven)
+ */
+export function triggerDispatcher() {
+  if (dispatchTimer) {
+    clearTimeout(dispatchTimer);
+    dispatchTimer = null;
+  }
+  if (!isProcessing) {
+    setImmediate(checkAndDispatch);
+  }
+}
 
 /**
  * Inicia o worker de envio em lote em background (Transactional Outbox Pattern)
@@ -13,12 +27,15 @@ export function startBackgroundDispatcher() {
   console.log("🚀 Servidor de disparo em background inicializado.");
   
   // Inicia o loop dinâmico recursivo
-  setTimeout(checkAndDispatch, 5000);
+  dispatchTimer = setTimeout(checkAndDispatch, 2000);
 }
 
 async function checkAndDispatch() {
+  if (dispatchTimer) {
+    clearTimeout(dispatchTimer);
+    dispatchTimer = null;
+  }
   if (isProcessing) {
-    setTimeout(checkAndDispatch, 5000);
     return;
   }
   isProcessing = true;
@@ -300,7 +317,10 @@ async function checkAndDispatch() {
     console.error("[Worker] Erro crítico no loop do dispatcher:", err.message);
   } finally {
     isProcessing = false;
-    // Agendar próximo ciclo recursivo (quase imediato se há mais mensagens na fila, ou aguarda 5s)
-    setTimeout(checkAndDispatch, hasMore ? 100 : 5000);
+    // Se há mais mensagens no lote atual (50/50), re-executa imediatamente (100ms).
+    // Caso contrário, aguarda 60s em repouso. Se uma mensagem for enfileirada,
+    // triggerDispatcher() cancela o timer e executa instantaneamente.
+    const idleDelay = hasMore ? 100 : 60_000;
+    dispatchTimer = setTimeout(checkAndDispatch, idleDelay);
   }
 }

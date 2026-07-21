@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db";
 import { apiKeyMiddleware, ApiKeyRequest } from "../middlewares/apiKeyAuth";
+import { triggerDispatcher } from "../workers/dispatcher";
 
 const router = Router();
 
@@ -62,6 +63,8 @@ router.post("/send", async (req: ApiKeyRequest, res: Response) => {
     },
     select: { id: true, to: true, status: true, templateName: true, scheduledAt: true, createdAt: true },
   });
+
+  triggerDispatcher();
 
   res.status(201).json(message);
 });
