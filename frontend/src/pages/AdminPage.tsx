@@ -29,7 +29,6 @@ export default function AdminPage() {
     subscriptionExpiresAt: "",
     customPriceMonthly: "",
     maxAccounts: 1,
-    maxMonthlyMessages: 5000,
     paymentMethod: "PIX",
     notes: "",
   });
@@ -60,7 +59,7 @@ export default function AdminPage() {
       setMetrics(metricsRes.data || null);
     } catch (err: any) {
       console.error("Erro ao buscar dados do admin:", err);
-      showAlert("Aguarde alguns segundos e clique em Atualizar Dados (o servidor no Render pode estar aplicando a atualização do banco).", "error");
+      showAlert("Erro ao carregar dados do painel. Clique em Atualizar Dados para tentar novamente.", "error");
     } finally {
       setLoading(false);
     }
@@ -89,7 +88,6 @@ export default function AdminPage() {
       subscriptionExpiresAt: u.subscriptionExpiresAt ? new Date(u.subscriptionExpiresAt).toISOString().split("T")[0] : "",
       customPriceMonthly: u.customPriceMonthly !== null && u.customPriceMonthly !== undefined ? String(u.customPriceMonthly) : "",
       maxAccounts: u.maxAccounts || 1,
-      maxMonthlyMessages: u.maxMonthlyMessages || 5000,
       paymentMethod: u.paymentMethod || "PIX",
       notes: u.notes || "",
     });
@@ -99,21 +97,23 @@ export default function AdminPage() {
     e.preventDefault();
     if (!selectedUserForEdit) return;
     try {
-      await axios.patch(`${API_BASE_URL}/admin/users/${selectedUserForEdit.id}/subscription`, {
+      const payload: any = {
         planTier: subForm.planTier,
         subscriptionStatus: subForm.subscriptionStatus,
         subscriptionExpiresAt: subForm.subscriptionExpiresAt ? subForm.subscriptionExpiresAt : null,
         customPriceMonthly: subForm.customPriceMonthly !== "" ? parseFloat(subForm.customPriceMonthly) : 0,
-        maxAccounts: parseInt(String(subForm.maxAccounts), 10),
-        maxMonthlyMessages: parseInt(String(subForm.maxMonthlyMessages), 10),
+        maxAccounts: parseInt(String(subForm.maxAccounts), 10) || 1,
         paymentMethod: subForm.paymentMethod,
         notes: subForm.notes,
-      });
-      showAlert("Assinatura e limites salvos com sucesso!", "success");
+      };
+
+      await axios.patch(`${API_BASE_URL}/admin/users/${selectedUserForEdit.id}/subscription`, payload);
+      showAlert("✅ Status do perfil e limites atualizados com sucesso!", "success");
       setSelectedUserForEdit(null);
       fetchData();
     } catch (err: any) {
-      showAlert(err.response?.data?.error || "Erro ao atualizar assinatura.", "error");
+      const errorMsg = err.response?.data?.error || err.message || "Erro ao atualizar assinatura.";
+      showAlert(`Erro ao salvar: ${errorMsg}`, "error");
     }
   };
 
@@ -141,7 +141,7 @@ export default function AdminPage() {
     }
   };
 
-  // AÇÃO RÁPIDA DE 1-CLIQUE: Renovação direta por 30 dias sem abrir telas complexas
+  // AÇÃO RÁPIDA DE 1-CLIQUE: Renovação direta por 30 dias
   const handleQuickExtend30Days = async (u: any) => {
     if (!window.confirm(`Confirmar renovação direta de +30 dias para ${u.name || u.email}?`)) return;
     try {
@@ -238,7 +238,7 @@ export default function AdminPage() {
              Painel de Controle de Clientes & Pagamentos
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem" }}>
-            Espaço intuitivo para a equipe gerenciar mensalidades, dar baixas em pagamentos e ajustar acessos sem complicação.
+            Gerencie mensalidades, controle validades de acesso e dê baixa em pagamentos dos clientes.
           </p>
         </div>
 
@@ -252,7 +252,7 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* CARDS INTERATIVOS DE FILTRO RÁPIDO (CLIQUE PARA FILTRAR A TABELA) */}
+      {/* CARDS INTERATIVOS DE FILTRO RÁPIDO */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "16px" }}>
         <div
           onClick={() => setStatusFilter("ALL")}
@@ -366,7 +366,7 @@ export default function AdminPage() {
               style={{ width: "190px", padding: "9px 14px", fontSize: "0.88rem", fontWeight: "600" }}
             >
               <option value="ALL">📋 Mostrar Todos</option>
-              <option value="ACTIVE">🟢 Apensar Ativos (Em Dia)</option>
+              <option value="ACTIVE">🟢 Apenas Ativos (Em Dia)</option>
               <option value="PAST_DUE">🔴 Apenas Vencidos</option>
               <option value="EXPIRING_SOON">⏰ Vencendo nos Próximos 7 Dias</option>
               <option value="TRIAL">🔵 Em Teste Grátis</option>
@@ -399,7 +399,7 @@ export default function AdminPage() {
               <thead>
                 <tr style={{ textAlign: "left", borderBottom: "2px solid rgba(255,255,255,0.08)", color: "var(--text-secondary)" }}>
                   <th style={{ padding: "12px 10px" }}>Nome do Cliente / E-mail</th>
-                  <th style={{ padding: "12px 10px" }}>Plano Contratado</th>
+                  <th style={{ padding: "12px 10px" }}>Plano</th>
                   <th style={{ padding: "12px 10px" }}>Situação Atual</th>
                   <th style={{ padding: "12px 10px" }}>Validade da Assinatura</th>
                   <th style={{ padding: "12px 10px" }}>Mensalidade (R$)</th>
@@ -479,18 +479,18 @@ export default function AdminPage() {
                           📋 Recibos
                         </button>
 
-                        {/* AÇÃO 4: AJUSTAR PLANO & LIMITES */}
+                        {/* AÇÃO 4: AJUSTAR PLANO & STATUS */}
                         <button
                           type="button"
                           onClick={() => openEditModal(u)}
                           className="btn btn-secondary"
                           style={{ padding: "6px 12px", fontSize: "0.8rem" }}
-                          title="Alterar plano, limites de disparos e conexões"
+                          title="Alterar plano, status de acesso e mensalidade"
                         >
-                          ⚙️ Ajustar Limites
+                          ⚙️ Alterar Status
                         </button>
 
-                        {/* AÇÃO 4: IMPERSONATE SUPORTE */}
+                        {/* AÇÃO 5: IMPERSONATE SUPORTE */}
                         {u.id !== user?.id && (
                           <button
                             type="button"
@@ -516,10 +516,10 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* MODAL SIMPLIFICADO: AJUSTAR PLANO & LIMITES (PARA LEIGOS) */}
+      {/* MODAL SIMPLIFICADO: AJUSTAR PLANO & STATUS (100% OPACO, CORRIGIDO) */}
       {selectedUserForEdit && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: "580px", background: "#0d111c", border: "1px solid rgba(255, 255, 255, 0.18)", boxShadow: "0 25px 60px rgba(0,0,0,0.95)", borderRadius: "16px" }}>
+          <div className="modal-card" style={{ maxWidth: "560px", background: "#0d111c", border: "1px solid rgba(255, 255, 255, 0.18)", boxShadow: "0 25px 60px rgba(0,0,0,0.95)", borderRadius: "16px" }}>
             <div className="modal-header">
               <h3>⚙️ Configuração de Acesso — {selectedUserForEdit.name || selectedUserForEdit.email}</h3>
               <button type="button" onClick={() => setSelectedUserForEdit(null)} className="btn btn-secondary" style={{ padding: "4px 8px" }}>
@@ -528,8 +528,8 @@ export default function AdminPage() {
             </div>
 
             <form onSubmit={handleSaveSubscription} className="modal-body" style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-              <div style={{ background: "rgba(255,255,255,0.03)", padding: "12px 16px", borderRadius: "8px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
-                💡 <strong>Dica para a equipe:</strong> Altere abaixo o plano, status da conta ou limites de conexões do cliente conforme a negociação comercial.
+              <div style={{ background: "rgba(255,255,255,0.04)", padding: "12px 16px", borderRadius: "8px", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+                💡 <strong>Dica para a equipe:</strong> Altere o status de acesso (Liberado/Vencido), o valor da mensalidade ou a data de vencimento.
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
@@ -545,7 +545,7 @@ export default function AdminPage() {
                     <option value="pro">Pro (Profissional)</option>
                     <option value="enterprise">Enterprise (Personalizado)</option>
                   </select>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Selecione o pacote do cliente</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Selecione o plano do cliente</span>
                 </div>
 
                 <div className="field">
@@ -560,7 +560,7 @@ export default function AdminPage() {
                     <option value="PAST_DUE">🔴 Vencido / Bloqueado</option>
                     <option value="SUSPENDED">⚪ Suspenso / Cancelado</option>
                   </select>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Controla o envio de mensagens</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Controla o acesso à plataforma</span>
                 </div>
               </div>
 
@@ -573,7 +573,7 @@ export default function AdminPage() {
                     value={subForm.subscriptionExpiresAt}
                     onChange={(e) => setSubForm({ ...subForm, subscriptionExpiresAt: e.target.value })}
                   />
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Até quando a conta funcionará</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Até quando o cliente pode usar</span>
                 </div>
 
                 <div className="field">
@@ -586,7 +586,7 @@ export default function AdminPage() {
                     value={subForm.customPriceMonthly}
                     onChange={(e) => setSubForm({ ...subForm, customPriceMonthly: e.target.value })}
                   />
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Valor cobrado por mês do cliente</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Valor cobrado por mês</span>
                 </div>
               </div>
 
@@ -600,34 +600,23 @@ export default function AdminPage() {
                     value={subForm.maxAccounts}
                     onChange={(e) => setSubForm({ ...subForm, maxAccounts: parseInt(e.target.value, 10) || 1 })}
                   />
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Quantos números Meta pode conectar</span>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Quantas contas Meta pode conectar</span>
                 </div>
 
                 <div className="field">
-                  <label className="field-label">6. Limite Mensal de Mensagens</label>
-                  <input
-                    type="number"
-                    min="100"
+                  <label className="field-label">6. Forma de Pagamento</label>
+                  <select
                     className="field-input"
-                    value={subForm.maxMonthlyMessages}
-                    onChange={(e) => setSubForm({ ...subForm, maxMonthlyMessages: parseInt(e.target.value, 10) || 5000 })}
-                  />
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Quantidade máxima de disparos/mês</span>
+                    value={subForm.paymentMethod}
+                    onChange={(e) => setSubForm({ ...subForm, paymentMethod: e.target.value })}
+                  >
+                    <option value="PIX">PIX</option>
+                    <option value="CREDIT_CARD">Cartão de Crédito</option>
+                    <option value="BOLETO">Boleto Bancário</option>
+                    <option value="MANUAL">Acordo / Transferência</option>
+                  </select>
+                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Forma de pagamento padrão</span>
                 </div>
-              </div>
-
-              <div className="field">
-                <label className="field-label">Forma de Pagamento Utilizada</label>
-                <select
-                  className="field-input"
-                  value={subForm.paymentMethod}
-                  onChange={(e) => setSubForm({ ...subForm, paymentMethod: e.target.value })}
-                >
-                  <option value="PIX">PIX</option>
-                  <option value="CREDIT_CARD">Cartão de Crédito</option>
-                  <option value="BOLETO">Boleto Bancário</option>
-                  <option value="MANUAL">Acordo / Transferência</option>
-                </select>
               </div>
 
               <div className="field">
@@ -635,7 +624,7 @@ export default function AdminPage() {
                 <textarea
                   className="field-input"
                   rows={2}
-                  placeholder="Ex: Cliente fechou plano anual em 2x no PIX com desconto."
+                  placeholder="Ex: Cliente fechou plano anual no PIX."
                   value={subForm.notes}
                   onChange={(e) => setSubForm({ ...subForm, notes: e.target.value })}
                 ></textarea>

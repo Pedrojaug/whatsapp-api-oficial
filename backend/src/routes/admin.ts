@@ -188,7 +188,6 @@ router.patch("/users/:id/subscription", requireSuperUser, async (req: Authentica
     subscriptionExpiresAt,
     customPriceMonthly,
     maxAccounts,
-    maxMonthlyMessages,
     paymentMethod,
     notes
   } = req.body;
@@ -201,18 +200,33 @@ router.patch("/users/:id/subscription", requireSuperUser, async (req: Authentica
 
     const updateData: any = {};
 
-    if (planTier !== undefined) updateData.planTier = planTier;
-    if (subscriptionStatus !== undefined) updateData.subscriptionStatus = subscriptionStatus;
+    if (planTier !== undefined && planTier !== null) {
+      updateData.planTier = String(planTier);
+    }
+    if (subscriptionStatus !== undefined && subscriptionStatus !== null) {
+      updateData.subscriptionStatus = String(subscriptionStatus);
+    }
     if (subscriptionExpiresAt !== undefined) {
-      updateData.subscriptionExpiresAt = subscriptionExpiresAt ? new Date(subscriptionExpiresAt) : null;
+      if (subscriptionExpiresAt && !isNaN(new Date(subscriptionExpiresAt).getTime())) {
+        updateData.subscriptionExpiresAt = new Date(subscriptionExpiresAt);
+      } else {
+        updateData.subscriptionExpiresAt = null;
+      }
     }
     if (customPriceMonthly !== undefined) {
-      updateData.customPriceMonthly = customPriceMonthly !== null ? parseFloat(customPriceMonthly) : null;
+      const parsedPrice = parseFloat(customPriceMonthly);
+      updateData.customPriceMonthly = (!isNaN(parsedPrice) && parsedPrice >= 0) ? parsedPrice : 0;
     }
-    if (maxAccounts !== undefined) updateData.maxAccounts = parseInt(maxAccounts, 10);
-    if (maxMonthlyMessages !== undefined) updateData.maxMonthlyMessages = parseInt(maxMonthlyMessages, 10);
-    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
-    if (notes !== undefined) updateData.notes = notes;
+    if (maxAccounts !== undefined) {
+      const parsedAcc = parseInt(maxAccounts, 10);
+      updateData.maxAccounts = (!isNaN(parsedAcc) && parsedAcc > 0) ? parsedAcc : 1;
+    }
+    if (paymentMethod !== undefined) {
+      updateData.paymentMethod = paymentMethod ? String(paymentMethod) : "PIX";
+    }
+    if (notes !== undefined) {
+      updateData.notes = notes ? String(notes) : "";
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id },
@@ -226,7 +240,6 @@ router.patch("/users/:id/subscription", requireSuperUser, async (req: Authentica
         subscriptionExpiresAt: true,
         customPriceMonthly: true,
         maxAccounts: true,
-        maxMonthlyMessages: true,
         paymentMethod: true,
         notes: true
       }
@@ -234,7 +247,8 @@ router.patch("/users/:id/subscription", requireSuperUser, async (req: Authentica
 
     res.json({ message: "Assinatura do cliente atualizada com sucesso!", user: updatedUser });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("[Admin] Erro ao atualizar assinatura:", error);
+    res.status(500).json({ error: error.message || "Erro ao atualizar assinatura." });
   }
 });
 
