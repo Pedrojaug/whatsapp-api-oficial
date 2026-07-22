@@ -23,7 +23,7 @@ const sendLimiter = rateLimit({
   message: { error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." },
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false },
+  validate: { xForwardedForHeader: false, default: false },
   handler: (req, res) => {
     console.warn(`[RateLimit] Envio bloqueado (limite 120/min) para usuário ${(req as AuthenticatedRequest).userId ?? req.ip}. As mensagens excedentes NÃO foram enfileiradas.`);
     res.status(429).json({ error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." });

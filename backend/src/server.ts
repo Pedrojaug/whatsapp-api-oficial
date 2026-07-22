@@ -32,6 +32,7 @@ import { startCampaignWorker } from "./workers/campaignWorker";
 import { prisma } from "./db";
 
 const app = express();
+app.set("trust proxy", true);
 const PORT = process.env.PORT || 3001;
 
 // Garantir a existência do diretório de uploads

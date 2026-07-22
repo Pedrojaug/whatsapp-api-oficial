@@ -11,7 +11,7 @@ const apiRateLimit = rateLimit({
   max: 60,
   keyGenerator: (req) => (req as ApiKeyRequest).apiKeyId ?? ipKeyGenerator(req.ip ?? "unknown"),
   message: { error: "Limite de taxa excedido. Máximo 60 requisições/min por chave." },
-  validate: { trustProxy: false },
+  validate: { xForwardedForHeader: false, default: false },
 });
 
 router.use(apiKeyMiddleware);
