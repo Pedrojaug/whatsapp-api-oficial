@@ -32,6 +32,7 @@ const DEFAULT_PLAN_PRICES: Record<string, number> = {
   starter: 197,
   pro: 397,
   enterprise: 997,
+  paid: 197, // Suporte a planos legados registrados como "paid"
 };
 
 // 1. LISTAR TODOS OS USUÁRIOS COM DADOS FINANCEIROS E LIMITES
@@ -67,38 +68,43 @@ router.get("/users", requireSuperUser, async (req: AuthenticatedRequest, res: Re
 
     const usersWithStats = await Promise.all(
       users.map(async (u) => {
-        const accountIds = u.accounts.map((a) => a.id);
+        const accountIds = u.accounts ? u.accounts.map((a) => a.id) : [];
         let monthlyMessagesSent = 0;
         if (accountIds.length > 0) {
-          monthlyMessagesSent = await prisma.message.count({
-            where: {
-              accountId: { in: accountIds },
-              direction: "OUTGOING",
-              createdAt: { gte: startOfMonth }
-            }
-          });
+          try {
+            monthlyMessagesSent = await prisma.message.count({
+              where: {
+                accountId: { in: accountIds },
+                direction: "OUTGOING",
+                createdAt: { gte: startOfMonth }
+              }
+            });
+          } catch (e) {
+            console.warn("[Admin] Erro ao contar mensagens do usuário:", u.id, e);
+          }
         }
 
-        const price = u.customPriceMonthly !== null && u.customPriceMonthly !== undefined && u.customPriceMonthly > 0
+        const tierKey = (u.planTier || "free").toLowerCase();
+        const price = (u.customPriceMonthly !== null && u.customPriceMonthly !== undefined && u.customPriceMonthly > 0)
           ? u.customPriceMonthly
-          : (DEFAULT_PLAN_PRICES[u.planTier?.toLowerCase()] || 0);
+          : (DEFAULT_PLAN_PRICES[tierKey] || 0);
 
         return {
           id: u.id,
           email: u.email,
           name: u.name,
           role: u.role,
-          planTier: u.planTier,
-          subscriptionStatus: u.subscriptionStatus,
+          planTier: u.planTier || "free",
+          subscriptionStatus: u.subscriptionStatus || "ACTIVE",
           subscriptionExpiresAt: u.subscriptionExpiresAt,
-          customPriceMonthly: u.customPriceMonthly,
+          customPriceMonthly: u.customPriceMonthly || 0,
           monthlyPrice: price,
-          maxAccounts: u.maxAccounts,
-          maxMonthlyMessages: u.maxMonthlyMessages,
-          paymentMethod: u.paymentMethod,
-          notes: u.notes,
+          maxAccounts: u.maxAccounts || 1,
+          maxMonthlyMessages: u.maxMonthlyMessages || 5000,
+          paymentMethod: u.paymentMethod || "PIX",
+          notes: u.notes || "",
           createdAt: u.createdAt,
-          accountsCount: u._count.accounts,
+          accountsCount: u._count ? u._count.accounts : 0,
           monthlyMessagesSent
         };
       })
@@ -106,6 +112,7 @@ router.get("/users", requireSuperUser, async (req: AuthenticatedRequest, res: Re
 
     res.json(usersWithStats);
   } catch (error: any) {
+    console.error("[Admin] Erro ao listar usuários:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -134,18 +141,19 @@ router.get("/metrics/financial", requireSuperUser, async (req: AuthenticatedRequ
     const now = new Date();
 
     users.forEach((u) => {
-      totalAccountsConnected += u._count.accounts;
+      totalAccountsConnected += u._count ? u._count.accounts : 0;
 
-      let status = u.subscriptionStatus;
+      let status = u.subscriptionStatus || "ACTIVE";
       if (u.subscriptionExpiresAt && new Date(u.subscriptionExpiresAt) < now && (status === "ACTIVE" || status === "TRIAL")) {
         status = "PAST_DUE";
       }
 
       if (status === "ACTIVE") {
         activeClients++;
-        const price = u.customPriceMonthly !== null && u.customPriceMonthly !== undefined && u.customPriceMonthly > 0
+        const tierKey = (u.planTier || "free").toLowerCase();
+        const price = (u.customPriceMonthly !== null && u.customPriceMonthly !== undefined && u.customPriceMonthly > 0)
           ? u.customPriceMonthly
-          : (DEFAULT_PLAN_PRICES[u.planTier?.toLowerCase()] || 0);
+          : (DEFAULT_PLAN_PRICES[tierKey] || 0);
         totalMRR += price;
       } else if (status === "TRIAL") {
         trialClients++;
@@ -166,6 +174,7 @@ router.get("/metrics/financial", requireSuperUser, async (req: AuthenticatedRequ
       totalAccountsConnected
     });
   } catch (error: any) {
+    console.error("[Admin] Erro nas métricas financeiras:", error);
     res.status(500).json({ error: error.message });
   }
 });

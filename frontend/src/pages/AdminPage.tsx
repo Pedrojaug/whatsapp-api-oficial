@@ -46,15 +46,21 @@ export default function AdminPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, metricsRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/admin/users`),
-        axios.get(`${API_BASE_URL}/admin/metrics/financial`),
-      ]);
-      setAdminUsers(usersRes.data);
-      setMetrics(metricsRes.data);
+      const usersRes = await axios.get(`${API_BASE_URL}/admin/users`).catch((err) => {
+        console.warn("[Admin] Falha ao obter /admin/users:", err.message);
+        return { data: [] };
+      });
+      
+      const metricsRes = await axios.get(`${API_BASE_URL}/admin/metrics/financial`).catch((err) => {
+        console.warn("[Admin] Falha ao obter /admin/metrics/financial:", err.message);
+        return { data: null };
+      });
+
+      setAdminUsers(usersRes.data || []);
+      setMetrics(metricsRes.data || null);
     } catch (err: any) {
       console.error("Erro ao buscar dados do admin:", err);
-      showAlert("Erro ao carregar dados do painel administrativo.", "error");
+      showAlert("Aguarde alguns segundos e clique em Atualizar Dados (o servidor no Render pode estar aplicando a atualização do banco).", "error");
     } finally {
       setLoading(false);
     }
