@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { checkSubscriptionActive, checkMonthlyMessageLimit } from "../middlewares/planLimits";
 import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
@@ -30,7 +31,7 @@ const sendLimiter = rateLimit({
 });
 
 // Enviar mensagem via Template (scoped to user)
-router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Request, res: Response) => {
+router.post("/accounts/:accountId/messages/send", checkSubscriptionActive, checkMonthlyMessageLimit, sendLimiter, async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { to, templateName, language, variables, mediaUrl, scheduledAt } = req.body;
 

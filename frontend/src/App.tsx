@@ -19,6 +19,7 @@ import MessagesPage from "./pages/MessagesPage";
 import MediaPage from "./pages/MediaPage";
 import AccountsPage from "./pages/AccountsPage";
 import AdminPage from "./pages/AdminPage";
+import BillingPage from "./pages/BillingPage";
 import OptOutPage from "./pages/OptOutPage";
 import LinkTrackingPage from "./pages/LinkTrackingPage";
 import ApiKeysPage from "./pages/ApiKeysPage";
@@ -74,6 +75,7 @@ export default function App() {
                 <Route path="api-keys" element={<ApiKeysPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
+                <Route path="billing" element={<BillingPage />} />
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="*" element={<Navigate to="/metrics" replace />} />
               </Route>

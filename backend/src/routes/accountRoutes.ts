@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { checkSubscriptionActive, checkAccountLimit } from "../middlewares/planLimits";
 import { encryptToken, decryptToken } from "../utils/crypto";
 import { metaService } from "../services/metaService";
 
@@ -42,7 +43,7 @@ router.get("/accounts", async (req: Request, res: Response) => {
 });
 
 // Create/Update WABA account (scoped to user)
-router.post("/accounts", async (req: Request, res: Response) => {
+router.post("/accounts", checkSubscriptionActive, checkAccountLimit, async (req: Request, res: Response) => {
   const { name, wabaId, phoneNumberId, accessToken } = req.body;
   if (!name || !wabaId || !phoneNumberId || !accessToken) {
     return res.status(400).json({ error: "Missing required fields" });

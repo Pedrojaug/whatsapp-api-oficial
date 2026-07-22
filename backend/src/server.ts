@@ -22,6 +22,7 @@ if (missingVars.length > 0) {
 import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
+import billingRouter from "./routes/billing";
 import webhookRouter from "./routes/webhookRoutes"; // Deve ser importado separadamente para registro antes do whatsappRouter
 import n8nRouter from "./routes/n8nRoutes";
 import { handleTrackingRedirect } from "./routes/trackingRoutes";
@@ -125,6 +126,7 @@ app.use("/api", n8nRouter);
 // Rotas autenticadas
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/billing", billingRouter);
 app.use("/api", whatsappRouter);
 
 // Rota de Status

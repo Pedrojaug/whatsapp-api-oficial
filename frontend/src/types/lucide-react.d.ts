@@ -1,0 +1,34 @@
+declare module "lucide-react" {
+  import React from "react";
+  export const BarChart3: React.FC<any>;
+  export const MessageSquare: React.FC<any>;
+  export const FileText: React.FC<any>;
+  export const Users: React.FC<any>;
+  export const Send: React.FC<any>;
+  export const Image: React.FC<any>;
+  export const Settings2: React.FC<any>;
+  export const Wrench: React.FC<any>;
+  export const LogOut: React.FC<any>;
+  export const Sun: React.FC<any>;
+  export const Moon: React.FC<any>;
+  export const ShieldOff: React.FC<any>;
+  export const Link2: React.FC<any>;
+  export const Megaphone: React.FC<any>;
+  export const KeyRound: React.FC<any>;
+  export const CreditCard: React.FC<any>;
+  export const Copy: React.FC<any>;
+  export const Trash2: React.FC<any>;
+  export const Plus: React.FC<any>;
+  export const Eye: React.FC<any>;
+  export const EyeOff: React.FC<any>;
+  export const Check: React.FC<any>;
+  export const AlertTriangle: React.FC<any>;
+  export const RefreshCw: React.FC<any>;
+  export const Search: React.FC<any>;
+  export const ExternalLink: React.FC<any>;
+  export const X: React.FC<any>;
+  export const PlusCircle: React.FC<any>;
+  export const Upload: React.FC<any>;
+  const content: any;
+  export default content;
+}
