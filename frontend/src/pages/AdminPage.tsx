@@ -519,7 +519,7 @@ export default function AdminPage() {
       {/* MODAL SIMPLIFICADO: AJUSTAR PLANO & LIMITES (PARA LEIGOS) */}
       {selectedUserForEdit && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: "580px" }}>
+          <div className="modal-card" style={{ maxWidth: "580px", background: "#0d111c", border: "1px solid rgba(255, 255, 255, 0.18)", boxShadow: "0 25px 60px rgba(0,0,0,0.95)", borderRadius: "16px" }}>
             <div className="modal-header">
               <h3>⚙️ Configuração de Acesso — {selectedUserForEdit.name || selectedUserForEdit.email}</h3>
               <button type="button" onClick={() => setSelectedUserForEdit(null)} className="btn btn-secondary" style={{ padding: "4px 8px" }}>
@@ -657,7 +657,7 @@ export default function AdminPage() {
       {/* MODAL 2: BAIXA EM PAGAMENTO (REGISTRO RÁPIDO) */}
       {selectedUserForPayment && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: "500px" }}>
+          <div className="modal-card" style={{ maxWidth: "500px", background: "#0d111c", border: "1px solid rgba(255, 255, 255, 0.18)", boxShadow: "0 25px 60px rgba(0,0,0,0.95)", borderRadius: "16px" }}>
             <div className="modal-header">
               <h3>💳 Baixa em Pagamento de Mensalidade</h3>
               <button type="button" onClick={() => setSelectedUserForPayment(null)} className="btn btn-secondary" style={{ padding: "4px 8px" }}>
@@ -746,7 +746,7 @@ export default function AdminPage() {
       {/* MODAL 3: HISTÓRICO DE RECIBOS DO CLIENTE */}
       {selectedUserForHistory && (
         <div className="modal-overlay">
-          <div className="modal-card" style={{ maxWidth: "600px" }}>
+          <div className="modal-card" style={{ maxWidth: "600px", background: "#0d111c", border: "1px solid rgba(255, 255, 255, 0.18)", boxShadow: "0 25px 60px rgba(0,0,0,0.95)", borderRadius: "16px" }}>
             <div className="modal-header">
               <h3>📋 Recibos de Pagamento — {selectedUserForHistory.name || selectedUserForHistory.email}</h3>
               <button type="button" onClick={() => setSelectedUserForHistory(null)} className="btn btn-secondary" style={{ padding: "4px 8px" }}>
