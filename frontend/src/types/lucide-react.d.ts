@@ -29,6 +29,13 @@ declare module "lucide-react" {
   export const X: React.FC<any>;
   export const PlusCircle: React.FC<any>;
   export const Upload: React.FC<any>;
+  export const ArrowRight: React.FC<any>;
+  export const Layers: React.FC<any>;
+  export const Smartphone: React.FC<any>;
+  export const Sparkles: React.FC<any>;
+  export const Zap: React.FC<any>;
+  export const ShieldCheck: React.FC<any>;
+  export const UserCheck: React.FC<any>;
   const content: any;
   export default content;
 }
