@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../hooks/useAlert";
 import { API_BASE_URL } from "../contexts/AuthContext";
+import { formatTemplateStatus, formatTemplateCategory } from "../utils/formatters";
 import PhoneSimulator from "../components/PhoneSimulator";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -445,10 +446,10 @@ export default function TemplatesPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", width: "100%" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h4 style={{ fontSize: "1.1rem", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tmpl.name}>{tmpl.name}</h4>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase" }}>{tmpl.category} • {tmpl.language}</span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{formatTemplateCategory(tmpl.category)} • {tmpl.language}</span>
                   </div>
                   <span className={`badge badge-${tmpl.status.toLowerCase()}`} style={{ flexShrink: 0 }}>
-                    {tmpl.status}
+                    {formatTemplateStatus(tmpl.status)}
                   </span>
                 </div>
 

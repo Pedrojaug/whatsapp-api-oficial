@@ -5,6 +5,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
+import { formatMessageStatus } from "../utils/formatters";
 import PhoneSimulator from "../components/PhoneSimulator";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -773,11 +774,11 @@ export default function MessagesPage() {
                     style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
                   >
                     <option value="">Todos</option>
-                    <option value="PENDING">PENDING</option>
-                    <option value="SENT">SENT</option>
-                    <option value="DELIVERED">DELIVERED</option>
-                    <option value="READ">READ</option>
-                    <option value="FAILED">FAILED</option>
+                    <option value="PENDING">Pendente (Enviando)</option>
+                    <option value="SENT">Enviada</option>
+                    <option value="DELIVERED">Entregue</option>
+                    <option value="READ">Lida</option>
+                    <option value="FAILED">Falhou / Erro</option>
                   </select>
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "170px" }}>
@@ -858,7 +859,7 @@ export default function MessagesPage() {
                             </td>
                             <td>
                               <span className={`badge badge-${log.status.toLowerCase()}`}>
-                                {log.status}
+                                {formatMessageStatus(log.status)}
                               </span>
                             </td>
                             <td style={{ color: "var(--text-muted)", fontSize: "0.8rem", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

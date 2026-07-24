@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
+import { formatPlanTier } from "../utils/formatters";
 
 export default function BillingPage() {
   const { showAlert } = useAlert();
@@ -116,7 +117,7 @@ export default function BillingPage() {
                 textTransform: "uppercase",
               }}
             >
-              Plano {planData?.planTier || "Free"}
+              {formatPlanTier(planData?.planTier)}
             </span>
 
             {isPastDue ? (

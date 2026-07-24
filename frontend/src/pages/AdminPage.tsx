@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
+import { formatPlanTier } from "../utils/formatters";
 
 export default function AdminPage() {
   const { user, impersonate } = useAuth();
@@ -426,10 +427,9 @@ export default function AdminPage() {
                         border: (u.planTier === "pro" || u.planTier === "paid" || u.planTier === "enterprise")
                           ? "1px solid rgba(52, 211, 153, 0.4)"
                           : "1px solid rgba(255, 255, 255, 0.2)",
-                        fontWeight: "700",
-                        textTransform: "uppercase"
+                        fontWeight: "700"
                       }}>
-                        {u.planTier || "FREE"}
+                        {formatPlanTier(u.planTier)}
                       </span>
                     </td>
 
