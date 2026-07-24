@@ -20,7 +20,8 @@ import {
   ShieldOff,
   Link2,
   Megaphone,
-  KeyRound
+  KeyRound,
+  CreditCard
 } from "lucide-react";
 
 const SUPPORT_WHATSAPP = "5583920017106";
@@ -468,6 +469,9 @@ export default function Layout() {
             </NavLink>
             <NavLink to="/api-keys" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <KeyRound size={18} className="nav-icon" /> API Pública
+            </NavLink>
+            <NavLink to="/subscription" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+              <CreditCard size={18} className="nav-icon" /> Assinatura & Plano
             </NavLink>
             {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
               <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>

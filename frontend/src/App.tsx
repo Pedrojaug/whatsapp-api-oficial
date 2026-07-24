@@ -22,6 +22,7 @@ import OptOutPage from "./pages/OptOutPage";
 import LinkTrackingPage from "./pages/LinkTrackingPage";
 import ApiKeysPage from "./pages/ApiKeysPage";
 import CampaignsPage from "./pages/CampaignsPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 import LandingPage from "./pages/LandingPage";
 
 // Public auth pages (outside Layout — no sidebar/header)
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="api-keys" element={<ApiKeysPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
+                <Route path="subscription" element={<SubscriptionPage />} />
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="*" element={<Navigate to="/metrics" replace />} />
               </Route>

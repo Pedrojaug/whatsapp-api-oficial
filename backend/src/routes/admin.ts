@@ -35,6 +35,8 @@ router.get("/users", requireSuperUser, async (req: AuthenticatedRequest, res: Re
         email: true,
         name: true,
         role: true,
+        planTier: true,
+        emailVerified: true,
         createdAt: true,
         _count: {
           select: { accounts: true }
@@ -48,7 +50,30 @@ router.get("/users", requireSuperUser, async (req: AuthenticatedRequest, res: Re
   }
 });
 
-// 2. IMPERSONAR UM USUÁRIO (SESSÃO DE SUPORTE)
+// 2. ESTATÍSTICAS GERAIS DO SISTEMA
+router.get("/stats", requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const [totalUsers, paidUsers, freeUsers, totalAccounts, totalMessages] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { planTier: "paid" } }),
+      prisma.user.count({ where: { planTier: "free" } }),
+      prisma.account.count(),
+      prisma.message.count()
+    ]);
+
+    res.json({
+      totalUsers,
+      paidUsers,
+      freeUsers,
+      totalAccounts,
+      totalMessages
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 3. IMPERSONAR UM USUÁRIO (SESSÃO DE SUPORTE)
 router.post("/impersonate", requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
   const { targetUserId } = req.body;
   if (!targetUserId) {
@@ -87,6 +112,85 @@ router.post("/impersonate", requireSuperUser, async (req: AuthenticatedRequest, 
         role: targetUser.role
       }
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4. ATUALIZAR PLANO DE UM USUÁRIO (planTier: "free" | "paid")
+router.patch("/users/:userId/plan", requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
+  const { userId } = req.params;
+  const { planTier } = req.body;
+
+  if (!planTier || !["free", "paid"].includes(planTier)) {
+    return res.status(400).json({ error: "Plano inválido. Use 'free' ou 'paid'." });
+  }
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { planTier },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        planTier: true
+      }
+    });
+
+    res.json({ message: "Plano atualizado com sucesso!", user: updatedUser });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 5. ATUALIZAR ROLE DE UM USUÁRIO (role: "USER" | "SUPERUSER")
+router.patch("/users/:userId/role", requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
+  const { userId } = req.params;
+  const { role } = req.body;
+
+  if (!role || !["USER", "SUPERUSER"].includes(role)) {
+    return res.status(400).json({ error: "Perfil inválido. Use 'USER' ou 'SUPERUSER'." });
+  }
+
+  if (userId === req.userId && role !== "SUPERUSER") {
+    return res.status(400).json({ error: "Você não pode remover sua própria permissão de Superusuário." });
+  }
+
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        planTier: true
+      }
+    });
+
+    res.json({ message: "Perfil de usuário atualizado com sucesso!", user: updatedUser });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 6. EXCLUIR USUÁRIO
+router.delete("/users/:userId", requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
+  const { userId } = req.params;
+
+  if (userId === req.userId) {
+    return res.status(400).json({ error: "Você não pode excluir sua própria conta pelo painel admin." });
+  }
+
+  try {
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({ message: "Usuário removido com sucesso." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
