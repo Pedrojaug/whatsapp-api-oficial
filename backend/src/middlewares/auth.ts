@@ -28,7 +28,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET!) as any;
+    const decoded = jwt.verify(token, JWT_SECRET!, { algorithms: ["HS256"] }) as any;
     req.userId = decoded.userId;
     return next();
   } catch (err) {

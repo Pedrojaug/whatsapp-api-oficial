@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://whatsapp-api-oficial-nls9.onrender.com/api";
-const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "";
+const FACEBOOK_APP_ID = import.meta.env.VITE_FACEBOOK_APP_ID || "1395411182414690";
 const EMBEDDED_SIGNUP_CONFIG_ID = import.meta.env.VITE_EMBEDDED_SIGNUP_CONFIG_ID || "1626513905104662";
 
 const getAuthHeaders = () => {
@@ -38,6 +38,9 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
   const [onboardName, setOnboardName] = useState("");
   const [selectedWabaIndex, setSelectedWabaIndex] = useState<number>(-1);
   const [selectedPhoneId, setSelectedPhoneId] = useState("");
+
+  // Tutorial state
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const totalSteps = 4;
 
@@ -339,6 +342,50 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
             >
               {onboardLoading ? "Carregando Contas..." : "🔵 Conectar via Facebook"}
             </button>
+
+            {/* Guia / Tutorial Expansível */}
+            <div style={{ marginTop: "8px", borderTop: "1px dashed rgba(255,255,255,0.1)", paddingTop: "10px" }}>
+              <button
+                type="button"
+                onClick={() => setShowTutorial(!showTutorial)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--primary)",
+                  fontSize: "0.82rem",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: 0
+                }}
+              >
+                {showTutorial ? "📖 Ocultar guia de pré-requisitos ▲" : "📖 O que preciso ter pronto para conectar? ▼"}
+              </button>
+
+              {showTutorial && (
+                <div className="fade-in" style={{ background: "rgba(0,0,0,0.2)", padding: "12px 14px", borderRadius: "8px", marginTop: "10px", fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: "1.5", display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div>
+                    <strong style={{ color: "#fff" }}>1. Conta de Facebook:</strong> Usar o perfil pessoal que administra a sua empresa.
+                  </div>
+                  <div>
+                    <strong style={{ color: "#fff" }}>2. Número de Telefone Disponível:</strong> Capaz de receber SMS ou ligação de teste. 
+                    <br />
+                    <span style={{ color: "#f59e0b" }}>⚠️ Importante:</span> Se o número estiver em uso no app WhatsApp do celular, apague a conta no aplicativo antes de conectar.
+                  </div>
+                  <div>
+                    <strong style={{ color: "#fff" }}>3. O que acontece durante a conexão:</strong>
+                    <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                      <li>Fazer login na Meta</li>
+                      <li>Selecionar/Criar sua Conta Comercial (WABA)</li>
+                      <li>Informar o Nome de Exibição da Empresa</li>
+                      <li>Inserir o número e digitar o código de 6 dígitos</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Opção 2: Configuração Manual */}

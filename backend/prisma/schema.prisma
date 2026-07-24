@@ -22,10 +22,33 @@ model User {
   resetPasswordTokenExpiry   DateTime?
   onboardingCompleted        Boolean   @default(false)
   planTier                   String    @default("free")
+  subscriptionStatus        String    @default("ACTIVE") // ACTIVE, TRIAL, PAST_DUE, CANCELED, SUSPENDED
+  subscriptionExpiresAt     DateTime?
+  customPriceMonthly        Float?    @default(0)
+  maxAccounts               Int       @default(1)
+  maxMonthlyMessages        Int       @default(5000)
+  paymentMethod             String?   // PIX, CREDIT_CARD, BOLETO, MANUAL
+  notes                     String?
   accounts       Account[]
   sharedAccounts AccountShare[]
+  payments       PaymentRecord[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+model PaymentRecord {
+  id              String    @id @default(uuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  amount          Float
+  status          String    @default("PAID") // PAID, PENDING, FAILED, REFUNDED
+  paymentMethod   String    @default("MANUAL") // PIX, CREDIT_CARD, BOLETO, MANUAL
+  referencePeriod String?   // Ex: "2026-07"
+  paidAt          DateTime? @default(now())
+  notes           String?
+  createdAt       DateTime  @default(now())
+
+  @@index([userId])
 }
 
 model Account {
@@ -104,7 +127,7 @@ model Message {
 
   @@index([accountId, to, createdAt])
   @@index([accountId, status, createdAt])
-  @@index([status, scheduledAt, nextRetryAt])
+  @@index([status, scheduledAt, nextRetryAt, createdAt])
 }
 
 model ContactList {
@@ -135,6 +158,7 @@ model WhatsAppContact {
   id          String   @id @default(uuid())
   phone       String   // Número normalizado (13 dígitos BR)
   profileName String?  // Nome de perfil do WhatsApp (contacts[].profile.name)
+  blacklisted Boolean  @default(false) // Contato movido para a Lista Negra
   accountId   String
   account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())

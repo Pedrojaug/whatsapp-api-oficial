@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AlertProvider } from "./contexts/AlertContext";
 import AppLoader from "./components/AppLoader";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 // Layout & Pages
 import Layout from "./components/Layout";
@@ -18,6 +19,7 @@ import MessagesPage from "./pages/MessagesPage";
 import MediaPage from "./pages/MediaPage";
 import AccountsPage from "./pages/AccountsPage";
 import AdminPage from "./pages/AdminPage";
+import BillingPage from "./pages/BillingPage";
 import OptOutPage from "./pages/OptOutPage";
 import LinkTrackingPage from "./pages/LinkTrackingPage";
 import ApiKeysPage from "./pages/ApiKeysPage";
@@ -31,11 +33,24 @@ import VerifyEmailPage from "./pages/VerifyEmailPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 
 export default function App() {
-  const [appReady, setAppReady] = useState(false);
+  // A intro (AppLoader) só deve aparecer na primeira visita da sessão.
+  // Nunca na volta do OAuth (/auth/callback) nem em recargas subsequentes —
+  // caso contrário o overlay preto cobre a tela justamente nas transições de login/logout.
+  const [appReady, setAppReady] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (sessionStorage.getItem("introShown") === "1") return true;
+    if (window.location.pathname.startsWith("/auth/callback")) return true;
+    return false;
+  });
+
+  const handleLoaderComplete = () => {
+    sessionStorage.setItem("introShown", "1");
+    setAppReady(true);
+  };
 
   return (
-    <>
-      {!appReady && <AppLoader onComplete={() => setAppReady(true)} />}
+    <ErrorBoundary>
+      {!appReady && <AppLoader onComplete={handleLoaderComplete} />}
       <AuthProvider>
       <AccountProvider>
         <AlertProvider>
@@ -62,6 +77,7 @@ export default function App() {
                 <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="accounts" element={<AccountsPage />} />
                 <Route path="subscription" element={<SubscriptionPage />} />
+                <Route path="billing" element={<BillingPage />} />
                 <Route path="admin" element={<AdminPage />} />
                 <Route path="*" element={<Navigate to="/metrics" replace />} />
               </Route>
@@ -70,6 +86,6 @@ export default function App() {
         </AlertProvider>
       </AccountProvider>
     </AuthProvider>
-    </>
+    </ErrorBoundary>
   );
 }

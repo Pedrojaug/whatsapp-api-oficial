@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
@@ -27,7 +27,9 @@ interface MessageLog {
   to: string;
   status: string;
   errorMessage: string | null;
-  templateName: string;
+  templateName: string | null;
+  messageType?: string;
+  body?: string | null;
   variables: any;
   createdAt: string;
 }
@@ -322,6 +324,19 @@ export default function MessagesPage() {
     }
   }, [selectedAccount]);
 
+  // Coalesce de refetch: durante um disparo em massa chegam centenas de
+  // eventos SSE; sem isto cada um refazia buscas completas (auto-DDoS).
+  const refetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scheduleRefetch = () => {
+    if (refetchTimer.current || !selectedAccount) return;
+    refetchTimer.current = setTimeout(() => {
+      refetchTimer.current = null;
+      if (selectedAccount) {
+        fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+      }
+    }, 4000);
+  };
+
   // Se inscreve em atualizações SSE em tempo real
   useSSE((data: any) => {
     if (!selectedAccount) return;
@@ -339,13 +354,10 @@ export default function MessagesPage() {
           };
           return updated;
         }
-        // Se for um novo envio que não está na lista, recarrega logs
-        fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+        // Novo envio fora da página atual — agenda um refetch coalescido
+        scheduleRefetch();
         return prevLogs;
       });
-
-      // Recarrega mensagens agendadas se necessário
-      fetchScheduledMessages(selectedAccount.id);
     }
   });
 
@@ -831,7 +843,16 @@ export default function MessagesPage() {
                         {messageLogs.map((log) => (
                           <tr key={log.id}>
                             <td style={{ fontWeight: "500" }}>{log.to}</td>
-                            <td>{log.templateName}</td>
+                            <td>
+                              {log.templateName || (
+                                <span
+                                  title={log.body || "Mensagem de texto livre enviada pelo chat"}
+                                  style={{ color: "var(--text-muted)", fontSize: "0.8rem", whiteSpace: "nowrap" }}
+                                >
+                                  💬 Chat{log.variables?.sentBy === "SDR" ? " (bot)" : ""}
+                                </span>
+                              )}
+                            </td>
                             <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
                               {new Date(log.createdAt).toLocaleString()}
                             </td>

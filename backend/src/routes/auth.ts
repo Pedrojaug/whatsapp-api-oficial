@@ -26,7 +26,7 @@ const authLimiter = rateLimit({
   message: { error: "Muitas tentativas. Tente novamente em 1 minuto." },
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false },
+  validate: { xForwardedForHeader: false, default: false },
 });
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

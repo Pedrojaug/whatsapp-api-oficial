@@ -118,6 +118,12 @@ export default function Layout() {
     );
   }, [location.pathname]);
 
+  // IMPORTANTE: hooks não podem vir depois deste return condicional (Rules of Hooks).
+  // O useState abaixo ficava após o return e mudava a contagem de hooks entre os
+  // renders logado/deslogado, derrubando a árvore React inteira (tela preta) no
+  // login, no logout e no auto-logout por sessão expirada.
+  const [now] = useState(() => Date.now());
+
   if (!token) {
     return <AuthPages onLoginSuccess={login} />;
   }
@@ -127,7 +133,6 @@ export default function Layout() {
   const isPaid      = user?.planTier === "paid";
   const isSuperUser = user?.role === "SUPERUSER";
   const createdAt   = user?.createdAt ? new Date(user.createdAt) : null;
-  const [now]       = useState(() => Date.now());
   const daysSince   = createdAt ? Math.floor((now - createdAt.getTime()) / 86_400_000) : 0;
   const daysLeft    = Math.max(0, TRIAL_DAYS - daysSince);
   const trialExpired  = !isPaid && !isSuperUser && daysSince >= TRIAL_DAYS;
@@ -466,6 +471,9 @@ export default function Layout() {
             <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
             <NavLink to="/accounts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <Settings2 size={18} className="nav-icon" /> Contas Meta API
+            </NavLink>
+            <NavLink to="/billing" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+              <CreditCard size={18} className="nav-icon" /> Assinatura & Plano
             </NavLink>
             <NavLink to="/api-keys" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <KeyRound size={18} className="nav-icon" /> API Pública

@@ -1,5 +1,23 @@
 import { prisma } from "../db";
 import { calculateNextRun } from "../utils/campaignScheduler";
+import { triggerDispatcher } from "./dispatcher";
+
+let campaignTimer: NodeJS.Timeout | null = null;
+
+export function triggerCampaignWorker() {
+  if (campaignTimer) {
+    clearTimeout(campaignTimer);
+    campaignTimer = null;
+  }
+  runDueCampaigns().catch((err: Error) => console.error("[CampaignWorker] Erro:", err.message));
+}
+
+function scheduleNextCampaignRun(delayMs: number) {
+  if (campaignTimer) clearTimeout(campaignTimer);
+  campaignTimer = setTimeout(() => {
+    runDueCampaigns().catch((err: Error) => console.error("[CampaignWorker] Erro:", err.message));
+  }, delayMs);
+}
 
 function resolveVariables(mappings: string[], contact: { name?: string | null; phone: string; variables?: any }): string[] {
   const vars: any[] = Array.isArray(contact.variables) ? contact.variables : [];
@@ -18,6 +36,13 @@ function resolveVariables(mappings: string[], contact: { name?: string | null; p
 async function runDueCampaigns() {
   const now = new Date();
 
+  // Se não houver NENHUMA campanha ativa cadastrada, descansa por 5 min (300.000ms)
+  const activeCount = await prisma.campaign.count({ where: { status: "ACTIVE" } });
+  if (activeCount === 0) {
+    scheduleNextCampaignRun(5 * 60_000);
+    return;
+  }
+
   const dueCampaigns = await prisma.campaign.findMany({
     where: { status: "ACTIVE", nextRunAt: { lte: now } },
   });
@@ -27,6 +52,8 @@ async function runDueCampaigns() {
       console.error(`[CampaignWorker] Erro na campanha "${campaign.name}":`, err.message)
     );
   }
+
+  scheduleNextCampaignRun(60_000);
 }
 
 async function executeCampaign(campaign: {
@@ -78,6 +105,11 @@ async function executeCampaign(campaign: {
 
     if (messagesToCreate.length > 0) {
       await prisma.message.createMany({ data: messagesToCreate });
+      triggerDispatcher();
+    } else if (contacts.length === 0) {
+      console.warn(`[CampaignWorker] Campanha "${campaign.name}" executada SEM contatos — lista ${campaign.contactListId ?? "não definida"} está vazia ou inexistente. Nada foi enfileirado.`);
+    } else {
+      console.warn(`[CampaignWorker] Campanha "${campaign.name}": todos os ${contacts.length} contatos da lista estão em opt-out. Nada foi enfileirado.`);
     }
 
     await prisma.campaignRun.update({
@@ -124,9 +156,6 @@ async function executeCampaign(campaign: {
 }
 
 export function startCampaignWorker() {
-  console.log("[CampaignWorker] Worker de campanhas recorrentes iniciado (intervalo: 60s).");
+  console.log("[CampaignWorker] Worker de campanhas recorrentes iniciado.");
   runDueCampaigns().catch((err: Error) => console.error("[CampaignWorker] Erro inicial:", err.message));
-  setInterval(() => {
-    runDueCampaigns().catch((err: Error) => console.error("[CampaignWorker] Erro:", err.message));
-  }, 60_000);
 }

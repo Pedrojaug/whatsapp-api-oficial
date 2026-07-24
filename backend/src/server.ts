@@ -22,6 +22,7 @@ if (missingVars.length > 0) {
 import whatsappRouter from "./routes/whatsapp";
 import authRouter from "./routes/auth";
 import adminRouter from "./routes/admin";
+import billingRouter from "./routes/billing";
 import webhookRouter from "./routes/webhookRoutes"; // Deve ser importado separadamente para registro antes do whatsappRouter
 import n8nRouter from "./routes/n8nRoutes";
 import { handleTrackingRedirect } from "./routes/trackingRoutes";
@@ -31,6 +32,7 @@ import { startCampaignWorker } from "./workers/campaignWorker";
 import { prisma } from "./db";
 
 const app = express();
+app.set("trust proxy", true);
 const PORT = process.env.PORT || 3001;
 
 // Garantir a existência do diretório de uploads
@@ -125,6 +127,7 @@ app.use("/api", n8nRouter);
 // Rotas autenticadas
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
+app.use("/api/billing", billingRouter);
 app.use("/api", whatsappRouter);
 
 // Rota de Status
@@ -162,6 +165,15 @@ prisma.message.updateMany({ where: { status: "PROCESSING" }, data: { status: "PE
     if (count > 0) console.log(`[Startup] ${count} mensagem(ns) travadas em PROCESSING recuperadas para PENDING.`);
   })
   .catch((err: Error) => console.error("[Startup] Erro ao recuperar mensagens PROCESSING:", err.message));
+
+// Rede de segurança: uma promise rejeitada fora de try/catch (ex.: num emit
+// de SSE ou numa lib) não deve derrubar o processo inteiro no free tier.
+process.on("unhandledRejection", (reason) => {
+  console.error("[Process] unhandledRejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[Process] uncaughtException:", err);
+});
 
 // Iniciar workers de background
 startBackgroundDispatcher();

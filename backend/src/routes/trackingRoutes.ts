@@ -98,5 +98,15 @@ export async function handleTrackingRedirect(req: Request, res: Response) {
     data: { clicks: { increment: 1 }, lastClickAt: new Date() },
   }).catch(() => {});
 
+  // Só redireciona para http/https — bloqueia esquemas perigosos (javascript:, data:)
+  try {
+    const proto = new URL(link.originalUrl).protocol;
+    if (proto !== "http:" && proto !== "https:") {
+      return res.status(400).send("Destino inválido.");
+    }
+  } catch {
+    return res.status(400).send("Destino inválido.");
+  }
+
   res.redirect(302, link.originalUrl);
 }

@@ -1,11 +1,14 @@
 import { Router, Request, Response } from "express";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { checkSubscriptionActive, checkMonthlyMessageLimit } from "../middlewares/planLimits";
 import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
+import { resolveMetaMediaId } from "../utils/mediaUpload";
 import { normalizePhone } from "../services/phoneService";
+import { triggerDispatcher } from "../workers/dispatcher";
 
 const router = Router();
 
@@ -16,15 +19,19 @@ router.use(authMiddleware);
 const sendLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
-  keyGenerator: (req) => (req as AuthenticatedRequest).userId ?? req.ip ?? "unknown",
+  keyGenerator: (req) => (req as AuthenticatedRequest).userId ?? ipKeyGenerator(req.ip ?? "unknown"),
   message: { error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." },
   standardHeaders: true,
   legacyHeaders: false,
-  validate: { trustProxy: false },
+  validate: { xForwardedForHeader: false, default: false },
+  handler: (req, res) => {
+    console.warn(`[RateLimit] Envio bloqueado (limite 120/min) para usuário ${(req as AuthenticatedRequest).userId ?? req.ip}. As mensagens excedentes NÃO foram enfileiradas.`);
+    res.status(429).json({ error: "Muitas requisições de envio. Aguarde 1 minuto antes de tentar novamente." });
+  },
 });
 
 // Enviar mensagem via Template (scoped to user)
-router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Request, res: Response) => {
+router.post("/accounts/:accountId/messages/send", checkSubscriptionActive, checkMonthlyMessageLimit, sendLimiter, async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { to, templateName, language, variables, mediaUrl, scheduledAt } = req.body;
 
@@ -72,6 +79,7 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
 
     // Se a mensagem está agendada para o futuro, o dispatcher vai processá-la depois
     if (isFutureScheduled) {
+      triggerDispatcher();
       return res.status(201).json({
         ...dbMessage,
         message: "Mensagem agendada com sucesso para envio posterior."
@@ -84,6 +92,7 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
       data: { status: "PROCESSING" },
     });
 
+    const decryptedToken = decryptToken(account.accessToken);
     const components: any[] = [];
 
     // 1. Processar cabeçalho de mídia se necessário
@@ -110,17 +119,13 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
 
     if (headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format) && mediaUrl) {
       const typeLower = headerComp.format.toLowerCase();
+      // Sobe para a Meta e envia por id (a Meta hospeda), com fallback para link.
+      const mediaId = await resolveMetaMediaId(account.phoneNumberId, decryptedToken, mediaUrl, accountId);
+      const mediaObj: any = mediaId ? { id: mediaId } : { link: mediaUrl };
+      if (typeLower === "document") mediaObj.filename = mediaUrl.split("/").pop() || "document.pdf";
       components.push({
         type: "header",
-        parameters: [
-          {
-            type: typeLower,
-            [typeLower]: {
-              link: mediaUrl,
-              ...(typeLower === "document" ? { filename: mediaUrl.split("/").pop() || "document.pdf" } : {})
-            }
-          }
-        ]
+        parameters: [{ type: typeLower, [typeLower]: mediaObj }],
       });
     }
 
@@ -136,7 +141,6 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
     }
 
     try {
-      const decryptedToken = decryptToken(account.accessToken);
       const response = await metaService.sendMessage(account.phoneNumberId, decryptedToken, {
         messaging_product: "whatsapp",
         to: normalizedTo,
@@ -189,7 +193,7 @@ router.post("/accounts/:accountId/messages/send", sendLimiter, async (req: Reque
 // List messages logs (scoped to user) with filters and pagination
 router.get("/accounts/:accountId/messages", async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { search, status, templateName, page = "1", limit = "50" } = req.query;
+  const { search, status, templateName, direction, page = "1", limit = "50" } = req.query;
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
@@ -205,6 +209,16 @@ router.get("/accounts/:accountId/messages", async (req: Request, res: Response) 
     const whereClause: any = {
       accountId,
     };
+
+    // Por padrão o histórico lista apenas envios (OUTGOING); mensagens recebidas
+    // via webhook só aparecem com ?direction=INCOMING ou se o status for explicitamente RECEIVED.
+    if (direction) {
+      whereClause.direction = direction as string;
+    } else if (status === "RECEIVED") {
+      whereClause.direction = "INCOMING";
+    } else {
+      whereClause.direction = "OUTGOING";
+    }
 
     if (status) {
       whereClause.status = status as string;
@@ -345,6 +359,10 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
     const messages = await prisma.message.findMany({
       where: {
         accountId,
+        direction: "OUTGOING",
+        // Painel de metricas mede DISPAROS (templates); mensagens de chat (TEXT)
+        // enviadas pela caixa de entrada ou pelo bot SDR nao entram no funil.
+        messageType: "TEMPLATE",
         createdAt: {
           gte: start,
           lte: end

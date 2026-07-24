@@ -38,6 +38,11 @@ export default function ChatPage() {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [convFilter, setConvFilter] = useState<string>("ALL");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [period, setPeriod] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
+  const dateFilterRef = useRef({ startDate: "", endDate: "" });
   const [replyBody, setReplyBody] = useState("");
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -72,12 +77,83 @@ export default function ChatPage() {
   const fetchConversations = async (accountId: string, silent = false) => {
     if (!silent) setIsConversationsLoading(true);
     try {
-      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations`);
+      const { startDate: sd, endDate: ed } = dateFilterRef.current;
+      const qs = sd && ed ? `?startDate=${sd}&endDate=${ed}` : "";
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations${qs}`);
       setConversations(res.data);
     } catch (err) {
       console.error("Erro ao buscar conversas:", err);
     } finally {
       if (!silent) setIsConversationsLoading(false);
+    }
+  };
+
+  // Refaz a busca (e mantém o ref em dia para o polling) quando o período muda
+  useEffect(() => {
+    dateFilterRef.current = { startDate, endDate };
+    if (selectedAccount) fetchConversations(selectedAccount.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate]);
+
+  // Exporta os contatos filtrados (período + status ativo) para CSV
+  const exportCsv = async () => {
+    if (!selectedAccount) return;
+    setIsExporting(true);
+    try {
+      const { startDate: sd, endDate: ed } = dateFilterRef.current;
+      const params = new URLSearchParams({ filter: convFilter });
+      if (sd && ed) { params.set("startDate", sd); params.set("endDate", ed); }
+      const res = await axios.get(
+        `${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/export?${params.toString()}`,
+        { responseType: "blob" }
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showAlert("Erro ao exportar CSV.", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Converte uma Date para YYYY-MM-DD local
+  const fmtDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dd}`;
+  };
+
+  // Aplica um atalho de período (calcula as datas; o efeito de [startDate,endDate] refaz a busca)
+  const applyPeriod = (p: string) => {
+    setPeriod(p);
+    if (p === "custom") return;
+    if (p === "") { setStartDate(""); setEndDate(""); return; }
+    const start = new Date();
+    const end = new Date();
+    if (p === "yesterday") { start.setDate(start.getDate() - 1); end.setDate(end.getDate() - 1); }
+    else if (p === "3days") { start.setDate(start.getDate() - 2); }
+    else if (p === "7days") { start.setDate(start.getDate() - 6); }
+    setStartDate(fmtDate(start));
+    setEndDate(fmtDate(end));
+  };
+
+  // Move um contato para a Lista Negra (some da lista e é ignorado em disparos)
+  const blacklistContact = async (phone: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!selectedAccount) return;
+    if (!window.confirm("Deseja mover este contato para a Lista Negra? Ele não aparecerá mais nos chats e será ignorado em futuros disparos.")) return;
+    try {
+      await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/${phone}/blacklist`, { blacklisted: true });
+      setConversations((prev) => prev.filter((c) => c.phone !== phone));
+      if (selectedPhone === phone) setSelectedPhone("");
+      showAlert("Contato movido para a Lista Negra.", "success");
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao bloquear contato.", "error");
     }
   };
 
@@ -335,6 +411,56 @@ export default function ChatPage() {
               </button>
             </div>
 
+            {/* Filtro por período + exportação de leads */}
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "8px" }}>
+              <select
+                value={period}
+                onChange={(e) => applyPeriod(e.target.value)}
+                className="field-input"
+                style={{ fontSize: "0.78rem", padding: "6px 8px", cursor: "pointer" }}
+                title="Filtrar conversas por período"
+              >
+                <option value="">Todos os períodos</option>
+                <option value="today">Hoje</option>
+                <option value="yesterday">Ontem</option>
+                <option value="3days">Últimos 3 dias</option>
+                <option value="7days">Últimos 7 dias</option>
+                <option value="custom">Personalizado</option>
+              </select>
+              {period === "custom" && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <input
+                    type="date"
+                    value={startDate}
+                    max={endDate || undefined}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="field-input"
+                    style={{ fontSize: "0.75rem", padding: "5px 8px", flex: 1, minWidth: 0 }}
+                    title="Data inicial"
+                  />
+                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>até</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="field-input"
+                    style={{ fontSize: "0.75rem", padding: "5px 8px", flex: 1, minWidth: 0 }}
+                    title="Data final"
+                  />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={exportCsv}
+                disabled={isExporting}
+                style={{ fontSize: "0.75rem", padding: "6px 10px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600 }}
+                title="Exportar os contatos filtrados para CSV"
+              >
+                {isExporting ? "Exportando..." : "⬇️ Exportar CSV"}
+              </button>
+            </div>
+
             {/* Filtros de conversas (chats) */}
             <div style={{ display: "flex", gap: "6px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap" }}>
               {CONV_FILTERS.map(f => {
@@ -408,6 +534,16 @@ export default function ChatPage() {
                       }}
                       className={`conv-item${isActive ? " active" : ""}`}
                     >
+                      <div className="conv-actions">
+                        <button
+                          type="button"
+                          className="conv-action-btn"
+                          title="Mover para a Lista Negra"
+                          onClick={(e) => blacklistContact(c.phone, e)}
+                        >
+                          🚫
+                        </button>
+                      </div>
                       <div className="conv-avatar">{initials}</div>
                       <div className="conv-item__body">
                         <div className="conv-item__top">

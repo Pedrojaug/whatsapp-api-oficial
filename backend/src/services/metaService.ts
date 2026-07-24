@@ -18,6 +18,38 @@ export const metaService = {
   },
 
   /**
+   * Sobe um arquivo binário para /{phoneNumberId}/media e retorna o media id.
+   * Monta o corpo multipart manualmente (sem dependência de form-data).
+   */
+  async uploadMediaBuffer(phoneNumberId: string, accessToken: string, file: Buffer, mimeType: string, filename: string): Promise<string> {
+    const boundary = "----SendInteligentte" + Date.now().toString(16);
+    const head = Buffer.from(
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="type"\r\n\r\n${mimeType}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
+      `Content-Type: ${mimeType}\r\n\r\n`
+    );
+    const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+    const body = Buffer.concat([head, file, tail]);
+    const res = await axios.post(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/media`,
+      body,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        },
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+      }
+    );
+    return String(res.data.id);
+  },
+
+  /**
    * Lista templates cadastrados na WABA
    */
   async fetchTemplates(wabaId: string, accessToken: string, limit?: number) {
@@ -166,5 +198,19 @@ export const metaService = {
     return axios.get(`https://graph.facebook.com/v21.0/${phoneNumberId}`, {
       headers: { Authorization: `Bearer ${accessToken}` }
     });
+  },
+
+  /**
+   * Inscreve a WABA comercial nos webhooks do aplicativo Tech Provider na Meta
+   */
+  async subscribeWabaToApp(wabaId: string, accessToken: string) {
+    return axios.post(
+      `https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`,
+      {},
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
   }
 };
+

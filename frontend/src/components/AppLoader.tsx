@@ -14,6 +14,15 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
   const taglineRef  = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // Garante que o overlay preto sempre saia — mesmo que a timeline do GSAP
+    // seja interrompida (ex.: navegação no meio da animação após o login).
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      onComplete();
+    };
+
     // Measure rendered text width so the brush travels the exact right distance
     const w = textWrapRef.current?.offsetWidth ?? 380;
 
@@ -80,10 +89,16 @@ export default function AppLoader({ onComplete }: AppLoaderProps) {
       duration: 0.85,
       ease: "power4.inOut",
       delay: 0.05,
-      onComplete,
+      onComplete: finish,
     });
 
-    return () => { tl.kill(); };
+    // Failsafe: se por qualquer motivo a timeline não concluir, libera a tela.
+    const failsafe = window.setTimeout(finish, 6000);
+
+    return () => {
+      window.clearTimeout(failsafe);
+      tl.kill();
+    };
   }, [onComplete]);
 
   const textStyle: React.CSSProperties = {

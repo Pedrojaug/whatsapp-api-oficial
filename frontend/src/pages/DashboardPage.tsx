@@ -25,8 +25,9 @@ export default function DashboardPage() {
     templateMetrics: []
   });
 
-  const fetchMetrics = async (accountId: string) => {
-    setIsLoadingMetrics(true);
+  const fetchMetrics = async (accountId: string, silent = false) => {
+    // silent: atualizacao em background (SSE) — nao esconde os cards com skeleton
+    if (!silent) setIsLoadingMetrics(true);
     try {
       let url = `${API_BASE_URL}/accounts/${accountId}/metrics?period=${metricsPeriod}`;
       if (metricsPeriod === "custom" && metricsStartDate) {
@@ -35,25 +36,35 @@ export default function DashboardPage() {
           url += `&endDate=${metricsEndDate}`;
         }
       }
-      const res = await axios.get(url);
+      const res = await axios.get(url, { timeout: 30000 });
       setMetricsData(res.data);
     } catch (err: any) {
       console.error("Erro ao buscar métricas:", err);
+      if (!silent) {
+        showAlert(
+          err.code === "ECONNABORTED"
+            ? "O servidor demorou para responder. Clique em Atualizar Dados para tentar novamente."
+            : err.response?.data?.error || "Erro ao carregar as métricas.",
+          "error"
+        );
+      }
     } finally {
-      setIsLoadingMetrics(false);
+      if (!silent) setIsLoadingMetrics(false);
     }
   };
 
   useEffect(() => {
-    if (selectedAccount) {
-      fetchMetrics(selectedAccount.id);
-    }
+    if (!selectedAccount) return;
+    // No período personalizado, busca apenas com as DUAS datas preenchidas —
+    // evita requisições intermediárias (e respostas fora de ordem) por campo.
+    if (metricsPeriod === "custom" && (!metricsStartDate || !metricsEndDate)) return;
+    fetchMetrics(selectedAccount.id);
   }, [selectedAccount, metricsPeriod, metricsStartDate, metricsEndDate]);
 
   // Se inscreve em atualizações SSE para atualizar os dados em tempo real
   useSSE((data: any) => {
     if (selectedAccount && data.accountId === selectedAccount.id) {
-      fetchMetrics(selectedAccount.id);
+      fetchMetrics(selectedAccount.id, true);
     }
   });
 
@@ -221,10 +232,10 @@ export default function DashboardPage() {
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
                     <span>Taxa de Entrega (Recebimento)</span>
-                    <span style={{ fontWeight: "600" }}>{totalAll > 0 ? Math.round(((totalDelivered + totalRead) / totalAll) * 100) : 0}%</span>
+                    <span style={{ fontWeight: "600" }}>{totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0}%</span>
                   </div>
                   <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${totalAll > 0 ? ((totalDelivered + totalRead) / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+                    <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
                   </div>
                 </div>
               </div>

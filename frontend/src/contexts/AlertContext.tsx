@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useRef } from "react";
 
 export type AlertType = "success" | "error" | "info";
 
@@ -11,9 +11,12 @@ const AlertContext = createContext<AlertContextType | undefined>(undefined);
 export const AlertProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [alert, setAlert] = useState<{ text: string; type?: AlertType } | null>(null);
 
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const showAlert = (text: string, type: AlertType = "info") => {
+    if (timerRef.current) clearTimeout(timerRef.current);
     setAlert({ text, type });
-    setTimeout(() => setAlert(null), 5000);
+    timerRef.current = setTimeout(() => setAlert(null), 5000);
   };
 
   return (

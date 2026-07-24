@@ -128,13 +128,27 @@ function DotGridCanvas() {
         ctx.fillRect(0, 0, w, h);
       }
 
-      animRef.current = requestAnimationFrame(draw);
+      // Pausa a animação quando a aba está oculta (economia de CPU/bateria)
+      if (!document.hidden) {
+        animRef.current = requestAnimationFrame(draw);
+      } else {
+        animRef.current = 0;
+      }
     };
 
     animRef.current = requestAnimationFrame(draw);
 
+    // Retoma a animação quando a aba volta a ficar visível
+    const onVisibility = () => {
+      if (!document.hidden && !animRef.current) {
+        animRef.current = requestAnimationFrame(draw);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelAnimationFrame(animRef.current);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseleave", onMouseLeave);
