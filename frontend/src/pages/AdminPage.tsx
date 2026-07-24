@@ -192,7 +192,7 @@ export default function AdminPage() {
     const isExpired = expiresAt && new Date(expiresAt) < new Date();
     if (isExpired && (status === "ACTIVE" || status === "TRIAL")) {
       return (
-        <span className="tag-chip" style={{ background: "rgba(239, 68, 68, 0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.4)", fontWeight: "700" }}>
+        <span className="tag-chip" style={{ background: "rgba(239, 68, 68, 0.25)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.5)", fontWeight: "700" }}>
           ⚠️ Vencido
         </span>
       );
@@ -201,36 +201,36 @@ export default function AdminPage() {
     switch (status) {
       case "ACTIVE":
         return (
-          <span className="tag-chip" style={{ background: "rgba(0, 194, 107, 0.2)", color: "#00c26b", border: "1px solid rgba(0,194,107,0.4)", fontWeight: "700" }}>
+          <span className="tag-chip" style={{ background: "rgba(16, 185, 129, 0.25)", color: "#34d399", border: "1px solid rgba(52,211,153,0.5)", fontWeight: "700" }}>
             🟢 Liberado (Ativo)
           </span>
         );
       case "TRIAL":
         return (
-          <span className="tag-chip" style={{ background: "rgba(59, 130, 246, 0.2)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.4)", fontWeight: "700" }}>
+          <span className="tag-chip" style={{ background: "rgba(59, 130, 246, 0.25)", color: "#93c5fd", border: "1px solid rgba(96,165,250,0.5)", fontWeight: "700" }}>
             🔵 Em Teste Grátis
           </span>
         );
       case "PAST_DUE":
         return (
-          <span className="tag-chip" style={{ background: "rgba(239, 68, 68, 0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.4)", fontWeight: "700" }}>
+          <span className="tag-chip" style={{ background: "rgba(239, 68, 68, 0.25)", color: "#fca5a5", border: "1px solid rgba(248,113,113,0.5)", fontWeight: "700" }}>
             🔴 Vencido / Bloqueado
           </span>
         );
       case "SUSPENDED":
       case "CANCELED":
         return (
-          <span className="tag-chip" style={{ background: "rgba(156, 163, 175, 0.2)", color: "#9ca3af", border: "1px solid rgba(156,163,175,0.4)", fontWeight: "700" }}>
+          <span className="tag-chip" style={{ background: "rgba(156, 163, 175, 0.25)", color: "#e5e7eb", border: "1px solid rgba(156,163,175,0.5)", fontWeight: "700" }}>
             ⚪ Suspenso
           </span>
         );
       default:
-        return <span className="tag-chip">{status}</span>;
+        return <span className="tag-chip" style={{ color: "#ffffff" }}>{status}</span>;
     }
   };
 
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "24px", paddingBottom: "80px" }}>
       {/* CABEÇALHO AMIGÁVEL */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
         <div>
@@ -416,7 +416,19 @@ export default function AdminPage() {
                     </td>
 
                     <td style={{ padding: "12px 10px" }}>
-                      <span className="tag-chip" style={{ background: "rgba(255,255,255,0.08)", fontWeight: "700", textTransform: "uppercase" }}>
+                      <span className="tag-chip" style={{
+                        background: (u.planTier === "pro" || u.planTier === "paid" || u.planTier === "enterprise")
+                          ? "rgba(16, 185, 129, 0.2)"
+                          : "rgba(255, 255, 255, 0.12)",
+                        color: (u.planTier === "pro" || u.planTier === "paid" || u.planTier === "enterprise")
+                          ? "#34d399"
+                          : "#e5e7eb",
+                        border: (u.planTier === "pro" || u.planTier === "paid" || u.planTier === "enterprise")
+                          ? "1px solid rgba(52, 211, 153, 0.4)"
+                          : "1px solid rgba(255, 255, 255, 0.2)",
+                        fontWeight: "700",
+                        textTransform: "uppercase"
+                      }}>
                         {u.planTier || "FREE"}
                       </span>
                     </td>
@@ -431,7 +443,7 @@ export default function AdminPage() {
                         : "Vitalício / Indefinido"}
                     </td>
 
-                    <td style={{ padding: "12px 10px", fontWeight: "700", color: "#00c26b" }}>
+                    <td style={{ padding: "12px 10px", fontWeight: "700", color: "#34d399" }}>
                       R$ {(u.monthlyPrice || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </td>
 
@@ -445,12 +457,15 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => handleQuickExtend30Days(u)}
-                          className="btn btn-primary"
+                          className="btn"
                           style={{
                             padding: "6px 12px",
                             fontSize: "0.8rem",
-                            background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
-                            boxShadow: "0 2px 8px rgba(16, 185, 129, 0.25)"
+                            fontWeight: "600",
+                            background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
+                            color: "#ffffff",
+                            border: "1px solid rgba(52, 211, 153, 0.4)",
+                            boxShadow: "0 2px 8px rgba(5, 150, 105, 0.3)"
                           }}
                           title="Estender acesso por +30 dias com um único clique"
                         >
@@ -461,8 +476,15 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => openPaymentModal(u)}
-                          className="btn btn-secondary"
-                          style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                          className="btn"
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "0.8rem",
+                            fontWeight: "600",
+                            background: "rgba(37, 99, 235, 0.25)",
+                            color: "#93c5fd",
+                            border: "1px solid rgba(59, 130, 246, 0.5)"
+                          }}
                           title="Registrar forma de pagamento e lançar recibo"
                         >
                           💳 Baixar Pagamento
@@ -472,8 +494,15 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => openHistoryModal(u)}
-                          className="btn btn-secondary"
-                          style={{ padding: "6px 10px", fontSize: "0.8rem" }}
+                          className="btn"
+                          style={{
+                            padding: "6px 10px",
+                            fontSize: "0.8rem",
+                            fontWeight: "600",
+                            background: "rgba(255, 255, 255, 0.1)",
+                            color: "#ffffff",
+                            border: "1px solid rgba(255, 255, 255, 0.2)"
+                          }}
                           title="Ver histórico de pagamentos anteriores do cliente"
                         >
                           📋 Recibos
@@ -483,8 +512,15 @@ export default function AdminPage() {
                         <button
                           type="button"
                           onClick={() => openEditModal(u)}
-                          className="btn btn-secondary"
-                          style={{ padding: "6px 12px", fontSize: "0.8rem" }}
+                          className="btn"
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "0.8rem",
+                            fontWeight: "600",
+                            background: "rgba(139, 92, 246, 0.25)",
+                            color: "#ddd6fe",
+                            border: "1px solid rgba(139, 92, 246, 0.5)"
+                          }}
                           title="Alterar plano, status de acesso e mensalidade"
                         >
                           ⚙️ Alterar Status
@@ -495,11 +531,15 @@ export default function AdminPage() {
                           <button
                             type="button"
                             onClick={() => handleLaunchImpersonate(u.id)}
-                            className="btn btn-primary"
+                            className="btn"
                             style={{
                               padding: "6px 12px",
                               fontSize: "0.8rem",
-                              background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)"
+                              fontWeight: "700",
+                              background: "linear-gradient(135deg, #d97706 0%, #b45309 100%)",
+                              color: "#ffffff",
+                              border: "1px solid rgba(251, 191, 36, 0.4)",
+                              boxShadow: "0 2px 8px rgba(217, 119, 6, 0.35)"
                             }}
                             title="Acessar a conta do cliente para ajudar no suporte"
                           >
