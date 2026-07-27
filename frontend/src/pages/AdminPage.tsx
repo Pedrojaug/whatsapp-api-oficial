@@ -173,6 +173,42 @@ export default function AdminPage() {
     }
   };
 
+  // EXCLUIR CONTA E APAGAR TODOS OS DADOS DO CLIENTE
+  const handleDeleteUser = async (u: any) => {
+    if (u.id === user?.id) {
+      showAlert("Você não pode excluir sua própria conta pelo painel admin.", "error");
+      return;
+    }
+
+    const confirmFirst = window.confirm(
+      `⚠️ ATENÇÃO: EXCLUSÃO PERMANENTE DE DADOS!\n\n` +
+      `Tem certeza que deseja EXCLUIR A CONTA de "${u.name || u.email}" (${u.email})?\n\n` +
+      `Esta ação é IRREVERSÍVEL e apagará DEFINITIVAMENTE todos os dados do cliente no banco de dados (linhas Meta, mensagens, listas de contatos, templates, campanhas, chaves de API e recibos).`
+    );
+
+    if (!confirmFirst) return;
+
+    const confirmWord = window.prompt(
+      `Para confirmar a exclusão permanente dos dados de ${u.email}, digite "EXCLUIR" em maiúsculas abaixo:`
+    );
+
+    if (confirmWord?.trim() !== "EXCLUIR") {
+      showAlert("Exclusão cancelada. A palavra de confirmação digitada não confere.", "info");
+      return;
+    }
+
+    try {
+      showAlert(`Apagando conta e dados de ${u.email}...`);
+      await axios.delete(`${API_BASE_URL}/admin/users/${u.id}`);
+      showAlert(`✅ A conta e todos os dados de ${u.name || u.email} foram apagados do banco de dados com sucesso.`, "success");
+      if (selectedUserForEdit?.id === u.id) setSelectedUserForEdit(null);
+      fetchData();
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.error || err.message || "Erro ao excluir conta.";
+      showAlert(`Erro ao excluir conta: ${errorMsg}`, "error");
+    }
+  };
+
   const filteredUsers = adminUsers.filter((u) => {
     const matchesSearch =
       (u.name && u.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -546,6 +582,27 @@ export default function AdminPage() {
                             🚪 Entrar como Suporte
                           </button>
                         )}
+
+                        {/* AÇÃO 6: EXCLUIR CONTA & APAGAR DADOS DO BD */}
+                        {u.id !== user?.id && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u)}
+                            className="btn"
+                            style={{
+                              padding: "6px 12px",
+                              fontSize: "0.8rem",
+                              fontWeight: "700",
+                              background: "rgba(239, 68, 68, 0.2)",
+                              color: "#fca5a5",
+                              border: "1px solid rgba(239, 68, 68, 0.5)",
+                              boxShadow: "0 2px 8px rgba(239, 68, 68, 0.2)"
+                            }}
+                            title="Excluir permanentemente a conta e apagar todos os dados do cliente do banco de dados"
+                          >
+                            🗑️ Excluir Conta
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -670,13 +727,33 @@ export default function AdminPage() {
                 ></textarea>
               </div>
 
-              <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
-                <button type="button" onClick={() => setSelectedUserForEdit(null)} className="btn btn-secondary">
-                  Cancelar
-                </button>
-                <button type="submit" className="btn btn-primary">
-                  💾 Salvar Alterações
-                </button>
+              <div className="modal-footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", marginTop: "10px" }}>
+                {selectedUserForEdit.id !== user?.id ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteUser(selectedUserForEdit)}
+                    className="btn"
+                    style={{
+                      padding: "8px 14px",
+                      fontSize: "0.85rem",
+                      fontWeight: "700",
+                      background: "rgba(239, 68, 68, 0.2)",
+                      color: "#fca5a5",
+                      border: "1px solid rgba(239, 68, 68, 0.5)"
+                    }}
+                  >
+                    🗑️ Excluir Conta & Dados
+                  </button>
+                ) : <div />}
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button type="button" onClick={() => setSelectedUserForEdit(null)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" className="btn btn-primary">
+                    💾 Salvar Alterações
+                  </button>
+                </div>
               </div>
             </form>
           </div>

@@ -457,7 +457,7 @@ router.patch("/users/:userId/role", requireSuperUser, async (req: AuthenticatedR
   }
 });
 
-// 10. EXCLUIR USUÁRIO
+// 10. EXCLUIR USUÁRIO E APAGAR TODOS OS SEUS DADOS DO BD
 router.delete("/users/:userId", requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
   const { userId } = req.params;
 
@@ -466,13 +466,23 @@ router.delete("/users/:userId", requireSuperUser, async (req: AuthenticatedReque
   }
 
   try {
+    const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
+      return res.status(404).json({ error: "Usuário não encontrado." });
+    }
+
+    // Com onDelete: Cascade no schema.prisma, ao deletar o User, o Prisma apaga automaticamente:
+    // Accounts, Messages, ContactLists, Contacts, WhatsAppContacts, MediaAssets, TrackedLinks, ApiKeys, Campaigns, CampaignRuns, OptOuts, PaymentRecords e AccountShares
     await prisma.user.delete({
       where: { id: userId }
     });
 
-    res.json({ message: "Usuário removido com sucesso." });
+    console.log(`[Admin] Usuário ${targetUser.email} (ID: ${userId}) e todos os seus dados foram excluídos permanentemente por Admin ID: ${req.userId}`);
+
+    res.json({ message: `A conta de ${targetUser.name || targetUser.email} e todos os seus dados foram apagados permanentemente do banco de dados.` });
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("[Admin] Erro ao excluir usuário:", error);
+    res.status(500).json({ error: error.message || "Erro ao excluir usuário do banco de dados." });
   }
 });
 
