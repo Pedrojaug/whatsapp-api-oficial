@@ -478,9 +478,6 @@ export default function Layout() {
             <NavLink to="/api-keys" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
               <KeyRound size={18} className="nav-icon" /> API Pública
             </NavLink>
-            <NavLink to="/subscription" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <CreditCard size={18} className="nav-icon" /> Assinatura & Plano
-            </NavLink>
             {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
               <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
                 <Wrench size={18} className="nav-icon" /> Administração

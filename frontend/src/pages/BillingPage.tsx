@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { API_BASE_URL } from "../contexts/AuthContext";
+import { API_BASE_URL, useAuth } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
 import { formatPlanTier } from "../utils/formatters";
+import { Check, ArrowRight } from "lucide-react";
 
 export default function BillingPage() {
   const { showAlert } = useAlert();
+  const { user } = useAuth();
   const [planData, setPlanData] = useState<any>(null);
   const [history, setHistory] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPlans, setShowPlans] = useState(false);
 
   const fetchBillingInfo = async () => {
     setLoading(true);
@@ -42,9 +45,13 @@ export default function BillingPage() {
 
   const isExpired = planData?.subscriptionExpiresAt && new Date(planData.subscriptionExpiresAt) < new Date();
   const isPastDue = planData?.subscriptionStatus === "PAST_DUE" || isExpired;
+  const isPaid = planData?.planTier === "paid" || user?.planTier === "paid";
+  const isSuperUser = user?.role === "SUPERUSER";
 
   const accountsPercent = Math.min(100, Math.round(((planData?.connectedAccountsCount || 0) / (planData?.maxAccounts || 1)) * 100));
   const messagesPercent = Math.min(100, Math.round(((planData?.monthlyMessagesSent || 0) / (planData?.maxMonthlyMessages || 5000)) * 100));
+
+  const PAYMENT_WA = `https://wa.me/5583920017106?text=${encodeURIComponent("Olá! Quero ativar/renovar meu plano no Send Inteligentte. Meu e-mail é: " + (user?.email || ""))}`;
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
@@ -80,13 +87,13 @@ export default function BillingPage() {
             </p>
           </div>
           <a
-            href={planData?.commercialPageUrl || "https://github.com/pedro-sls/send-inteligentte-comercial"}
+            href={PAYMENT_WA}
             target="_blank"
             rel="noreferrer"
             className="btn btn-primary"
             style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)", boxShadow: "0 4px 14px 0 rgba(239,68,68,0.3)" }}
           >
-            ⚡ Renovar Agora
+            ⚡ Renovar Agora via WhatsApp
           </a>
         </div>
       )}
@@ -193,17 +200,166 @@ export default function BillingPage() {
           <p style={{ fontSize: "0.85rem", color: "var(--text-secondary)" }}>
             Conheça nossos planos empresariais avançados com disparos ilimitados e suporte dedicado.
           </p>
-          <a
-            href={planData?.commercialPageUrl || "https://github.com/pedro-sls/send-inteligentte-comercial"}
-            target="_blank"
-            rel="noreferrer"
-            className="btn btn-primary"
-            style={{ width: "100%", textAlign: "center", display: "inline-block", padding: "10px 16px" }}
-          >
-            🚀 Ver Opções de Upgrade
-          </a>
+          <div style={{ display: "flex", gap: "10px", width: "100%", flexWrap: "wrap" }}>
+            <button
+              onClick={() => setShowPlans(!showPlans)}
+              className="btn btn-secondary"
+              style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "10px 16px" }}
+            >
+              {showPlans ? "▲ Ocultar Planos" : "▼ Ver Comparativo de Planos"}
+            </button>
+            <a
+              href={PAYMENT_WA}
+              target="_blank"
+              rel="noreferrer"
+              className="btn btn-primary"
+              style={{ flex: 1, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "10px 16px", textDecoration: "none" }}
+            >
+              🚀 Upgrade via WhatsApp
+            </a>
+          </div>
         </div>
       </div>
+
+      {/* PLAN CARDS COMPARISON (VISÍVEL QUANDO SOLICITADO OU SE NÃO FOR PAGO) */}
+      {(showPlans || !isPaid) && (
+        <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Opções de Planos Disponíveis</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "24px" }}>
+            {/* Trial Plan Card */}
+            <div className="glass" style={{
+              padding: "32px",
+              borderRadius: "var(--radius-xl)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+              border: !isPaid && !isSuperUser ? "1.5px solid rgba(245, 158, 11, 0.4)" : "1px solid rgba(255,255,255,0.08)"
+            }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "#f59e0b", textTransform: "uppercase", letterSpacing: "0.05em" }}>Iniciante</span>
+                  {!isPaid && !isSuperUser && (
+                    <span style={{ fontSize: "0.75rem", background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", padding: "2px 8px", borderRadius: "4px", fontWeight: 600 }}>Plano Atual</span>
+                  )}
+                </div>
+                <h3 style={{ fontSize: "1.5rem", fontWeight: "700" }}>Teste Gratuito</h3>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "12px" }}>
+                  <span style={{ fontSize: "2.2rem", fontWeight: "800" }}>R$ 0</span>
+                  <span style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>/ 3 dias</span>
+                </div>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginTop: "8px" }}>
+                  Período de avaliação para explorar todas as funcionalidades do Send Inteligentte.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> 3 dias de acesso total aos recursos
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Conexão de conta Meta API Oficial
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Criação e sincronização de Templates
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Importação de listas de contatos
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Disparos em fila com outbox pattern
+                </div>
+              </div>
+            </div>
+
+            {/* Pro Plan Card */}
+            <div className="glass" style={{
+              padding: "32px",
+              borderRadius: "var(--radius-xl)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "20px",
+              position: "relative",
+              background: "linear-gradient(180deg, rgba(0,194,107,0.08) 0%, rgba(5,7,15,0.4) 100%)",
+              border: isPaid ? "2px solid var(--primary)" : "1px solid rgba(0, 194, 107, 0.4)",
+              boxShadow: "0 10px 30px -10px rgba(0, 194, 107, 0.2)"
+            }}>
+              <div style={{
+                position: "absolute",
+                top: "-12px",
+                right: "24px",
+                background: "linear-gradient(135deg, #00c26b 0%, #009652 100%)",
+                color: "#fff",
+                padding: "4px 12px",
+                borderRadius: "20px",
+                fontSize: "0.75rem",
+                fontWeight: "700",
+                letterSpacing: "0.05em",
+                boxShadow: "0 4px 12px rgba(0,194,107,0.3)"
+              }}>
+                RECOMENDADO
+              </div>
+
+              <div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                  <span style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Empresarial</span>
+                  {isPaid && (
+                    <span style={{ fontSize: "0.75rem", background: "rgba(0, 194, 107, 0.2)", color: "var(--primary)", padding: "2px 8px", borderRadius: "4px", fontWeight: 600 }}>Seu Plano Ativo</span>
+                  )}
+                </div>
+                <h3 style={{ fontSize: "1.5rem", fontWeight: "700" }}>Send Inteligentte Pro</h3>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "12px" }}>
+                  <span style={{ fontSize: "2.2rem", fontWeight: "800", color: "var(--primary)" }}>Plano Pro</span>
+                </div>
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.88rem", marginTop: "8px" }}>
+                  Acesso completo sem restrições para automatizar seu atendimento e vendas pelo WhatsApp.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: "16px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> <strong>Tudo do plano de teste</strong> + envios contínuos
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Multi-contas de WhatsApp Business
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Agendamento e campanhas recorrentes
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Rastreamento avançado de cliques em links
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Chaves de API Pública para n8n, Make e Zapier
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.88rem" }}>
+                  <Check size={16} color="#00c26b" /> Suporte técnico dedicado via WhatsApp
+                </div>
+              </div>
+
+              <a
+                href={PAYMENT_WA}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                style={{
+                  width: "100%",
+                  textAlign: "center",
+                  padding: "14px",
+                  fontSize: "0.95rem",
+                  marginTop: "auto",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  textDecoration: "none"
+                }}
+              >
+                {isPaid ? "Falar sobre Upgrade" : "Ativar Plano Pro Agora"} <ArrowRight size={16} />
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* HISTÓRICO DE PAGAMENTOS */}
       <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
