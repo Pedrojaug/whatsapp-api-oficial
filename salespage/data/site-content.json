@@ -1,0 +1,24 @@
+{
+  "announcement": "Oferta especial para operações comerciais que querem vender mais pelo WhatsApp.",
+  "heroBadge": "WhatsApp Business API Oficial",
+  "heroTitle": "Dispare campanhas no WhatsApp com uma estrutura feita para vender.",
+  "heroDescription": "O Send Inteligente centraliza listas, templates aprovados pela Meta, envios em escala e acompanhamento de entrega em um painel claro para times comerciais.",
+  "primaryCta": "Quero vender pelo WhatsApp",
+  "secondaryCta": "Ver o que inclui",
+  "proofItems": [
+    "API Oficial da Meta",
+    "Templates aprovados",
+    "Checkout Asaas"
+  ],
+  "previewCampaign": "Recuperação de orçamentos",
+  "templateMessage": "Olá, {{nome}}. Seu atendimento está pronto para continuar. Clique no botão abaixo para falar com nosso time.",
+  "offerKicker": "Oferta de implantação",
+  "offerTitle": "Comece com o Send Inteligente pronto para sua primeira campanha.",
+  "offerDescription": "Assine, conclua o pagamento pelo Asaas e receba o fluxo de boas-vindas com os próximos passos para ativar sua operação de disparos.",
+  "inclusions": [
+    "Configuração inicial do ambiente",
+    "Organização de listas e tags",
+    "Orientação para templates Meta",
+    "Boas-vindas automatizadas após pagamento"
+  ]
+}

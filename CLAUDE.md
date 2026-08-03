@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-**Send Inteligentte** is a multi-tenant WhatsApp Business SaaS for bulk/automated message dispatching via the Meta WhatsApp Business Cloud API v19. It is a TypeScript monorepo with a `backend/` (Express + Prisma) and `frontend/` (React 19 + Vite).
+**Send Inteligentte** is a multi-tenant WhatsApp Business SaaS for bulk/automated message dispatching via the Meta WhatsApp Business Cloud API v19. It is a TypeScript monorepo with a `backend/` (Express + Prisma), `frontend/` (React 19 + Vite dashboard), and `salespage/` (Next.js 16 + React 19 sales & marketing landing page).
 
-Deployed on **Render** (backend) and **Vercel** (frontend). Database is **Neon** (serverless PostgreSQL).
+Deployed on **Render** (backend), **Vercel** (frontend & salespage). Database is **Neon** (serverless PostgreSQL).
 
 ---
 
@@ -23,11 +23,18 @@ npx ts-node --project tsconfig.json src/<file>.ts  # run a one-off script
 
 **Schema changes:** always use `npx prisma db push` (never `prisma migrate dev` — non-interactive env fails). This also regenerates the Prisma Client.
 
-### Frontend (`cd frontend/`)
+### Frontend Dashboard (`cd frontend/`)
 ```bash
 npm run dev    # Vite dev server on :5173
 npm run build  # tsc -b && vite build
 npm run lint   # eslint
+```
+
+### Sales Page (`cd salespage/`)
+```bash
+npm run dev    # Next.js dev server on :3000
+npm run build  # Next.js production build
+npm run start  # Start production server
 ```
 
 ### Type checking (no build)
