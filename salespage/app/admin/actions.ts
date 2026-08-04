@@ -22,6 +22,22 @@ export async function logoutAdmin() {
   redirect("/");
 }
 
+/** Junta campos paralelos (name="a" e name="b") em uma lista de objetos. */
+function zipFields<T extends Record<string, string>>(formData: FormData, keys: (keyof T & string)[]): T[] {
+  const columns = keys.map((key) => formData.getAll(key).map(String));
+  const rows = Math.max(...columns.map((column) => column.length), 0);
+
+  return Array.from({ length: rows }, (_, index) => {
+    const row = {} as T;
+
+    keys.forEach((key, keyIndex) => {
+      row[key] = (columns[keyIndex][index] ?? "") as T[typeof key];
+    });
+
+    return row;
+  });
+}
+
 export async function updateHomeContent(formData: FormData) {
   if (!(await isAdminAuthenticated())) {
     redirect("/admin");
@@ -41,6 +57,13 @@ export async function updateHomeContent(formData: FormData) {
     offerTitle: String(formData.get("offerTitle") ?? ""),
     offerDescription: String(formData.get("offerDescription") ?? ""),
     inclusions: formData.getAll("inclusions").map(String),
+    socialProofLabel: String(formData.get("socialProofLabel") ?? ""),
+    metrics: zipFields<{ value: string; label: string }>(formData, ["value", "label"]),
+    testimonials: zipFields<{ quote: string; author: string; role: string }>(formData, ["quote", "author", "role"]),
+    guarantee: String(formData.get("guarantee") ?? ""),
+    faq: zipFields<{ question: string; answer: string }>(formData, ["question", "answer"]),
+    finalCtaTitle: String(formData.get("finalCtaTitle") ?? ""),
+    finalCtaDescription: String(formData.get("finalCtaDescription") ?? ""),
   });
 
   revalidatePath("/");

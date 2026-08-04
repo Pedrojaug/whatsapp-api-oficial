@@ -2,8 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { BagIcon } from "@/components/icons";
-import { formatCurrency, plans, type Plan } from "@/lib/plans";
+import { ArrowRightIcon, CheckIcon, LockIcon, ShieldIcon } from "@/components/icons";
+import {
+  formatCurrency,
+  formatCurrencyPrecise,
+  monthlyEquivalent,
+  plans,
+  savingsAmount,
+  type Plan,
+} from "@/lib/plans";
 
 type CheckoutFormProps = {
   plan: Plan;
@@ -22,6 +29,8 @@ export function CheckoutForm({ plan }: CheckoutFormProps) {
   const [selectedPlan, setSelectedPlan] = useState(plan);
   const [payment, setPayment] = useState<PaymentMethod>("pix");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const saving = savingsAmount(selectedPlan);
 
   function handlePlanChange(slug: string) {
     const nextPlan = plans.find((availablePlan) => availablePlan.slug === slug) ?? selectedPlan;
@@ -44,10 +53,11 @@ export function CheckoutForm({ plan }: CheckoutFormProps) {
   return (
     <section className="checkout-layout">
       <aside className="order-panel">
-        <span className="section-kicker">Resumo</span>
+        <span className="section-kicker">Resumo do pedido</span>
         <h2>Send Inteligente</h2>
+
         <div className="checkout-plan-picker" aria-label="Alterar plano">
-          <span>Alterar plano</span>
+          <span>Período de cobrança</span>
           {plans.map((availablePlan) => (
             <label className="checkout-plan-choice" key={availablePlan.slug}>
               <input
@@ -60,32 +70,52 @@ export function CheckoutForm({ plan }: CheckoutFormProps) {
               <span className="checkout-plan-card">
                 <strong>
                   {availablePlan.name}
-                  <small>{availablePlan.period}</small>
+                  <small>
+                    {availablePlan.months > 1
+                      ? `${formatCurrencyPrecise(monthlyEquivalent(availablePlan))} por mês`
+                      : "valor cheio por mês"}
+                  </small>
                 </strong>
                 <em>{formatCurrency(availablePlan.price)}</em>
               </span>
             </label>
           ))}
         </div>
+
         <div className="order-line">
           <span>Plano</span>
           <strong>{selectedPlan.name}</strong>
         </div>
         <div className="order-line">
-          <span>Total</span>
-          <strong>{formatCurrency(selectedPlan.price)}</strong>
-        </div>
-        <div className="order-line">
           <span>Recorrência</span>
           <strong>{selectedPlan.period}</strong>
         </div>
+        {saving > 0 ? (
+          <div className="order-line">
+            <span>Economia no período</span>
+            <strong className="is-green">−{formatCurrency(saving)}</strong>
+          </div>
+        ) : null}
+        <div className="order-line is-total">
+          <span>Total hoje</span>
+          <strong>{formatCurrency(selectedPlan.price)}</strong>
+        </div>
+
         <div className="safe-box">
-          <strong>Inclui</strong>
-          <span>Disparos pela API Oficial da Meta, listas, templates e métricas.</span>
+          <strong>
+            <CheckIcon />
+            Incluso na assinatura
+          </strong>
+          <span>
+            Disparos pela API Oficial da Meta, listas e segmentação, templates, campanhas recorrentes, relatórios e
+            ativação assistida do seu número.
+          </span>
         </div>
       </aside>
 
       <form className="checkout-form" onSubmit={handleSubmit}>
+        <h2>Seus dados</h2>
+
         <input type="hidden" name="plan" value={selectedPlan.slug} />
         <div className="form-grid">
           <label>
@@ -125,11 +155,23 @@ export function CheckoutForm({ plan }: CheckoutFormProps) {
           })}
         </div>
 
-        <button className="primary-button full-width" type="submit" disabled={isSubmitting}>
-          <BagIcon />
-          {isSubmitting ? "Confirmando pagamento..." : "Finalizar com Asaas"}
+        <button className="primary-button large full-width" type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Confirmando pagamento..." : `Assinar por ${formatCurrency(selectedPlan.price)}`}
+          {isSubmitting ? null : <ArrowRightIcon />}
         </button>
-        <p className="fine-print">A confirmação do pagamento libera a sequência de boas-vindas.</p>
+
+        <div className="trust-row">
+          <span>
+            <LockIcon />
+            Pagamento processado pelo Asaas
+          </span>
+          <span>
+            <ShieldIcon />
+            Seus dados não são compartilhados
+          </span>
+        </div>
+
+        <p className="fine-print">A confirmação do pagamento libera a sequência de boas-vindas e a ativação.</p>
       </form>
     </section>
   );

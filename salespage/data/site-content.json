@@ -1,24 +1,89 @@
 {
-  "announcement": "Oferta especial para operações comerciais que querem vender mais pelo WhatsApp.",
-  "heroBadge": "WhatsApp Business API Oficial",
-  "heroTitle": "Dispare campanhas no WhatsApp com uma estrutura feita para vender.",
-  "heroDescription": "O Send Inteligente centraliza listas, templates aprovados pela Meta, envios em escala e acompanhamento de entrega em um painel claro para times comerciais.",
-  "primaryCta": "Quero vender pelo WhatsApp",
-  "secondaryCta": "Ver o que inclui",
+  "announcement": "Ativação assistida incluída — primeira campanha no ar esta semana.",
+  "heroBadge": "WhatsApp Business API Oficial da Meta",
+  "heroTitle": "Dispare campanhas no WhatsApp *sem arriscar o seu número*.",
+  "heroDescription": "Disparo em massa pela API Oficial da Meta: templates aprovados, campanhas recorrentes e opt-out automático para cumprir a LGPD.",
+  "primaryCta": "Quero ativar minha conta",
+  "secondaryCta": "Ver como funciona",
   "proofItems": [
     "API Oficial da Meta",
-    "Templates aprovados",
-    "Checkout Asaas"
+    "Opt-out automático (LGPD)",
+    "Suporte na ativação"
   ],
   "previewCampaign": "Recuperação de orçamentos",
-  "templateMessage": "Olá, {{nome}}. Seu atendimento está pronto para continuar. Clique no botão abaixo para falar com nosso time.",
-  "offerKicker": "Oferta de implantação",
-  "offerTitle": "Comece com o Send Inteligente pronto para sua primeira campanha.",
-  "offerDescription": "Assine, conclua o pagamento pelo Asaas e receba o fluxo de boas-vindas com os próximos passos para ativar sua operação de disparos.",
+  "templateMessage": "Olá, {{nome}}. Seu orçamento continua reservado até amanhã. Toque no botão abaixo para falar com nosso time e garantir a condição.",
+  "offerKicker": "Planos",
+  "offerTitle": "Um plano só. Escolha a periodicidade.",
+  "offerDescription": "Todo mundo recebe todos os recursos. Quanto maior o período, menor o valor por mês.",
   "inclusions": [
-    "Configuração inicial do ambiente",
-    "Organização de listas e tags",
-    "Orientação para templates Meta",
-    "Boas-vindas automatizadas após pagamento"
-  ]
+    "Configuração assistida do número oficial",
+    "Importação e organização das suas listas",
+    "Criação dos primeiros templates Meta",
+    "Acompanhamento na primeira campanha"
+  ],
+  "socialProofLabel": "Operações que já disparam com o Send Inteligente",
+  "metrics": [
+    {
+      "value": "[NÚMERO]",
+      "label": "mensagens entregues por mês"
+    },
+    {
+      "value": "[NÚMERO]",
+      "label": "operações comerciais ativas"
+    },
+    {
+      "value": "[NÚMERO]%",
+      "label": "de taxa média de entrega"
+    },
+    {
+      "value": "[NÚMERO]",
+      "label": "minutos para colocar no ar"
+    }
+  ],
+  "testimonials": [
+    {
+      "quote": "[SUBSTITUIR: depoimento real de um cliente, citando um resultado concreto — ex.: quantos orçamentos foram recuperados no primeiro mês.]",
+      "author": "[Nome do cliente]",
+      "role": "[Cargo] · [Empresa]"
+    },
+    {
+      "quote": "[SUBSTITUIR: depoimento real focado em segurança e conformidade — ex.: parou de usar API não oficial e nunca mais teve número bloqueado.]",
+      "author": "[Nome do cliente 2]",
+      "role": "[Cargo] · [Empresa]"
+    },
+    {
+      "quote": "[SUBSTITUIR: depoimento real focado em produtividade — ex.: tempo economizado por semana com campanhas recorrentes.]",
+      "author": "[Nome do cliente 3]",
+      "role": "[Cargo] · [Empresa]"
+    }
+  ],
+  "guarantee": "[SUBSTITUIR OU REMOVER: descreva aqui a sua garantia real — por exemplo, período de teste, política de reembolso ou compromisso de ativação. Não publique uma garantia que você não pretende honrar.]",
+  "faq": [
+    {
+      "question": "Preciso ter uma conta na Meta para usar?",
+      "answer": "Sim, o disparo acontece pela sua conta do WhatsApp Business. Na ativação conduzimos tudo com você: conexão do número, verificação do negócio e primeiros templates."
+    },
+    {
+      "question": "Posso usar o número que já uso hoje?",
+      "answer": "Ao migrar para a API Oficial, o número sai do app comum — ele só existe em um lugar por vez. Muita gente mantém o atendimento no número atual e ativa um segundo para campanhas."
+    },
+    {
+      "question": "O custo das conversas está incluso na assinatura?",
+      "answer": "Não. A assinatura cobre a plataforma. As conversas são cobradas pela própria Meta, direto na sua conta, pela tabela oficial dela."
+    },
+    {
+      "question": "Corro risco de ter o número bloqueado?",
+      "answer": "O bloqueio é o risco de quem usa API não oficial. Aqui todo envio passa pela API Oficial, com templates aprovados e opt-out automático de quem responde “SAIR”."
+    },
+    {
+      "question": "Existe limite de mensagens?",
+      "answer": "O limite é o da sua conta na Meta, que sobe conforme a qualidade do número. A plataforma não impõe teto e reenvia sozinha em caso de falha."
+    },
+    {
+      "question": "Consigo integrar com meu CRM ou com o n8n?",
+      "answer": "Sim. Uma API pública com chave própria dispara e consulta status via código — integra com CRM, e-commerce, n8n ou qualquer sistema HTTP."
+    }
+  ],
+  "finalCtaTitle": "Sua próxima campanha pode sair hoje.",
+  "finalCtaDescription": "Assine, conecte seu número oficial e coloque a primeira campanha no ar com a gente junto."
 }

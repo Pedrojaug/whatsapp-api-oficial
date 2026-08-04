@@ -27,10 +27,10 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       <div className="checkout-page">
         <section className="checkout-copy">
           <span className="pill success">Checkout Asaas</span>
-          <h1>Finalize sua assinatura e receba o acesso de boas-vindas.</h1>
+          <h1>Falta pouco para sua primeira campanha.</h1>
           <p>
-            Após a confirmação do pagamento, o Send dispara automaticamente a sequência de recepção com as orientações
-            de ativação.
+            Preencha seus dados e escolha como prefere pagar. Assim que a confirmação chegar, começamos a ativação do
+            seu número e você recebe as orientações por WhatsApp e e-mail.
           </p>
 
           <div className="checkout-steps" aria-label="Etapas do checkout">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
-import { ChartIcon, CheckIcon } from "@/components/icons";
+import { ArrowRightIcon, CheckIcon } from "@/components/icons";
 import { getPlan } from "@/lib/plans";
 
 type WelcomePageProps = {
@@ -26,8 +26,8 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           </span>
           <h1>Bem-vindo ao Send Inteligente, {displayName}.</h1>
           <p>
-            Sua assinatura {plan.name.toLowerCase()} foi recebida. A sequência de boas-vindas já pode enviar as
-            orientações iniciais por WhatsApp e e-mail.
+            Sua assinatura {plan.name.toLowerCase()} foi recebida. A partir daqui, a sequência de boas-vindas assume e
+            envia as orientações iniciais por WhatsApp e e-mail.
           </p>
 
           <div className="welcome-sequence">
@@ -49,14 +49,18 @@ export default async function WelcomePage({ searchParams }: WelcomePageProps) {
           </div>
 
           <div className="hero-actions centered-actions">
-            <Link className="primary-button" href="/admin">
-              <ChartIcon />
+            <Link className="primary-button large" href="/admin">
               Acessar painel
+              <ArrowRightIcon />
             </Link>
-            <Link className="secondary-button" href="/">
-              Voltar para oferta
+            <Link className="secondary-button large" href="/">
+              Voltar para a página
             </Link>
           </div>
+
+          <p className="fine-print">
+            Não recebeu nada em alguns minutos? Verifique o WhatsApp informado no checkout e a caixa de spam do e-mail.
+          </p>
         </section>
       </div>
     </main>
