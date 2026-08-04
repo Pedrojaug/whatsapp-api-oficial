@@ -41,21 +41,20 @@ export type SiteContent = {
 };
 
 export const defaultSiteContent: SiteContent = {
-  announcement: "Ativação assistida incluída — sua primeira campanha no ar ainda esta semana.",
+  announcement: "Ativação assistida incluída — primeira campanha no ar esta semana.",
   heroBadge: "WhatsApp Business API Oficial da Meta",
   heroTitle: "Dispare campanhas no WhatsApp *sem arriscar o seu número*.",
   heroDescription:
-    "O Send Inteligente é a plataforma de disparo em massa pela API Oficial da Meta: listas segmentadas, templates aprovados, campanhas recorrentes e métricas de entrega em tempo real — com opt-out automático para manter sua operação dentro da LGPD.",
+    "Disparo em massa pela API Oficial da Meta: templates aprovados, campanhas recorrentes e opt-out automático para cumprir a LGPD.",
   primaryCta: "Quero ativar minha conta",
   secondaryCta: "Ver como funciona",
   proofItems: ["API Oficial da Meta", "Opt-out automático (LGPD)", "Suporte na ativação"],
   previewCampaign: "Recuperação de orçamentos",
   templateMessage:
     "Olá, {{nome}}. Seu orçamento continua reservado até amanhã. Toque no botão abaixo para falar com nosso time e garantir a condição.",
-  offerKicker: "Escolha seu plano",
-  offerTitle: "Um preço só. Disparos, automações e relatórios inclusos.",
-  offerDescription:
-    "Sem taxa de setup e sem cobrança por usuário. Você assina, conecta seu número oficial e já começa a disparar — quanto maior o período, menor o valor por mês.",
+  offerKicker: "Planos",
+  offerTitle: "Um plano só. Escolha a periodicidade.",
+  offerDescription: "Todo mundo recebe todos os recursos. Quanto maior o período, menor o valor por mês.",
   inclusions: [
     "Configuração assistida do número oficial",
     "Importação e organização das suas listas",
@@ -95,38 +94,50 @@ export const defaultSiteContent: SiteContent = {
     {
       question: "Preciso ter uma conta na Meta para usar?",
       answer:
-        "Sim, o disparo acontece pela sua própria conta do WhatsApp Business na Meta. Na ativação nós conduzimos esse processo com você: conexão do número, verificação do negócio e criação dos primeiros templates.",
+        "Sim, o disparo acontece pela sua conta do WhatsApp Business. Na ativação conduzimos tudo com você: conexão do número, verificação do negócio e primeiros templates.",
     },
     {
       question: "Posso usar o número que já uso hoje?",
       answer:
-        "Um número só pode estar em um lugar por vez: ao migrar para a API Oficial, ele deixa de funcionar no aplicativo do WhatsApp comum. Muitas operações preferem manter o número de atendimento no app e ativar um segundo número para as campanhas. Avaliamos o seu caso na ativação.",
+        "Ao migrar para a API Oficial, o número sai do app comum — ele só existe em um lugar por vez. Muita gente mantém o atendimento no número atual e ativa um segundo para campanhas.",
     },
     {
       question: "O custo das conversas está incluso na assinatura?",
       answer:
-        "Não. A assinatura do Send Inteligente cobre a plataforma — disparos, automações, listas, templates e relatórios. As conversas são cobradas pela própria Meta, direto na sua conta, conforme a tabela oficial dela por país e categoria de mensagem.",
+        "Não. A assinatura cobre a plataforma. As conversas são cobradas pela própria Meta, direto na sua conta, pela tabela oficial dela.",
     },
     {
       question: "Corro risco de ter o número bloqueado?",
       answer:
-        "O bloqueio é o risco típico de quem dispara por API não oficial. Aqui todo envio passa pela API Oficial da Meta, com templates previamente aprovados e opt-out automático: quem responde “SAIR” ou “PARAR” é removido da base e deixa de receber disparos imediatamente.",
+        "O bloqueio é o risco de quem usa API não oficial. Aqui todo envio passa pela API Oficial, com templates aprovados e opt-out automático de quem responde “SAIR”.",
     },
     {
       question: "Existe limite de mensagens?",
       answer:
-        "O limite é o da sua própria conta na Meta, que aumenta conforme a qualidade e o histórico do seu número. A plataforma não impõe teto de disparos e trabalha com fila e reenvio automático em caso de falha temporária.",
+        "O limite é o da sua conta na Meta, que sobe conforme a qualidade do número. A plataforma não impõe teto e reenvia sozinha em caso de falha.",
     },
     {
       question: "Consigo integrar com meu CRM ou com o n8n?",
       answer:
-        "Sim. Além do painel, existe uma API pública com chave própria para disparar mensagens e consultar status de forma programática — o que permite integrar com CRM, e-commerce, n8n ou qualquer sistema que faça requisições HTTP.",
+        "Sim. Uma API pública com chave própria dispara e consulta status via código — integra com CRM, e-commerce, n8n ou qualquer sistema HTTP.",
     },
   ],
   finalCtaTitle: "Sua próxima campanha pode sair hoje.",
-  finalCtaDescription:
-    "Assine, conecte seu número oficial e conte com a nossa ativação assistida para colocar a primeira campanha no ar sem travar em detalhe técnico.",
+  finalCtaDescription: "Assine, conecte seu número oficial e coloque a primeira campanha no ar com a gente junto.",
 };
+
+/**
+ * Reconhece conteúdo de exemplo ainda não preenchido — "[SUBSTITUIR: ...]",
+ * "[NÚMERO]", "[Nome do cliente]".
+ *
+ * O texto continua no JSON e visível no editor, servindo de instrução para
+ * quem preenche; a landing é que não publica. Métrica ou depoimento inventado
+ * é prova social falsa, e "[SUBSTITUIR]" no ar converte pior que a ausência
+ * da seção.
+ */
+export function isPlaceholder(value: string | undefined) {
+  return /\[\s*(SUBSTITUIR|N[ÚU]MERO|Nome|Cargo|Empresa)/i.test(value ?? "");
+}
 
 const contentPath = path.join(process.cwd(), "data", "site-content.json");
 

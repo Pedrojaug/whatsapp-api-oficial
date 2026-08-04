@@ -30,7 +30,7 @@ import {
   savingsAmount,
   savingsPercent,
 } from "@/lib/plans";
-import type { SiteContent } from "@/lib/site-content";
+import { isPlaceholder, type SiteContent } from "@/lib/site-content";
 
 type SalesLandingProps = {
   content: SiteContent;
@@ -145,6 +145,14 @@ export function SalesLanding({ content }: SalesLandingProps) {
   const featuredPlan = plans.find((plan) => plan.featured) ?? plans[0];
   const checkoutHref = `/checkout?plano=${featuredPlan.slug}`;
 
+  /* Conteúdo de exemplo não vai ao ar: a seção some inteira até ser preenchida
+     no /admin/conteudo, e volta sozinha depois. */
+  const metrics = content.metrics.filter((metric) => !isPlaceholder(metric.value) && !isPlaceholder(metric.label));
+  const testimonials = content.testimonials.filter(
+    (testimonial) => !isPlaceholder(testimonial.quote) && !isPlaceholder(testimonial.author),
+  );
+  const guarantee = isPlaceholder(content.guarantee) ? "" : content.guarantee;
+
   return (
     <>
       <MotionLayer />
@@ -220,17 +228,19 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        <section className="metrics-band" aria-label={content.socialProofLabel}>
-          <span className="band-label">{content.socialProofLabel}</span>
-          <div className="metrics-row">
-            {content.metrics.map((metric, index) => (
-              <div key={`metric-${index}`}>
-                <strong data-count={metric.value}>{metric.value}</strong>
-                <span>{metric.label}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+        {metrics.length > 0 ? (
+          <section className="metrics-band" aria-label={content.socialProofLabel}>
+            <span className="band-label">{content.socialProofLabel}</span>
+            <div className="metrics-row">
+              {metrics.map((metric, index) => (
+                <div key={`metric-${index}`}>
+                  <strong data-count={metric.value}>{metric.value}</strong>
+                  <span>{metric.label}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         <section className="section pain-section">
           <div className="section-head">
@@ -332,6 +342,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
+        {testimonials.length > 0 ? (
         <section className="section testimonials-section">
           <div className="section-head">
             <span className="section-kicker">Quem usa</span>
@@ -339,7 +350,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
 
           <div className="testimonials-grid">
-            {content.testimonials.map((testimonial, index) => (
+            {testimonials.map((testimonial, index) => (
               <figure key={`testimonial-${index}`}>
                 <QuoteIcon />
                 <blockquote>{testimonial.quote}</blockquote>
@@ -351,6 +362,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
             ))}
           </div>
         </section>
+        ) : null}
 
         <section className="section pricing-section" id="planos">
           <div className="section-head">
@@ -420,14 +432,14 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </ul>
           </div>
 
-          {content.guarantee ? (
+          {guarantee ? (
             <aside className="guarantee-card">
               <span className="guarantee-mark" aria-hidden="true">
                 <ShieldIcon />
               </span>
               <div>
                 <strong>Nosso compromisso</strong>
-                <p>{content.guarantee}</p>
+                <p>{guarantee}</p>
               </div>
             </aside>
           ) : null}
