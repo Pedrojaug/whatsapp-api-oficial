@@ -397,7 +397,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
 
           <div className="faq-accordion">
-            {content.faqs.map((faq, index) => {
+            {(content.faqs ?? []).map((faq, index) => {
               const isOpen = openFaq === index;
               return (
                 <div key={faq.question} className={`faq-item ${isOpen ? "is-open" : ""}`}>
