@@ -106,58 +106,29 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </div>
           </div>
 
-          {/* PREVIEW INTERATIVO DO WHATSAPP & DASHBOARD */}
-          <div className="product-preview" aria-label="Prévia visual do Send Inteligentte">
-            <div className="preview-topbar">
-              <div className="live-indicator">
-                <span className="pulse-dot" />
-                <span>CAMPANHA EM ANDAMENTO</span>
+          {/* PRINT REAL DO DASHBOARD SEND INTELIGENTTE */}
+          <div className="product-preview-frame" aria-label="Painel de Métricas Real do Send Inteligentte">
+            <div className="window-topbar">
+              <div className="window-dots">
+                <span className="dot red" />
+                <span className="dot yellow" />
+                <span className="dot green" />
               </div>
-              <strong className="campaign-name">{content.previewCampaign}</strong>
-            </div>
-
-            {/* METRICAS VIVAS */}
-            <div className="preview-metrics">
-              <div className="metric-box">
-                <span className="metric-label">DISPARADOS</span>
-                <strong className="metric-value">1.284</strong>
-                <small className="metric-sub">fila normal</small>
+              <div className="window-address-bar">
+                <span className="lock-icon">🔒</span>
+                <span>app.sendinteligente.com.br/metricas</span>
               </div>
-              <div className="metric-box highlight">
-                <span className="metric-label">ENTREGUES</span>
-                <strong className="metric-value">1.197</strong>
-                <small className="metric-sub">93,2%</small>
-              </div>
-              <div className="metric-box">
-                <span className="metric-label">LIDOS</span>
-                <strong className="metric-value">642</strong>
-                <small className="metric-sub">53,6%</small>
-              </div>
-              <div className="metric-box">
-                <span className="metric-label">CLIQUES</span>
-                <strong className="metric-value">218</strong>
-                <small className="metric-sub">link rastreado</small>
+              <div className="live-status-pill">
+                <span className="pulse-dot" /> AO VIVO
               </div>
             </div>
 
-            {/* MOCKUP CHAT WHATSAPP */}
-            <div className="whatsapp-mockup">
-              <div className="mockup-header">
-                <div className="avatar-circle">SI</div>
-                <div className="header-info">
-                  <strong>Sua Empresa (Oficial)</strong>
-                  <span className="verified-badge">✓ TEMPLATE APROVADO</span>
-                </div>
-              </div>
-
-              <div className="mockup-bubble">
-                <p>{content.templateMessage}</p>
-                <div className="bubble-time">09:41 ✓✓</div>
-
-                <div className="mockup-buttons">
-                  <span className="mockup-btn">Falar com o time</span>
-                </div>
-              </div>
+            <div className="dashboard-img-wrapper">
+              <img
+                src="/dashboard-preview.png"
+                alt="Painel de Métricas Oficial do Send Inteligentte"
+                className="dashboard-real-img"
+              />
             </div>
           </div>
         </section>

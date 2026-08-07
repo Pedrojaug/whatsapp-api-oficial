@@ -288,6 +288,10 @@ svg {
   border: 1px solid rgba(0, 208, 132, 0.3);
 }
 
+.green-text {
+  color: var(--green);
+}
+
 /* ==========================================================================
    PAGE CONTAINER & SECTIONS
    ========================================================================== */
@@ -346,16 +350,12 @@ svg {
   border-color: rgba(0, 208, 132, 0.3);
 }
 
-.green-text {
-  color: var(--green);
-}
-
 /* ==========================================================================
-   HERO SECTION (CORREÇÃO DE FORMATO & LARGURA)
+   HERO SECTION
    ========================================================================== */
 .hero-section {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
   gap: 40px;
   align-items: center;
   padding-top: 16px;
@@ -416,47 +416,69 @@ svg {
   color: var(--text-soft);
 }
 
-/* PREVIEW DO PRODUTO E WHATSAPP */
-.product-preview {
+/* PREVIEW FRAME DO DASHBOARD REAL */
+.product-preview-frame {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 20px;
-  padding: 24px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.7), 0 0 40px rgba(0, 208, 132, 0.15);
+  overflow: hidden;
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  position: relative;
-  overflow: hidden;
-  max-width: 100%;
   width: 100%;
+  max-width: 100%;
 }
 
-.product-preview::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--green), var(--cyan), var(--purple));
-}
-
-.preview-topbar {
+.window-topbar {
+  background: #090c10;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 18px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  gap: 16px;
 }
 
-.live-indicator {
+.window-dots {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.window-dots .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.window-dots .dot.red { background: #ff5f56; }
+.window-dots .dot.yellow { background: #ffbd2e; }
+.window-dots .dot.green { background: #27c93f; }
+
+.window-address-bar {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 14px;
   font-size: 0.78rem;
-  color: var(--green);
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: monospace;
+}
+
+.live-status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
   font-weight: 700;
+  color: var(--green);
+  background: var(--green-soft);
+  padding: 3px 10px;
+  border-radius: 99px;
+  border: 1px solid rgba(0, 208, 132, 0.25);
 }
 
 .pulse-dot {
@@ -474,140 +496,29 @@ svg {
   100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 208, 132, 0); }
 }
 
-.campaign-name {
-  font-size: 0.85rem;
-  color: var(--text-soft);
+.dashboard-img-wrapper {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #050608;
 }
 
-.preview-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+.dashboard-real-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  transition: transform 0.4s ease;
 }
 
-.metric-box {
-  background: var(--surface-soft);
-  border: 1px solid var(--border);
-  padding: 10px 12px;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.metric-box.highlight {
-  border-color: rgba(0, 208, 132, 0.4);
-  background: var(--green-soft);
-}
-
-.metric-label {
-  font-size: 0.68rem;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.metric-value {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.metric-sub {
-  font-size: 0.68rem;
-  color: var(--muted-deep);
-}
-
-.whatsapp-mockup {
-  background: #0b141a;
-  border-radius: 14px;
-  padding: 16px;
-  border: 1px solid #1f2c34;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.mockup-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #182229;
-}
-
-.avatar-circle {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--green);
-  color: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 800;
-  font-size: 0.8rem;
-}
-
-.header-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.header-info strong {
-  font-size: 0.85rem;
-  color: #e9edef;
-}
-
-.verified-badge {
-  font-size: 0.7rem;
-  color: #00a884;
-  font-weight: 600;
-}
-
-.mockup-bubble {
-  background: #005c4b;
-  color: #e9edef;
-  padding: 12px 14px;
-  border-radius: 12px 12px 12px 2px;
-  font-size: 0.88rem;
-  line-height: 1.5;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-self: flex-start;
-  max-width: 100%;
-}
-
-.mockup-bubble p {
-  margin: 0;
-}
-
-.bubble-time {
-  font-size: 0.68rem;
-  color: rgba(233, 237, 239, 0.75);
-  align-self: flex-end;
-}
-
-.mockup-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.mockup-btn {
-  background: #111b21;
-  padding: 8px 12px;
-  border-radius: 8px;
-  text-align: center;
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #00a884;
+.dashboard-img-wrapper:hover .dashboard-real-img {
+  transform: scale(1.015);
 }
 
 /* ==========================================================================
-   PASSO A PASSO COMO FUNCIONA (SEM SOBREPOSIÇÃO)
+   PASSO A PASSO COMO FUNCIONA
    ========================================================================== */
 .steps-grid {
   display: grid;
@@ -960,7 +871,7 @@ svg {
 }
 
 /* ==========================================================================
-   CARDS DE PLANOS & PREÇOS (CORREÇÃO DE BRILHO E SPOTLIGHT)
+   CARDS DE PLANOS & PREÇOS
    ========================================================================== */
 .plans-grid {
   display: grid;
@@ -1311,7 +1222,6 @@ svg {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-
 }
 
 .tech-chip {
