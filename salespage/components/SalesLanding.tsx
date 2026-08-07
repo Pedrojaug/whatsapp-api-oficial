@@ -37,11 +37,6 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
   return (
     <main className="main-wrapper">
-      {/* BARRA SUPERIOR DE ANÚNCIO */}
-      <div className="top-announcement-bar">
-        <span>⚡ Ativação assistida incluída — primeira campanha no ar esta semana.</span>
-      </div>
-
       {/* HEADER COMPACTO E LIMPO */}
       <header className="site-header">
         <Brand />
@@ -73,7 +68,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
       </header>
 
       <div className="sales-page">
-        {/* HERO SECTION (PROPORÇÃO AJUSTADA COM IMAGEM MAIOR) */}
+        {/* HERO SECTION */}
         <section className="hero-section" id="hero">
           <div className="hero-copy">
             <span className="pill success">
@@ -133,7 +128,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* PASSO A PASSO EM FORMATO DE LINHA DO TEMPO (FIXED 4-COLUMN HORIZONTAL) */}
+        {/* PASSO A PASSO EM FORMATO DE LINHA DO TEMPO */}
         <section className="timeline-section" id="como-funciona">
           <div className="section-header">
             <span className="section-badge">Linha do Tempo</span>
@@ -298,7 +293,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* COMPARATIVO (ESQUERDA BOAS, DIREITA RUINS) */}
+        {/* COMPARATIVO */}
         <section className="comparison-section" id="anti-ban">
           <div className="section-header">
             <span className="section-badge warning">Decisão Inteligente</span>
@@ -436,7 +431,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* PERGUNTAS FREQUENTES (FAQ ACCORDION INTERATIVO) */}
+        {/* PERGUNTAS FREQUENTES */}
         <section className="faq-section" id="faq">
           <div className="section-header">
             <span className="section-badge">Tire suas Dúvidas</span>
@@ -485,7 +480,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* RODAPÉ SIMPLES, DIRETO E FUNCIONAL */}
+        {/* RODAPÉ SIMPLES */}
         <footer className="site-footer simple-footer">
           <div className="simple-footer-content">
             <Brand />
