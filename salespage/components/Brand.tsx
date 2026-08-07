@@ -1,8 +1,13 @@
 import Link from "next/link";
 
-export function Brand() {
+type BrandProps = {
+  href?: string;
+  label?: string;
+};
+
+export function Brand({ href = "/", label }: BrandProps) {
   return (
-    <Link className="brand" href="/">
+    <Link className="brand" href={href}>
       <span className="brand-logo" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 2L11 13" />
@@ -11,6 +16,7 @@ export function Brand() {
       </span>
       <span className="brand-text">
         Send <strong>Inteligentte</strong>
+        {label ? <small className="brand-sub-label"> • {label}</small> : null}
       </span>
     </Link>
   );
