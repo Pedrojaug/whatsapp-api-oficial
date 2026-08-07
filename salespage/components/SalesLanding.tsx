@@ -38,14 +38,20 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
   return (
     <main className="main-wrapper">
+      {/* BARRA SUPERIOR DE ANÚNCIO */}
+      <div className="top-announcement-bar">
+        <span>⚡ Ativação assistida incluída — primeira campanha no ar esta semana.</span>
+      </div>
+
       {/* HEADER DE ALTA CONVERSÃO */}
       <header className="site-header">
         <Brand />
 
         <nav className="public-nav" aria-label="Navegação da oferta">
+          <a href="#como-funciona">Como funciona</a>
           <a href="#recursos">Recursos</a>
           <a href="#anti-ban">API Oficial vs Paralelas</a>
-          <a href="#planos">Planos & Valores</a>
+          <a href="#planos">Planos</a>
           <a href="#faq">Dúvidas</a>
         </nav>
 
@@ -61,7 +67,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
           <a className="primary-button compact" href="#planos">
             <ZapIcon />
-            Começar Agora
+            Quero ativar minha conta
           </a>
         </div>
       </header>
@@ -70,37 +76,33 @@ export function SalesLanding({ content }: SalesLandingProps) {
         {/* HERO SECTION */}
         <section className="hero-section" id="hero">
           <div className="hero-copy">
-            {content.announcement ? (
-              <div className="announcement-pill">
-                <span className="sparkle">✨</span> {content.announcement}
-              </div>
-            ) : null}
-
             <span className="pill success">
               <ShieldCheckIcon />
               {content.heroBadge}
             </span>
 
-            <h1>{content.heroTitle}</h1>
-            <p>{content.heroDescription}</p>
+            <h1>
+              Dispare campanhas no WhatsApp <span className="highlight-green">sem arriscar o seu número</span>
+            </h1>
+
+            <p>
+              Disparo em massa pela API Oficial da Meta: templates aprovados, campanhas recorrentes e opt-out automático para cumprir a LGPD.
+            </p>
 
             <div className="hero-actions">
               <a className="primary-button glowing" href="#planos">
                 <ArrowRightIcon />
-                {content.primaryCta}
+                Quero ativar minha conta
               </a>
-              <a className="secondary-button" href="#anti-ban">
-                <ShieldCheckIcon />
-                {content.secondaryCta}
+              <a className="secondary-button" href="#como-funciona">
+                Ver como funciona
               </a>
             </div>
 
             <div className="proof-strip" aria-label="Diferenciais principais">
-              {content.proofItems.map((item) => (
-                <span key={item} className="proof-chip">
-                  {item}
-                </span>
-              ))}
+              <span className="proof-chip">✓ API Oficial da Meta</span>
+              <span className="proof-chip">✓ Opt-out automático (LGPD)</span>
+              <span className="proof-chip">✓ Suporte na ativação</span>
             </div>
           </div>
 
@@ -109,7 +111,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
             <div className="preview-topbar">
               <div className="live-indicator">
                 <span className="pulse-dot" />
-                <span>Campanha em Tempo Real</span>
+                <span>CAMPANHA EM ANDAMENTO</span>
               </div>
               <strong className="campaign-name">{content.previewCampaign}</strong>
             </div>
@@ -117,16 +119,24 @@ export function SalesLanding({ content }: SalesLandingProps) {
             {/* METRICAS VIVAS */}
             <div className="preview-metrics">
               <div className="metric-box">
-                <span className="metric-label">Disparados</span>
-                <strong className="metric-value">12.450</strong>
+                <span className="metric-label">DISPARADOS</span>
+                <strong className="metric-value">1.284</strong>
+                <small className="metric-sub">fila normal</small>
               </div>
               <div className="metric-box highlight">
-                <span className="metric-label">Entregues (99.4%)</span>
-                <strong className="metric-value">12.375</strong>
+                <span className="metric-label">ENTREGUES</span>
+                <strong className="metric-value">1.197</strong>
+                <small className="metric-sub">93,2%</small>
               </div>
               <div className="metric-box">
-                <span className="metric-label">Cliques no Link</span>
-                <strong className="metric-value">3.868</strong>
+                <span className="metric-label">LIDOS</span>
+                <strong className="metric-value">642</strong>
+                <small className="metric-sub">53,6%</small>
+              </div>
+              <div className="metric-box">
+                <span className="metric-label">CLIQUES</span>
+                <strong className="metric-value">218</strong>
+                <small className="metric-sub">link rastreado</small>
               </div>
             </div>
 
@@ -136,19 +146,65 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 <div className="avatar-circle">SI</div>
                 <div className="header-info">
                   <strong>Sua Empresa (Oficial)</strong>
-                  <span className="verified-badge">✓ Conta Comercial Oficial</span>
+                  <span className="verified-badge">✓ TEMPLATE APROVADO</span>
                 </div>
               </div>
 
               <div className="mockup-bubble">
                 <p>{content.templateMessage}</p>
-                <div className="bubble-time">10:42 • Enviado via Cloud API v19</div>
+                <div className="bubble-time">09:41 ✓✓</div>
 
                 <div className="mockup-buttons">
-                  <span className="mockup-btn">🛍️ Ver Oferta Especial</span>
-                  <span className="mockup-btn link">🌐 https://send.link/t/x8k9</span>
+                  <span className="mockup-btn">Falar com o time</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* PASSO A PASSO COMO FUNCIONA */}
+        <section className="how-it-works-section" id="como-funciona">
+          <div className="section-header">
+            <span className="section-badge">Passo a Passo</span>
+            <h2>Como funciona o Send Inteligentte</h2>
+            <p>Do primeiro clique até o disparo em massa seguro e homologado.</p>
+          </div>
+
+          <div className="steps-grid">
+            <div className="step-card">
+              <span className="step-number">01</span>
+              <div className="icon-wrapper green">
+                <ShieldCheckIcon />
+              </div>
+              <h3>Conecte seu número oficial</h3>
+              <p>Pareamento pelo login do Facebook ou por chaves manuais. Seu token fica criptografado.</p>
+            </div>
+
+            <div className="step-card">
+              <span className="step-number">02</span>
+              <div className="icon-wrapper cyan">
+                <ListIcon />
+              </div>
+              <h3>Traga suas listas</h3>
+              <p>CSV com detecção automática de colunas, tags e segmentação por origem ou etapa comercial.</p>
+            </div>
+
+            <div className="step-card">
+              <span className="step-number">03</span>
+              <div className="icon-wrapper purple">
+                <MessageIcon />
+              </div>
+              <h3>Monte o template</h3>
+              <p>Cabeçalho com mídia, variáveis, rodapé e botões — com simulador do WhatsApp em tempo real.</p>
+            </div>
+
+            <div className="step-card">
+              <span className="step-number">04</span>
+              <div className="icon-wrapper green">
+                <ChartIcon />
+              </div>
+              <h3>Dispare e acompanhe</h3>
+              <p>A fila processa em segundo plano, reenvia sozinha e mostra entregue, lido e clicado.</p>
             </div>
           </div>
         </section>
@@ -280,7 +336,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* SIMULADOR INTERATIVO DE IMPACTO DE VENDAS */}
+        {/* SIMULADOR INTERATIVO DE ROI / IMPACTO */}
         <section className="roi-calculator-section">
           <div className="calculator-box">
             <div className="calculator-header">
@@ -335,9 +391,8 @@ export function SalesLanding({ content }: SalesLandingProps) {
         {/* CARDS DE PLANOS & PREÇOS */}
         <section className="pricing-section" id="planos">
           <div className="section-header">
-            <span className="section-badge success">{content.offerKicker}</span>
-            <h2>{content.offerTitle}</h2>
-            <p>{content.offerDescription}</p>
+            <h2>Um plano só. Escolha a periodicidade.</h2>
+            <p>Todo mundo recebe todos os recursos. Quanto maior o período, menor o valor por mês.</p>
           </div>
 
           <div className="plans-grid">
@@ -349,8 +404,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 {plan.badge ? <div className="plan-badge">{plan.badge}</div> : null}
 
                 <div className="plan-header">
-                  <h3>{plan.name}</h3>
-                  <p className="plan-desc">{plan.description}</p>
+                  <h3>{plan.name.toUpperCase()}</h3>
 
                   <div className="plan-price-wrapper">
                     <span className="currency">R$</span>
@@ -360,9 +414,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
                   {plan.monthlyEquivalent ? (
                     <div className="monthly-equivalent">
-                      Equivale a <strong>R$ {plan.monthlyEquivalent}/mês</strong>
+                      equivale a <strong>R$ {plan.monthlyEquivalent}/mês</strong>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="monthly-equivalent muted">valor cheio por mês</div>
+                  )}
                 </div>
 
                 <ul className="plan-features">
@@ -378,13 +434,28 @@ export function SalesLanding({ content }: SalesLandingProps) {
                   className={`primary-button full-width ${plan.highlighted ? "glowing" : "secondary-style"}`}
                   href={`/checkout?plano=${plan.slug}`}
                 >
-                  <BagIcon />
-                  Assinar {plan.name}
+                  Assinar {plan.name.toLowerCase()} →
                 </Link>
 
-                <p className="fine-print">Pagamento seguro via Asaas. Ativação imediata.</p>
+                <p className="fine-print">Sem fidelidade. Cancele quando quiser.</p>
               </div>
             ))}
+          </div>
+
+          {/* BOX INCLUSO EM QUALQUER PLANO */}
+          <div className="inclusions-banner-box">
+            <div className="banner-left">
+              <span className="section-kicker green-text">INCLUSO EM QUALQUER PLANO</span>
+              <h3>Ativação assistida, do zero à primeira campanha.</h3>
+            </div>
+            <div className="banner-right">
+              <ul>
+                <li><CheckIcon /> Configuração assistida do número oficial</li>
+                <li><CheckIcon /> Importação e organização das suas listas</li>
+                <li><CheckIcon /> Criação dos primeiros templates Meta</li>
+                <li><CheckIcon /> Acompanhamento na primeira campanha</li>
+              </ul>
+            </div>
           </div>
         </section>
 
@@ -448,6 +519,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
             <div className="footer-links">
               <div className="link-group">
                 <strong>Plataforma</strong>
+                <a href="#como-funciona">Como funciona</a>
                 <a href="#recursos">Recursos</a>
                 <a href="#anti-ban">API Oficial vs Paralelas</a>
                 <a href="#planos">Planos</a>

@@ -47,7 +47,7 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 208, 132, 0.14), transparent),
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 208, 132, 0.12), transparent),
     var(--bg);
   font-family:
     Inter,
@@ -93,8 +93,18 @@ svg {
 }
 
 /* ==========================================================================
-   HEADER DE ALTA CONVERSÃO
+   TOP ANNOUNCEMENT BAR & HEADER
    ========================================================================== */
+.top-announcement-bar {
+  background: var(--green);
+  color: #000;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -104,7 +114,7 @@ svg {
   justify-content: space-between;
   gap: 24px;
   padding: 16px 32px;
-  background: rgba(5, 6, 8, 0.85);
+  background: rgba(5, 6, 8, 0.88);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid var(--border);
@@ -139,6 +149,12 @@ svg {
 
 .brand-text strong {
   color: var(--green);
+}
+
+.brand-sub-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 400;
 }
 
 .public-nav {
@@ -184,8 +200,8 @@ svg {
   justify-content: center;
   gap: 10px;
   padding: 14px 28px;
-  font-weight: 600;
-  font-size: 1rem;
+  font-weight: 700;
+  font-size: 0.95rem;
   color: #000;
   background: var(--green);
   border-radius: 12px;
@@ -203,7 +219,7 @@ svg {
 
 .primary-button.compact {
   padding: 10px 18px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   border-radius: 99px;
 }
 
@@ -213,7 +229,7 @@ svg {
 
 .primary-button.large {
   padding: 18px 36px;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
 }
 
 .primary-button.full-width {
@@ -227,7 +243,7 @@ svg {
   gap: 10px;
   padding: 14px 28px;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--text);
   background: var(--surface-soft);
   border: 1px solid var(--border-strong);
@@ -261,7 +277,7 @@ svg {
   gap: 8px;
   padding: 6px 14px;
   border-radius: 99px;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -270,23 +286,6 @@ svg {
   background: var(--green-soft);
   color: var(--green);
   border: 1px solid rgba(0, 208, 132, 0.3);
-}
-
-.announcement-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 16px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--glass-border);
-  font-size: 0.85rem;
-  color: var(--text-soft);
-  margin-bottom: 8px;
-}
-
-.sparkle {
-  color: var(--amber);
 }
 
 /* ==========================================================================
@@ -298,25 +297,25 @@ svg {
   padding: 40px 24px 80px;
   display: flex;
   flex-direction: column;
-  gap: 120px;
+  gap: 100px;
 }
 
 .section-header {
   text-align: center;
   max-width: 720px;
-  margin: 0 auto 56px;
+  margin: 0 auto 48px;
 }
 
 .section-header h2 {
-  font-size: 2.3rem;
+  font-size: 2.2rem;
   font-weight: 800;
   letter-spacing: -0.03em;
-  margin: 12px 0 16px;
+  margin: 12px 0 14px;
   line-height: 1.2;
 }
 
 .section-header p {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: var(--muted);
   line-height: 1.6;
   margin: 0;
@@ -347,15 +346,19 @@ svg {
   border-color: rgba(0, 208, 132, 0.3);
 }
 
+.green-text {
+  color: var(--green);
+}
+
 /* ==========================================================================
-   HERO SECTION
+   HERO SECTION (CORREÇÃO DE FORMATO & LARGURA)
    ========================================================================== */
 .hero-section {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 48px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 40px;
   align-items: center;
-  padding-top: 24px;
+  padding-top: 16px;
 }
 
 .hero-copy {
@@ -363,21 +366,29 @@ svg {
   flex-direction: column;
   align-items: flex-start;
   gap: 20px;
+  min-width: 0;
 }
 
 .hero-copy h1 {
-  font-size: 3.2rem;
+  font-size: clamp(2rem, 3.5vw, 2.7rem);
   font-weight: 800;
-  line-height: 1.12;
-  letter-spacing: -0.04em;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
   margin: 0;
-  background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+  color: var(--text);
+  word-break: break-word;
+}
+
+.highlight-green {
+  color: var(--green);
+  background: linear-gradient(180deg, var(--green), #00b371);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  display: inline;
 }
 
 .hero-copy p {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   line-height: 1.6;
   color: var(--text-soft);
   margin: 0;
@@ -387,22 +398,22 @@ svg {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .proof-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  margin-top: 16px;
-  padding-top: 20px;
+  margin-top: 12px;
+  padding-top: 18px;
   border-top: 1px solid var(--border);
 }
 
 .proof-chip {
   font-size: 0.85rem;
-  font-weight: 500;
-  color: var(--muted);
+  font-weight: 600;
+  color: var(--text-soft);
 }
 
 /* PREVIEW DO PRODUTO E WHATSAPP */
@@ -417,6 +428,8 @@ svg {
   gap: 20px;
   position: relative;
   overflow: hidden;
+  max-width: 100%;
+  width: 100%;
 }
 
 .product-preview::before {
@@ -433,7 +446,7 @@ svg {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 14px;
+  padding-bottom: 12px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -441,9 +454,9 @@ svg {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   color: var(--green);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .pulse-dot {
@@ -462,24 +475,24 @@ svg {
 }
 
 .campaign-name {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-soft);
 }
 
 .preview-metrics {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 .metric-box {
   background: var(--surface-soft);
   border: 1px solid var(--border);
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .metric-box.highlight {
@@ -488,14 +501,20 @@ svg {
 }
 
 .metric-label {
-  font-size: 0.75rem;
+  font-size: 0.68rem;
   color: var(--muted);
+  font-weight: 700;
 }
 
 .metric-value {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.15rem;
+  font-weight: 800;
   color: var(--text);
+}
+
+.metric-sub {
+  font-size: 0.68rem;
+  color: var(--muted-deep);
 }
 
 .whatsapp-mockup {
@@ -517,8 +536,8 @@ svg {
 }
 
 .avatar-circle {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   background: var(--green);
   color: #000;
@@ -526,7 +545,7 @@ svg {
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .header-info {
@@ -536,26 +555,26 @@ svg {
 }
 
 .header-info strong {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: #e9edef;
 }
 
 .verified-badge {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: #00a884;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .mockup-bubble {
   background: #005c4b;
   color: #e9edef;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 12px 12px 12px 2px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   line-height: 1.5;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   align-self: flex-start;
   max-width: 100%;
 }
@@ -565,8 +584,8 @@ svg {
 }
 
 .bubble-time {
-  font-size: 0.7rem;
-  color: rgba(233, 237, 239, 0.7);
+  font-size: 0.68rem;
+  color: rgba(233, 237, 239, 0.75);
   align-self: flex-end;
 }
 
@@ -578,18 +597,67 @@ svg {
 }
 
 .mockup-btn {
-  background: rgba(255, 255, 255, 0.1);
+  background: #111b21;
   padding: 8px 12px;
   border-radius: 8px;
   text-align: center;
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: #00a884;
-  background: #111b21;
 }
 
-.mockup-btn.link {
-  color: #53bdeb;
+/* ==========================================================================
+   PASSO A PASSO COMO FUNCIONA (SEM SOBREPOSIÇÃO)
+   ========================================================================== */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.step-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease;
+}
+
+.step-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-4px);
+  background: var(--surface-soft);
+}
+
+.step-number {
+  position: absolute;
+  top: 16px;
+  right: 20px;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.08);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  font-family: inherit;
+}
+
+.step-card h3 {
+  font-size: 1.15rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.step-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
 /* ==========================================================================
@@ -733,8 +801,8 @@ svg {
 }
 
 .icon-wrapper {
-  width: 48px;
-  height: 48px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -742,8 +810,8 @@ svg {
 }
 
 .icon-wrapper svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .icon-wrapper.green {
@@ -892,12 +960,12 @@ svg {
 }
 
 /* ==========================================================================
-   CARDS DE PLANOS & PREÇOS
+   CARDS DE PLANOS & PREÇOS (CORREÇÃO DE BRILHO E SPOTLIGHT)
    ========================================================================== */
 .plans-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  gap: 24px;
   align-items: stretch;
 }
 
@@ -908,7 +976,7 @@ svg {
   padding: 36px 28px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
   position: relative;
   transition: all 0.25s ease;
 }
@@ -919,19 +987,24 @@ svg {
 }
 
 .plan-card.highlighted {
-  border-color: var(--green);
-  background: linear-gradient(180deg, rgba(0, 208, 132, 0.06), var(--surface));
-  box-shadow: 0 0 40px rgba(0, 208, 132, 0.2);
+  border: 1.5px solid var(--green);
+  background: linear-gradient(180deg, rgba(0, 208, 132, 0.08) 0%, var(--surface) 100%);
+  box-shadow: 0 0 30px rgba(0, 208, 132, 0.15);
+}
+
+.plan-card.highlighted::before,
+.plan-card.highlighted::after {
+  display: none !important;
 }
 
 .plan-badge {
   position: absolute;
-  top: -14px;
+  top: -13px;
   left: 50%;
   transform: translateX(-50%);
   background: var(--green);
   color: #000;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 800;
   padding: 4px 16px;
   border-radius: 99px;
@@ -941,16 +1014,10 @@ svg {
 }
 
 .plan-header h3 {
-  font-size: 1.5rem;
-  margin: 0 0 8px;
-  font-weight: 700;
-}
-
-.plan-desc {
-  font-size: 0.9rem;
-  color: var(--muted);
-  margin: 0 0 20px;
-  min-height: 40px;
+  font-size: 1.25rem;
+  margin: 0 0 12px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
 }
 
 .plan-price-wrapper {
@@ -961,26 +1028,32 @@ svg {
 
 .plan-price-wrapper .currency {
   font-size: 1.2rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-soft);
 }
 
 .plan-price-wrapper .price {
-  font-size: 3rem;
-  font-weight: 800;
+  font-size: 2.8rem;
+  font-weight: 900;
   letter-spacing: -0.04em;
   color: var(--text);
 }
 
 .plan-price-wrapper .period {
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   color: var(--muted);
 }
 
 .monthly-equivalent {
-  margin-top: 8px;
+  margin-top: 6px;
   font-size: 0.85rem;
   color: var(--green);
+  font-weight: 600;
+}
+
+.monthly-equivalent.muted {
+  color: var(--muted-deep);
+  font-weight: 400;
 }
 
 .plan-features {
@@ -1012,6 +1085,49 @@ svg {
   color: var(--muted-deep);
   text-align: center;
   margin: 0;
+}
+
+/* BANNER INCLUSO EM QUALQUER PLANO */
+.inclusions-banner-box {
+  margin-top: 36px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  padding: 32px 36px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+}
+
+.inclusions-banner-box h3 {
+  font-size: 1.4rem;
+  margin: 6px 0 0;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.inclusions-banner-box ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 24px;
+}
+
+.inclusions-banner-box li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.92rem;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+.inclusions-banner-box li svg {
+  color: var(--green);
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -1191,10 +1307,20 @@ svg {
     gap: 40px;
   }
 
+  .steps-grid,
   .comparison-grid,
   .features-grid,
   .plans-grid,
   .calculator-results {
+    grid-template-columns: 1fr;
+  }
+
+  .inclusions-banner-box {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .inclusions-banner-box ul {
     grid-template-columns: 1fr;
   }
 
@@ -1209,7 +1335,7 @@ svg {
   }
 
   .hero-copy h1 {
-    font-size: 2.2rem;
+    font-size: 2rem;
   }
 
   .sales-page {
