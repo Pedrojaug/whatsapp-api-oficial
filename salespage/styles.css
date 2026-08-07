@@ -1194,7 +1194,7 @@ svg {
 }
 
 /* ==========================================================================
-   CTA FINAL & FOOTER
+   CTA FINAL DE CONVERSÃO
    ========================================================================== */
 .final-cta-section {
   background: linear-gradient(135deg, rgba(0, 208, 132, 0.15), var(--surface));
@@ -1227,50 +1227,121 @@ svg {
   margin: 0;
 }
 
+/* ==========================================================================
+   FOOTER ENTERPRISE ULTRA-PREMIUM
+   ========================================================================== */
 .site-footer {
-  border-top: 1px solid var(--border);
-  padding: 60px 0 20px;
+  border-top: 1px solid var(--border-strong);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--bg-soft) 100%);
+  border-radius: 24px;
+  padding: 40px 36px 24px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 36px;
+  position: relative;
+  overflow: hidden;
 }
 
-.footer-content {
+.site-footer::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+}
+
+.footer-status-bar {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 48px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
   flex-wrap: wrap;
+  gap: 16px;
 }
 
-.footer-brand {
-  max-width: 320px;
+.system-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.status-dot-green {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 10px var(--green);
+}
+
+.system-security-badge {
+  font-size: 0.85rem;
+  color: var(--muted);
+  background: var(--surface-soft);
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+}
+
+.footer-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr);
+  gap: 48px;
+}
+
+.footer-brand-col {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.footer-brand p {
-  font-size: 0.85rem;
+.brand-description {
+  font-size: 0.9rem;
   color: var(--muted);
+  line-height: 1.6;
   margin: 0;
-  line-height: 1.5;
 }
 
-.footer-links {
+.tech-stack-chips {
   display: flex;
-  gap: 64px;
+  flex-wrap: wrap;
+  gap: 8px;
+
+}
+
+.tech-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cyan);
+  background: var(--cyan-soft);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(24, 217, 239, 0.2);
+}
+
+.footer-nav-cols {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
 }
 
 .link-group {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   font-size: 0.9rem;
 }
 
 .link-group strong {
   color: var(--text);
-  margin-bottom: 4px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .link-group a {
@@ -1282,20 +1353,50 @@ svg {
   color: var(--green);
 }
 
-.footer-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 24px;
+.footer-payment-security {
+  padding: 20px 0;
   border-top: 1px solid var(--border);
-  font-size: 0.8rem;
-  color: var(--muted-deep);
-  flex-wrap: wrap;
-  gap: 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.footer-bottom p {
+.payment-methods-box {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.payment-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.payment-chip {
+  font-size: 0.8rem;
+  color: var(--muted);
+  background: var(--bg-soft);
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.footer-bottom-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: var(--muted-deep);
+}
+
+.footer-bottom-bar p {
   margin: 0;
+}
+
+.disclaimer-text {
+  line-height: 1.5;
+  font-size: 0.78rem;
 }
 
 /* ==========================================================================
@@ -1322,6 +1423,15 @@ svg {
 
   .inclusions-banner-box ul {
     grid-template-columns: 1fr;
+  }
+
+  .footer-content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-nav-cols {
+    grid-template-columns: 1fr;
+    gap: 28px;
   }
 
   .public-nav {

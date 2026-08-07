@@ -508,25 +508,54 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* FOOTER PROFISSIONAL */}
+        {/* FOOTER ENTERPRISE & COMPLETO */}
         <footer className="site-footer">
-          <div className="footer-content">
-            <div className="footer-brand">
+          {/* BARRA DE STATUS DO SISTEMA */}
+          <div className="footer-status-bar">
+            <div className="system-status-indicator">
+              <span className="status-dot-green" />
+              <span>Sistemas Operacionais 100% • Meta Cloud API v19 Online</span>
+            </div>
+            <div className="system-security-badge">
+              🔒 Criptografia AES-256 • Conexão Segura SSL
+            </div>
+          </div>
+
+          {/* GRID DE COLUNAS DO FOOTER */}
+          <div className="footer-content-grid">
+            <div className="footer-brand-col">
               <Brand />
-              <p>Plataforma SaaS para automação e disparo de campanhas via API Oficial do WhatsApp Meta Cloud v19.</p>
+              <p className="brand-description">
+                Plataforma SaaS multi-tenant para automação, gestão de contatos e disparo seguro de campanhas no WhatsApp via Meta Cloud API v19.
+              </p>
+              <div className="tech-stack-chips">
+                <span className="tech-chip">Meta Partner API</span>
+                <span className="tech-chip">n8n Ready</span>
+                <span className="tech-chip">Asaas Gateway</span>
+              </div>
             </div>
 
-            <div className="footer-links">
+            <div className="footer-nav-cols">
               <div className="link-group">
                 <strong>Plataforma</strong>
                 <a href="#como-funciona">Como funciona</a>
-                <a href="#recursos">Recursos</a>
+                <a href="#recursos">Recursos & Features</a>
                 <a href="#anti-ban">API Oficial vs Paralelas</a>
-                <a href="#planos">Planos</a>
+                <a href="#planos">Planos & Valores</a>
               </div>
 
               <div className="link-group">
-                <strong>Legal & Suporte</strong>
+                <strong>Desenvolvedores</strong>
+                <a href="https://github.com/Pedrojaug/whatsapp-api-oficial" target="_blank" rel="noopener noreferrer">
+                  Documentação API REST
+                </a>
+                <a href="#recursos">n8n Workflows</a>
+                <a href="#recursos">Webhooks Engine</a>
+                <a href="#recursos">Link Tracker (/t/)</a>
+              </div>
+
+              <div className="link-group">
+                <strong>Legal & Atendimento</strong>
                 <Link href="/PoliticaDePrivacidade.html" target="_blank">
                   Política de Privacidade
                 </Link>
@@ -534,15 +563,28 @@ export function SalesLanding({ content }: SalesLandingProps) {
                   Termos e Condições
                 </Link>
                 <a href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
-                  Área do Cliente
+                  Área do Cliente (Login)
                 </a>
+                <a href="#faq">Central de Ajuda (FAQ)</a>
               </div>
             </div>
           </div>
 
-          <div className="footer-bottom">
-            <p>© {new Date().getFullYear()} Send Inteligentte. Todos os direitos reservados. Não afiliado ao Meta Inc.</p>
-            <p className="secure-badge">🛡️ Processamento Seguro via Asaas</p>
+          {/* BARRA DE MEIOS DE PAGAMENTO E DIREITOS */}
+          <div className="footer-payment-security">
+            <div className="payment-methods-box">
+              <span className="payment-label">Processamento Seguro Asaas:</span>
+              <span className="payment-chip">⚡ Pix (Aprovação Imediata)</span>
+              <span className="payment-chip">💳 Cartão de Crédito</span>
+              <span className="payment-chip">📄 Boleto Bancário</span>
+            </div>
+          </div>
+
+          <div className="footer-bottom-bar">
+            <p>© {new Date().getFullYear()} Send Inteligentte. Todos os direitos reservados.</p>
+            <p className="disclaimer-text">
+              O Send Inteligentte é um software independente para integração com a Meta WhatsApp Business Cloud API v19. WhatsApp e Meta são marcas registradas da Meta, Inc.
+            </p>
           </div>
         </footer>
       </div>
