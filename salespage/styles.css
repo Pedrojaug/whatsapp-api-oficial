@@ -349,7 +349,7 @@ svg {
 }
 
 /* ==========================================================================
-   HERO SECTION (IMAGEM MAIOR & TÍTULO NA PROPORÇÃO IDEAL)
+   HERO SECTION
    ========================================================================== */
 .hero-section {
   display: grid;
@@ -380,6 +380,7 @@ svg {
 .highlight-green {
   color: var(--green);
   background: linear-gradient(180deg, var(--green), #00b371);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline;
@@ -516,7 +517,7 @@ svg {
 }
 
 /* ==========================================================================
-   LINHA DO TEMPO - PASSO A PASSO (LIMPO & OBJETIVO)
+   LINHA DO TEMPO - PASSO A PASSO (HORIZONTE 4 COLUNAS GARANTIDO)
    ========================================================================== */
 .timeline-section {
   display: flex;
@@ -525,51 +526,79 @@ svg {
 
 .timeline-container {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
   position: relative;
+  width: 100%;
 }
 
 .timeline-step {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 16px;
-  padding: 24px;
+  padding: 24px 20px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   position: relative;
   transition: all 0.25s ease;
+  min-width: 0; /* Impede quebra para 2ª linha no grid */
 }
 
 .timeline-step:hover {
   border-color: var(--green);
   transform: translateY(-4px);
   background: var(--surface-soft);
+  box-shadow: 0 10px 30px rgba(0, 208, 132, 0.12);
+}
+
+.step-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .step-badge {
-  width: 38px;
-  height: 38px;
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
   background: var(--green);
   color: #000;
   font-weight: 800;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 4px 14px var(--green-glow);
+  flex-shrink: 0;
+}
+
+.step-arrow {
+  font-size: 1.15rem;
+  color: var(--muted-deep);
+  font-weight: 700;
+  transition: color 0.2s ease;
+}
+
+.step-check {
+  font-size: 1.1rem;
+  color: var(--green);
+  font-weight: 800;
+}
+
+.timeline-step:hover .step-arrow {
+  color: var(--green);
 }
 
 .step-content h3 {
-  font-size: 1.1rem;
+  font-size: 1.08rem;
   font-weight: 700;
   margin: 0 0 6px;
+  letter-spacing: -0.01em;
 }
 
 .step-content p {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--muted);
   margin: 0;
   line-height: 1.45;
@@ -761,7 +790,7 @@ svg {
 }
 
 /* ==========================================================================
-   SEÇÃO COMPARATIVA (API OFICIAL ESQUERDA vs PARALELAS DIREITA)
+   SEÇÃO COMPARATIVA
    ========================================================================== */
 .comparison-section {
   display: flex;
@@ -1194,7 +1223,10 @@ svg {
     gap: 40px;
   }
 
-  .timeline-container,
+  .timeline-container {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   .comparison-grid,
   .features-grid,
   .plans-grid,
@@ -1223,6 +1255,10 @@ svg {
 
   .hero-copy h1 {
     font-size: 1.85rem;
+  }
+
+  .timeline-container {
+    grid-template-columns: 1fr;
   }
 
   .sales-page {

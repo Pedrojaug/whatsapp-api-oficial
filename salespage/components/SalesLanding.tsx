@@ -133,7 +133,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* PASSO A PASSO EM FORMATO DE LINHA DO TEMPO (DIRETO E OBJETIVO) */}
+        {/* PASSO A PASSO EM FORMATO DE LINHA DO TEMPO (FIXED 4-COLUMN HORIZONTAL) */}
         <section className="timeline-section" id="como-funciona">
           <div className="section-header">
             <span className="section-badge">Linha do Tempo</span>
@@ -142,10 +142,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
 
           <div className="timeline-container">
-            <div className="timeline-line" />
-
             <div className="timeline-step">
-              <div className="step-badge">1</div>
+              <div className="step-top-row">
+                <div className="step-badge">1</div>
+                <span className="step-arrow">→</span>
+              </div>
               <div className="step-content">
                 <h3>Conecte a Meta API</h3>
                 <p>Vinculação oficial em 2 minutos via login no Facebook.</p>
@@ -153,7 +154,10 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </div>
 
             <div className="timeline-step">
-              <div className="step-badge">2</div>
+              <div className="step-top-row">
+                <div className="step-badge">2</div>
+                <span className="step-arrow">→</span>
+              </div>
               <div className="step-content">
                 <h3>Importe seus Contatos</h3>
                 <p>Upload de planilhas CSV com tags e segmentação.</p>
@@ -161,7 +165,10 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </div>
 
             <div className="timeline-step">
-              <div className="step-badge">3</div>
+              <div className="step-top-row">
+                <div className="step-badge">3</div>
+                <span className="step-arrow">→</span>
+              </div>
               <div className="step-content">
                 <h3>Crie o Template</h3>
                 <p>Mensagens com botões interativos aprovados pela Meta.</p>
@@ -169,7 +176,10 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </div>
 
             <div className="timeline-step">
-              <div className="step-badge">4</div>
+              <div className="step-top-row">
+                <div className="step-badge">4</div>
+                <span className="step-check">✓</span>
+              </div>
               <div className="step-content">
                 <h3>Dispare e Converta</h3>
                 <p>Envio automático com métricas de entrega e cliques ao vivo.</p>
@@ -178,7 +188,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* SIMULADOR INTERATIVO DE IMPACTO (MOVIDO PARA ANTES DOS SUPERPODERES) */}
+        {/* SIMULADOR INTERATIVO DE IMPACTO */}
         <section className="roi-calculator-section" id="simulador">
           <div className="calculator-box">
             <div className="calculator-header">
@@ -230,7 +240,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* SUPERPODERES DO SEND (FRASES APELATIVAS DE ALTA CONVERSÃO) */}
+        {/* SUPERPODERES DO SEND */}
         <section className="benefit-section" id="recursos">
           <div className="section-header">
             <span className="section-badge">Superpoderes do Send</span>
@@ -288,7 +298,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* INVERTIDO: COISAS BOAS NA ESQUERDA, RUINS NA DIREITA */}
+        {/* COMPARATIVO (ESQUERDA BOAS, DIREITA RUINS) */}
         <section className="comparison-section" id="anti-ban">
           <div className="section-header">
             <span className="section-badge warning">Decisão Inteligente</span>
@@ -297,7 +307,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
 
           <div className="comparison-grid">
-            {/* SEND INTELIGENTTE NA ESQUERDA (BOAS) */}
+            {/* SEND INTELIGENTTE NA ESQUERDA */}
             <div className="comparison-card success featured">
               <div className="featured-banner">RECOMENDADO PELA META</div>
               <div className="card-header">
@@ -327,7 +337,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
               </ul>
             </div>
 
-            {/* PARALELAS NA DIREITA (RUINS) */}
+            {/* PARALELAS NA DIREITA */}
             <div className="comparison-card danger">
               <div className="card-header">
                 <span className="status-badge danger">
@@ -475,7 +485,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* FOOTER DIRETO, SIMPLES E FUNCIONAL */}
+        {/* RODAPÉ SIMPLES, DIRETO E FUNCIONAL */}
         <footer className="site-footer simple-footer">
           <div className="simple-footer-content">
             <Brand />
