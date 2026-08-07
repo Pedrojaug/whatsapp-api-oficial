@@ -24,11 +24,23 @@ import { plans } from "@/lib/plans";
 import type { SiteContent } from "@/lib/site-content";
 
 /* -------------------------------------------------------------------------
- * PLACEHOLDER — dados de exemplo, NÃO são depoimentos reais.
- * Substitua por clientes verdadeiros (com autorização de uso de imagem/nome)
- * antes de publicar, e remova o <PlaceholderFlag /> da seção.
+ * Prova social.
+ *
+ * O texto de exemplo continua aqui de propósito, servindo de instrução para
+ * quem for preencher — mas a landing NÃO publica nada disso: isPlaceholder()
+ * filtra na renderização e a seção inteira some enquanto não houver dado real.
+ *
+ * Marcador de exemplo no ar converte pior que a ausência da seção, e inventar
+ * número ou depoimento seria prova social falsa. Abordagem portada do commit
+ * 6bf1aed (branch feat/salespage-redesign).
  * ---------------------------------------------------------------------- */
-const TESTIMONIALS_PLACEHOLDER = [
+function isPlaceholder(value: string | undefined) {
+  return /\[\s*(EXEMPLO|SUBSTITUIR|N[ÚU]MERO|Nome|Cargo|Empresa|Mensagens|Empresas|Taxa|Campanhas)/i.test(
+    value ?? ""
+  );
+}
+
+const TESTIMONIALS = [
   {
     quote:
       "[EXEMPLO] Substituir por depoimento real de cliente, descrevendo o problema antes da contratação e o resultado obtido.",
@@ -52,7 +64,7 @@ const TESTIMONIALS_PLACEHOLDER = [
   },
 ];
 
-const METRICS_PLACEHOLDER = [
+const METRICS = [
   { value: "—", label: "[Mensagens entregues no total]" },
   { value: "—", label: "[Empresas usando a plataforma]" },
   { value: "—", label: "[Taxa média de entrega medida]" },
@@ -66,10 +78,6 @@ const NAV_LINKS = [
   { href: "#planos", label: "Planos" },
   { href: "#faq", label: "Dúvidas" },
 ];
-
-function PlaceholderFlag({ children }: { children: React.ReactNode }) {
-  return <div className="placeholder-flag">⚠ {children}</div>;
-}
 
 type SalesLandingProps = {
   content: SiteContent;
@@ -108,6 +116,15 @@ export function SalesLanding({ content }: SalesLandingProps) {
   const cheapestMonthly = Math.min(
     ...plans.map((p) => p.monthlyEquivalent ?? p.price)
   );
+
+  // Só publica o que já foi preenchido de verdade.
+  const testimonials = TESTIMONIALS.filter(
+    (t) => !isPlaceholder(t.quote) && !isPlaceholder(t.name)
+  );
+  const metrics = METRICS.filter(
+    (m) => !isPlaceholder(m.label) && m.value.trim() !== "" && m.value.trim() !== "—"
+  );
+  const hasSocialProof = testimonials.length > 0 || metrics.length > 0;
 
   return (
     <main className="main-wrapper" id="conteudo">
@@ -452,45 +469,46 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* PROVA SOCIAL — DADOS DE EXEMPLO */}
-        <section className="social-proof-section" id="clientes">
-          <div className="section-header">
-            <span className="section-badge success">Quem já usa</span>
-            <h2>Operações que vendem no WhatsApp todo dia</h2>
-          </div>
+        {/* PROVA SOCIAL — some por inteiro enquanto não houver dado real */}
+        {hasSocialProof ? (
+          <section className="social-proof-section" id="clientes">
+            <div className="section-header">
+              <span className="section-badge success">Quem já usa</span>
+              <h2>Operações que vendem no WhatsApp todo dia</h2>
+            </div>
 
-          <PlaceholderFlag>
-            Seção com dados de exemplo. Substitua os depoimentos e as métricas por informações reais
-            (com autorização dos clientes) e remova este aviso antes de publicar.
-          </PlaceholderFlag>
-
-          <div className="social-proof-grid">
-            {TESTIMONIALS_PLACEHOLDER.map((t, i) => (
-              <figure className="testimonial-card" key={i}>
-                <div className="icon-wrapper cyan">
-                  <QuoteIcon />
-                </div>
-                <blockquote className="testimonial-quote">{t.quote}</blockquote>
-                <figcaption className="testimonial-author">
-                  <span className="author-avatar" aria-hidden="true">{t.initials}</span>
-                  <span className="author-info">
-                    <strong>{t.name}</strong>
-                    <span>{t.role}</span>
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-
-          <div className="metrics-strip">
-            {METRICS_PLACEHOLDER.map((m) => (
-              <div className="metric-item" key={m.label}>
-                <strong>{m.value}</strong>
-                <span>{m.label}</span>
+            {testimonials.length > 0 ? (
+              <div className="social-proof-grid">
+                {testimonials.map((t, i) => (
+                  <figure className="testimonial-card" key={i}>
+                    <div className="icon-wrapper cyan">
+                      <QuoteIcon />
+                    </div>
+                    <blockquote className="testimonial-quote">{t.quote}</blockquote>
+                    <figcaption className="testimonial-author">
+                      <span className="author-avatar" aria-hidden="true">{t.initials}</span>
+                      <span className="author-info">
+                        <strong>{t.name}</strong>
+                        <span>{t.role}</span>
+                      </span>
+                    </figcaption>
+                  </figure>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            ) : null}
+
+            {metrics.length > 0 ? (
+              <div className="metrics-strip">
+                {metrics.map((m) => (
+                  <div className="metric-item" key={m.label}>
+                    <strong>{m.value}</strong>
+                    <span>{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
 
         {/* SIMULADOR INTERATIVO DE ROI / IMPACTO */}
         <section className="roi-calculator-section">

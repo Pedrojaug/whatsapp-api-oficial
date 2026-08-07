@@ -1624,22 +1624,6 @@ svg {
   color: var(--muted);
 }
 
-/* Marcador temporário — remover junto com os dados de exemplo. */
-.placeholder-flag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  align-self: center;
-  margin-bottom: 20px;
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--amber);
-  background: var(--amber-soft);
-  border: 1px dashed rgba(255, 165, 2, 0.45);
-}
-
 /* ==========================================================================
    FAQ — ANIMAÇÃO SEM REMOVER DO DOM
    ========================================================================== */
