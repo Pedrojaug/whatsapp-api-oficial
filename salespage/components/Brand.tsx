@@ -1,24 +1,16 @@
 import Link from "next/link";
 
-type BrandProps = {
-  href?: string;
-  label?: string;
-  centered?: boolean;
-};
-
-export function Brand({ href = "/", label = "por Inteligente Lab", centered = false }: BrandProps) {
+export function Brand() {
   return (
-    <Link className={`brand${centered ? " centered-brand" : ""}`} href={href} aria-label="Send Inteligente">
-      <span className="brand-mark" aria-hidden="true">
-        <svg viewBox="0 0 24 24">
-          <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+    <Link className="brand" href="/">
+      <span className="brand-logo" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 2L11 13" />
+          <path d="M22 2L15 22L11 13L2 9L22 2Z" />
         </svg>
       </span>
-      <span>
-        <strong>
-          Send <em>Inteligente</em>
-        </strong>
-        <small>{label}</small>
+      <span className="brand-text">
+        Send <strong>Inteligentte</strong>
       </span>
     </Link>
   );
