@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: "Send Inteligentte • Disparos no WhatsApp via API Oficial Meta Cloud v19",
   description:
     "Dispare campanhas no WhatsApp com 0% de risco de banimento de chip. Integração nativa com Meta Cloud API v19, encurtador de links rastreável e n8n.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   openGraph: {
     title: "Send Inteligentte • WhatsApp Business Cloud API Oficial",
     description:
