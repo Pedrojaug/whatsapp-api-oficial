@@ -103,7 +103,34 @@ export default function TermosECondicoesPage() {
           legais cabíveis.
         </p>
 
-        <h2>7. Limitação de responsabilidade</h2>
+        <h2>7. Compromisso do usuário</h2>
+        <p>
+          O usuário se compromete a fazer uso adequado dos conteúdos e das informações oferecidos
+          pelo Send Inteligentte, em caráter enunciativo e não limitativo:
+        </p>
+        <ul>
+          <li>
+            Não se envolver em atividades ilegais ou contrárias à boa-fé e à ordem pública.
+          </li>
+          <li>
+            Não difundir propaganda ou conteúdo de natureza racista, xenofóbica, de jogos de azar,
+            pornografia ilegal, apologia ao terrorismo ou contrário aos direitos humanos.
+          </li>
+          <li>
+            Não causar danos aos sistemas físicos e lógicos do Send Inteligentte, de seus
+            fornecedores ou de terceiros, nem introduzir ou disseminar vírus ou qualquer outro
+            software capaz de causar tais danos.
+          </li>
+        </ul>
+
+        <h2>8. Links para sites externos</h2>
+        <p>
+          A plataforma pode conter links para sites que não operamos. Não temos controle sobre o
+          conteúdo e as práticas desses sites e não nos responsabilizamos por suas políticas de
+          privacidade. A inclusão de um link não implica endosso.
+        </p>
+
+        <h2>9. Limitação de responsabilidade</h2>
         <p>
           A plataforma opera pelo canal oficial da Meta, o que elimina o risco de bloqueio
           decorrente de automação não autorizada. Contudo, <strong>o Send Inteligentte não
@@ -118,7 +145,7 @@ export default function TermosECondicoesPage() {
           eventos de força maior.
         </p>
 
-        <h2>8. Disponibilidade</h2>
+        <h2>10. Disponibilidade</h2>
         <p>
           Envidamos esforços para manter o serviço disponível de forma contínua, mas podem ocorrer
           interrupções para manutenção programada, atualizações ou por falhas de terceiros.
@@ -126,21 +153,21 @@ export default function TermosECondicoesPage() {
           eventuais compensações.]
         </p>
 
-        <h2>9. Propriedade intelectual</h2>
+        <h2>11. Propriedade intelectual</h2>
         <p>
           O software, a marca, a identidade visual e a documentação são de titularidade exclusiva
           da contratada. A assinatura concede licença de uso não exclusiva, intransferível e
           revogável, limitada à vigência do contrato.
         </p>
 
-        <h2>10. Dados pessoais</h2>
+        <h2>12. Dados pessoais</h2>
         <p>
           O tratamento de dados pessoais está descrito na{" "}
           <Link href="/politica-de-privacidade">Política de Privacidade</Link>, que integra estes
           termos.
         </p>
 
-        <h2>11. Foro</h2>
+        <h2>13. Foro</h2>
         <p>
           Fica eleito o foro da comarca de [CIDADE/UF] para dirimir controvérsias, com renúncia a
           qualquer outro, por mais privilegiado que seja — ressalvado, para relações de consumo, o

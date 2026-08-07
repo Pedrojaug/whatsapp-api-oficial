@@ -118,13 +118,20 @@ export default function PoliticaDePrivacidadePage() {
           adotados, com a respectiva base legal e mecanismo de consentimento.]
         </p>
 
-        <h2>10. Alterações</h2>
+        <h2>10. Links para sites externos</h2>
+        <p>
+          Nosso site pode conter links para sites que não operamos. Não temos controle sobre o
+          conteúdo nem sobre as práticas de privacidade desses sites e não nos responsabilizamos
+          por elas. Recomendamos a leitura das políticas de cada um.
+        </p>
+
+        <h2>11. Alterações</h2>
         <p>
           Podemos atualizar esta política a qualquer momento. Mudanças materiais serão comunicadas
           por e-mail ou aviso no painel com antecedência razoável.
         </p>
 
-        <h2>11. Contato</h2>
+        <h2>12. Contato</h2>
         <p>
           Encarregado pelo tratamento de dados pessoais (DPO): <strong>[NOME]</strong> —{" "}
           <strong>[E-MAIL]</strong>.
