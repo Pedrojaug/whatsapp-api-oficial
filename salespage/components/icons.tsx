@@ -1,66 +1,52 @@
-type IconProps = {
-  className?: string;
-};
+import React from "react";
 
-export function ArrowRightIcon({ className }: IconProps) {
+export function ArrowRightIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M5 12h14" />
-      <path d="m13 6 6 6-6 6" />
+      <path d="m12 5 7 7-7 7" />
     </svg>
   );
 }
 
-export function ArrowLeftIcon({ className }: IconProps) {
+export function BagIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M19 12H5" />
-      <path d="m11 18-6-6 6-6" />
-    </svg>
-  );
-}
-
-export function BagIcon({ className }: IconProps) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z" />
       <path d="M3 6h18" />
       <path d="M16 10a4 4 0 0 1-8 0" />
     </svg>
   );
 }
 
-export function ChartIcon({ className }: IconProps) {
+export function CheckIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M3 3v18h18" />
-      <path d="M7 16v-5" />
-      <path d="M12 16V7" />
-      <path d="M17 16v-3" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
     </svg>
   );
 }
 
-export function CheckIcon({ className }: IconProps) {
+export function CrossIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m9 12 2 2 4-5" />
-      <circle cx="12" cy="12" r="9" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
     </svg>
   );
 }
 
-export function MessageIcon({ className }: IconProps) {
+export function MessageIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
     </svg>
   );
 }
 
-export function ListIcon({ className }: IconProps) {
+export function ListIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="M8 6h13" />
       <path d="M8 12h13" />
       <path d="M8 18h13" />
@@ -71,13 +57,62 @@ export function ListIcon({ className }: IconProps) {
   );
 }
 
-export function RefreshIcon({ className }: IconProps) {
+export function ChartIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
-      <path d="M3 21v-5h5" />
-      <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
-      <path d="M16 8h5V3" />
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 3v18h18" />
+      <path d="m19 9-5 5-4-4-3 3" />
+    </svg>
+  );
+}
+
+export function ShieldCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.8 17 5 19 5a1 1 0 0 1 1 1z" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export function ZapIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+export function LinkIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+    </svg>
+  );
+}
+
+export function CpuIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect width="16" height="16" x="4" y="4" rx="2" />
+      <path d="M9 9h6v6H9z" />
+      <path d="M15 2v2" />
+      <path d="M15 20v2" />
+      <path d="M2 15h2" />
+      <path d="M2 9h2" />
+      <path d="M20 15h2" />
+      <path d="M20 9h2" />
+      <path d="M9 2v2" />
+      <path d="M9 20v2" />
+    </svg>
+  );
+}
+
+export function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m6 9 6 6 6-6" />
     </svg>
   );
 }
