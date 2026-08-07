@@ -29,7 +29,23 @@ export function SalesLanding({ content }: SalesLandingProps) {
   const [scrollProgress, setScrollProgress] = useState<number>(0);
   const [activeSteps, setActiveSteps] = useState<number[]>([]);
   const [expandedTimelineStep, setExpandedTimelineStep] = useState<number | null>(null);
+  const [toastIndex, setToastIndex] = useState<number>(0);
+  const [showToast, setShowToast] = useState<boolean>(true);
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  const proofNotifications = [
+    { name: "Marcos V.", city: "São Paulo, SP", action: "Ativou a Meta API no Plano Anual", time: "há 3 min" },
+    { name: "Agência Vox", city: "Belo Horizonte, MG", action: "Disparou +12.000 mensagens oficiais", time: "há 7 min" },
+    { name: "Rodrigo S.", city: "Curitiba, PR", action: "Migrou para o Send Inteligentte", time: "há 14 min" },
+    { name: "Dra. Camila N.", city: "Rio de Janeiro, RJ", action: "Ativou o Plano Trimestral", time: "há 21 min" },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setToastIndex((prev) => (prev + 1) % proofNotifications.length);
+    }, 7000);
+    return () => clearInterval(interval);
+  }, []);
 
   const toggleTimelineStep = (index: number) => {
     setExpandedTimelineStep(expandedTimelineStep === index ? null : index);
@@ -128,10 +144,15 @@ export function SalesLanding({ content }: SalesLandingProps) {
               </a>
             </div>
 
+            <div className="hero-guarantee-tag">
+              <ShieldCheckIcon />
+              <span>Garantia incondicional de 7 dias — Teste 100% sem risco</span>
+            </div>
+
             <div className="proof-strip" aria-label="Diferenciais principais">
-              <span className="proof-chip">✓ API Oficial da Meta</span>
-              <span className="proof-chip">✓ Opt-out automático (LGPD)</span>
-              <span className="proof-chip">✓ Suporte na ativação</span>
+              <span className="proof-chip"><CheckIcon /> API Oficial da Meta</span>
+              <span className="proof-chip"><CheckIcon /> Opt-out automático (LGPD)</span>
+              <span className="proof-chip"><CheckIcon /> Suporte na ativação</span>
             </div>
           </div>
 
@@ -609,6 +630,23 @@ export function SalesLanding({ content }: SalesLandingProps) {
               );
             })}
           </div>
+
+          {/* BANNER SUPORTE WHATSAPP NO FAQ */}
+          <div className="faq-whatsapp-cta">
+            <div className="faq-cta-left">
+              <span className="faq-cta-badge">💬 DÚVIDAS DE INTEGRAÇÃO?</span>
+              <h3>Fale agora com um Especialista no WhatsApp</h3>
+              <p>Quer entender se o seu número atual é elegível para a API Oficial da Meta? Nosso time ajuda você ao vivo.</p>
+            </div>
+            <a
+              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20d%C3%BAvidas%20sobre%20a%20API%20Oficial%20do%20Send%20Inteligentte."
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whatsapp-support-btn"
+            >
+              <MessageIcon /> Falar no WhatsApp
+            </a>
+          </div>
         </section>
 
         {/* CTA FINAL DE CONVERSÃO */}
@@ -621,8 +659,38 @@ export function SalesLanding({ content }: SalesLandingProps) {
               <ZapIcon />
               Garantir meu Acesso ao Send Inteligentte
             </a>
+
+            <div className="guarantee-footer-tag">
+              <ShieldCheckIcon />
+              <span>Garantia incondicional de 7 dias • Teste 100% sem risco</span>
+            </div>
           </div>
         </section>
+
+        {/* SOCIAL PROOF TOAST FLUTUANTE */}
+        {showToast && (
+          <div className="social-proof-toast" role="status" aria-live="polite">
+            <button
+              type="button"
+              className="toast-close-btn"
+              onClick={() => setShowToast(false)}
+              aria-label="Fechar notificação"
+            >
+              ×
+            </button>
+            <div className="toast-avatar">
+              <ZapIcon />
+            </div>
+            <div className="toast-content">
+              <div className="toast-top-row">
+                <strong>{proofNotifications[toastIndex].name}</strong>
+                <span className="toast-city">({proofNotifications[toastIndex].city})</span>
+              </div>
+              <p className="toast-action">{proofNotifications[toastIndex].action}</p>
+              <span className="toast-time">⚡ {proofNotifications[toastIndex].time}</span>
+            </div>
+          </div>
+        )}
 
         {/* RODAPÉ SIMPLES */}
         <footer className="site-footer simple-footer">

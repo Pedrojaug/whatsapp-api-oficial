@@ -405,19 +405,48 @@ svg {
   margin-top: 4px;
 }
 
+.hero-guarantee-tag,
+.guarantee-footer-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #00ffaa;
+  margin-top: 4px;
+}
+
+.hero-guarantee-tag svg,
+.guarantee-footer-tag svg {
+  width: 17px;
+  height: 17px;
+  color: var(--green);
+}
+
 .proof-strip {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
+  align-items: center;
+  gap: 16px;
   margin-top: 12px;
   padding-top: 18px;
   border-top: 1px solid var(--border);
+  flex-wrap: nowrap;
 }
 
 .proof-chip {
-  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
   font-weight: 600;
-  color: var(--text-soft);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.proof-chip svg {
+  width: 16px;
+  height: 16px;
+  color: var(--green);
 }
 
 /* PREVIEW FRAME MAIOR DO DASHBOARD REAL */
@@ -1496,5 +1525,179 @@ svg {
 
   .login-link {
     display: none;
+  }
+}
+
+/* ==========================================================================
+   SOCIAL PROOF TOAST & FAQ WHATSAPP CTA
+   ========================================================================== */
+.social-proof-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 9999;
+  background: rgba(14, 19, 26, 0.95);
+  border: 1px solid rgba(0, 208, 132, 0.4);
+  border-radius: 16px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 30px rgba(0, 208, 132, 0.18);
+  backdrop-filter: blur(14px);
+  max-width: 380px;
+  animation: toastSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes toastSlideUp {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.toast-close-btn {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.toast-close-btn:hover {
+  color: #fff;
+}
+
+.toast-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(0, 208, 132, 0.15);
+  border: 1.5px solid var(--green);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.toast-avatar svg {
+  width: 18px;
+  height: 18px;
+}
+
+.toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.toast-top-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--heading);
+}
+
+.toast-city {
+  font-size: 0.78rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.toast-action {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.toast-time {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #00ffaa;
+}
+
+.faq-whatsapp-cta {
+  margin-top: 48px;
+  background: linear-gradient(135deg, rgba(0, 208, 132, 0.1) 0%, var(--surface-soft) 100%);
+  border: 1px solid rgba(0, 208, 132, 0.35);
+  border-radius: 20px;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+}
+
+.faq-cta-badge {
+  font-family: monospace;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #00ffaa;
+  letter-spacing: 0.06em;
+}
+
+.faq-cta-left h3 {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--heading);
+  margin: 6px 0 4px;
+}
+
+.faq-cta-left p {
+  font-size: 0.9rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.whatsapp-support-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+  border-radius: 12px;
+  background: #25D366;
+  color: #000;
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.35);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.whatsapp-support-btn:hover {
+  background: #20ba5a;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(37, 211, 102, 0.5);
+}
+
+.whatsapp-support-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+@media (max-width: 768px) {
+  .faq-whatsapp-cta {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 22px;
+  }
+  .social-proof-toast {
+    left: 16px;
+    right: 16px;
+    bottom: 16px;
+    max-width: none;
   }
 }

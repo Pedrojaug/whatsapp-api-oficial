@@ -32,7 +32,7 @@ export const plans: Plan[] = [
     name: "Plano Trimestral",
     price: 497,
     period: "/trimestre",
-    badge: "Mais Escolhido",
+    badge: "Economize 20% • Mais Escolhido",
     highlighted: true,
     monthlyEquivalent: 165,
     description: "Para empresas que buscam escalar vendas com desconto contínuo.",
@@ -51,7 +51,7 @@ export const plans: Plan[] = [
     name: "Plano Anual",
     price: 1497,
     period: "/ano",
-    badge: "Melhor Valor (Economize 36%)",
+    badge: "Economize 36% • Maior Desconto",
     monthlyEquivalent: 124,
     description: "Estrutura completa com o menor custo por mês do mercado.",
     features: [
