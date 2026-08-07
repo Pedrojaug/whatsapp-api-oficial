@@ -353,8 +353,8 @@ svg {
    ========================================================================== */
 .hero-section {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-  gap: 48px;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.32fr);
+  gap: 40px;
   align-items: center;
   padding-top: 16px;
 }
@@ -368,7 +368,7 @@ svg {
 }
 
 .hero-copy h1 {
-  font-size: clamp(1.9rem, 3.1vw, 2.35rem);
+  font-size: clamp(2.05rem, 3.3vw, 2.6rem);
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -0.03em;
@@ -378,12 +378,17 @@ svg {
 }
 
 .highlight-green {
-  color: var(--green);
-  background: linear-gradient(180deg, var(--green), #00b371);
+  color: #00ffaa;
+  background: linear-gradient(180deg, #00ffaa 0%, var(--green) 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  display: inline;
+  display: block;
+  font-size: 1.18em;
+  font-weight: 900;
+  margin-top: 6px;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
 }
 
 .hero-subtext {
@@ -420,13 +425,15 @@ svg {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 20px;
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.75), 0 0 50px rgba(0, 208, 132, 0.18);
+  box-shadow: 0 30px 95px rgba(0, 0, 0, 0.8), 0 0 60px rgba(0, 208, 132, 0.22);
   overflow: hidden;
   position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   max-width: 100%;
+  transform: scale(1.02);
+  transform-origin: center right;
 }
 
 .window-topbar {
