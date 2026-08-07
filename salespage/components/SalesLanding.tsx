@@ -203,11 +203,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
                         {expandedTimelineStep === 0 ? "Ocultar ▲" : "Ver detalhes ▼"}
                       </span>
                     </div>
-                    <h3>Conexão Oficial Meta</h3>
-                    <p className="impact-subtitle">⚡ Ativação em 2 minutos via Facebook Business</p>
+                    <h3 className="main-step-title">Conexão Oficial Meta</h3>
                     {expandedTimelineStep === 0 && (
                       <div className="step-explanation-box">
-                        <p>Vinculação nativa homologada pela Meta. Sem QR Code, sem queda de chip e 100% à prova de banimento.</p>
+                        <p className="impact-subtitle">⚡ Ativação em 2 minutos via Facebook Business</p>
+                        <p className="detail-text">Vinculação nativa homologada pela Meta. Sem QR Code, sem queda de chip e 100% à prova de banimento.</p>
                       </div>
                     )}
                   </div>
@@ -241,11 +241,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
                         {expandedTimelineStep === 1 ? "Ocultar ▲" : "Ver detalhes ▼"}
                       </span>
                     </div>
-                    <h3>Importação de Contatos</h3>
-                    <p className="impact-subtitle">📊 Planilhas CSV com tags e opt-out automático</p>
+                    <h3 className="main-step-title">Importação de Contatos</h3>
                     {expandedTimelineStep === 1 && (
                       <div className="step-explanation-box">
-                        <p>Suba suas listas em segundos. O sistema organiza os contatos e remove automaticamente quem solicitar saída.</p>
+                        <p className="impact-subtitle">📊 Planilhas CSV com tags e opt-out automático</p>
+                        <p className="detail-text">Suba suas listas em segundos. O sistema organiza os contatos e remove automaticamente quem solicitar saída.</p>
                       </div>
                     )}
                   </div>
@@ -275,11 +275,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
                         {expandedTimelineStep === 2 ? "Ocultar ▲" : "Ver detalhes ▼"}
                       </span>
                     </div>
-                    <h3>Templates Interativos</h3>
-                    <p className="impact-subtitle">🎯 Mensagens com botões de ação e links /t/</p>
+                    <h3 className="main-step-title">Templates Interativos</h3>
                     {expandedTimelineStep === 2 && (
                       <div className="step-explanation-box">
-                        <p>Cadastre modelos com botões de resposta rápida e links rastreáveis que medem o interesse real de cada lead.</p>
+                        <p className="impact-subtitle">🎯 Mensagens com botões de ação e links /t/</p>
+                        <p className="detail-text">Cadastre modelos com botões de resposta rápida e links rastreáveis que medem o interesse real de cada lead.</p>
                       </div>
                     )}
                   </div>
@@ -313,11 +313,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
                         {expandedTimelineStep === 3 ? "Ocultar ▲" : "Ver detalhes ▼"}
                       </span>
                     </div>
-                    <h3>Disparo & Conversão</h3>
-                    <p className="impact-subtitle">🚀 Envio em massa com métricas ao vivo</p>
+                    <h3 className="main-step-title">Disparo & Conversão</h3>
                     {expandedTimelineStep === 3 && (
                       <div className="step-explanation-box">
-                        <p>Dispare com alta prioridade de entrega e acompanhe visualizações e cliques em tempo real no seu painel.</p>
+                        <p className="impact-subtitle">🚀 Envio em massa com métricas ao vivo</p>
+                        <p className="detail-text">Dispare com alta prioridade de entrega e acompanhe visualizações e cliques em tempo real no seu painel.</p>
                       </div>
                     )}
                   </div>
