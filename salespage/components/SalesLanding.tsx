@@ -131,53 +131,68 @@ export function SalesLanding({ content }: SalesLandingProps) {
         {/* PASSO A PASSO EM FORMATO DE LINHA DO TEMPO */}
         <section className="timeline-section" id="como-funciona">
           <div className="section-header">
-            <span className="section-badge">Linha do Tempo</span>
-            <h2>Como funciona em 4 passos simples</h2>
-            <p>Do cadastro até o disparo em massa seguro e homologado.</p>
+            <span className="section-badge">Passo a Passo</span>
+            <h2>Como funciona a operação em 4 passos</h2>
+            <p>Do cadastro inicial até o primeiro disparo em massa 100% oficial e seguro.</p>
           </div>
 
-          <div className="timeline-container">
-            <div className="timeline-step">
-              <div className="step-top-row">
-                <div className="step-badge">1</div>
-                <span className="step-arrow">→</span>
-              </div>
-              <div className="step-content">
-                <h3>Conecte a Meta API</h3>
-                <p>Vinculação oficial em 2 minutos via login no Facebook.</p>
-              </div>
-            </div>
+          <div className="timeline-wrapper">
+            <div className="timeline-connecting-line" aria-hidden="true" />
 
-            <div className="timeline-step">
-              <div className="step-top-row">
-                <div className="step-badge">2</div>
-                <span className="step-arrow">→</span>
+            <div className="timeline-grid">
+              <div className="timeline-card">
+                <div className="card-top-bar">
+                  <span className="step-number">01</span>
+                  <div className="step-icon-bubble">
+                    <ShieldCheckIcon />
+                  </div>
+                </div>
+                <div className="card-body">
+                  <h3>Conecte a Meta API</h3>
+                  <p>Vinculação oficial em 2 minutos utilizando seu login do Facebook Business.</p>
+                </div>
+                <div className="connector-arrow" aria-hidden="true">→</div>
               </div>
-              <div className="step-content">
-                <h3>Importe seus Contatos</h3>
-                <p>Upload de planilhas CSV com tags e segmentação.</p>
-              </div>
-            </div>
 
-            <div className="timeline-step">
-              <div className="step-top-row">
-                <div className="step-badge">3</div>
-                <span className="step-arrow">→</span>
+              <div className="timeline-card">
+                <div className="card-top-bar">
+                  <span className="step-number">02</span>
+                  <div className="step-icon-bubble">
+                    <ListIcon />
+                  </div>
+                </div>
+                <div className="card-body">
+                  <h3>Importe seus Contatos</h3>
+                  <p>Upload simples de planilhas CSV com tags personalizadas e segmentação.</p>
+                </div>
+                <div className="connector-arrow" aria-hidden="true">→</div>
               </div>
-              <div className="step-content">
-                <h3>Crie o Template</h3>
-                <p>Mensagens com botões interativos aprovados pela Meta.</p>
-              </div>
-            </div>
 
-            <div className="timeline-step">
-              <div className="step-top-row">
-                <div className="step-badge">4</div>
-                <span className="step-check">✓</span>
+              <div className="timeline-card">
+                <div className="card-top-bar">
+                  <span className="step-number">03</span>
+                  <div className="step-icon-bubble">
+                    <MessageIcon />
+                  </div>
+                </div>
+                <div className="card-body">
+                  <h3>Crie o Template</h3>
+                  <p>Cadastre mensagens com botões de ação e links rastreáveis homologados.</p>
+                </div>
+                <div className="connector-arrow" aria-hidden="true">→</div>
               </div>
-              <div className="step-content">
-                <h3>Dispare e Converta</h3>
-                <p>Envio automático com métricas de entrega e cliques ao vivo.</p>
+
+              <div className="timeline-card featured-step">
+                <div className="card-top-bar">
+                  <span className="step-number final">04</span>
+                  <div className="step-icon-bubble highlight">
+                    <ZapIcon />
+                  </div>
+                </div>
+                <div className="card-body">
+                  <h3>Dispare e Converta</h3>
+                  <p>Envio imediato com acompanhamento de entregas e cliques ao vivo no painel.</p>
+                </div>
               </div>
             </div>
           </div>

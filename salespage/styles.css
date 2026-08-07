@@ -517,91 +517,149 @@ svg {
 }
 
 /* ==========================================================================
-   LINHA DO TEMPO - PASSO A PASSO (HORIZONTE 4 COLUNAS GARANTIDO)
+   LINHA DO TEMPO - PASSO A PASSO (DESIGN MODERNO DE 4 PASSOS CONECTADOS)
    ========================================================================== */
 .timeline-section {
   display: flex;
   flex-direction: column;
 }
 
-.timeline-container {
+.timeline-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 10px;
+}
+
+.timeline-connecting-line {
+  position: absolute;
+  top: 45px;
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 208, 132, 0.15) 0%,
+    rgba(0, 208, 132, 0.7) 50%,
+    rgba(0, 208, 132, 0.15) 100%
+  );
+  z-index: 1;
+}
+
+.timeline-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 20px;
   position: relative;
+  z-index: 2;
   width: 100%;
 }
 
-.timeline-step {
+.timeline-card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 24px 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  padding: 26px 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   position: relative;
-  transition: all 0.25s ease;
-  min-width: 0; /* Impede quebra para 2ª linha no grid */
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  min-width: 0;
+  backdrop-filter: blur(12px);
 }
 
-.timeline-step:hover {
+.timeline-card:hover {
   border-color: var(--green);
-  transform: translateY(-4px);
+  transform: translateY(-6px);
   background: var(--surface-soft);
-  box-shadow: 0 10px 30px rgba(0, 208, 132, 0.12);
+  box-shadow: 0 16px 36px rgba(0, 208, 132, 0.15), 0 0 0 1px rgba(0, 208, 132, 0.3);
 }
 
-.step-top-row {
+.timeline-card.featured-step {
+  border-color: rgba(0, 208, 132, 0.4);
+  background: linear-gradient(180deg, rgba(0, 208, 132, 0.06) 0%, var(--surface) 100%);
+}
+
+.card-top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  position: relative;
 }
 
-.step-badge {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--green);
-  color: #000;
-  font-weight: 800;
-  font-size: 1.05rem;
+.step-number {
+  font-family: monospace;
+  font-size: 1.7rem;
+  font-weight: 900;
+  color: var(--muted-deep);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  transition: color 0.3s ease;
+}
+
+.step-number.final {
+  color: var(--green);
+}
+
+.timeline-card:hover .step-number {
+  color: var(--green);
+}
+
+.step-icon-bubble {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  border: 1px solid var(--border-strong);
+  color: var(--green);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px var(--green-glow);
-  flex-shrink: 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-.step-arrow {
-  font-size: 1.15rem;
-  color: var(--muted-deep);
-  font-weight: 700;
-  transition: color 0.2s ease;
+.step-icon-bubble svg {
+  width: 22px;
+  height: 22px;
 }
 
-.step-check {
+.step-icon-bubble.highlight {
+  background: var(--green);
+  color: #000;
+  border-color: var(--green);
+  box-shadow: 0 0 20px var(--green-glow);
+}
+
+.timeline-card:hover .step-icon-bubble {
+  background: var(--green);
+  color: #000;
+  border-color: var(--green);
+  box-shadow: 0 0 20px var(--green-glow);
+}
+
+.card-body h3 {
   font-size: 1.1rem;
-  color: var(--green);
-  font-weight: 800;
-}
-
-.timeline-step:hover .step-arrow {
-  color: var(--green);
-}
-
-.step-content h3 {
-  font-size: 1.08rem;
   font-weight: 700;
-  margin: 0 0 6px;
-  letter-spacing: -0.01em;
+  color: var(--heading);
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
 }
 
-.step-content p {
+.card-body p {
   font-size: 0.88rem;
   color: var(--muted);
+  line-height: 1.5;
   margin: 0;
-  line-height: 1.45;
+}
+
+.connector-arrow {
+  position: absolute;
+  right: -14px;
+  top: 32px;
+  color: var(--green);
+  font-weight: 800;
+  z-index: 3;
 }
 
 /* ==========================================================================
