@@ -517,149 +517,249 @@ svg {
 }
 
 /* ==========================================================================
-   LINHA DO TEMPO - PASSO A PASSO (DESIGN MODERNO DE 4 PASSOS CONECTADOS)
+   LINHA DO TEMPO VERTICAL INTERATIVA COM ANIMAÇÃO NO SCROLL
    ========================================================================== */
 .timeline-section {
   display: flex;
   flex-direction: column;
 }
 
-.timeline-wrapper {
+.vertical-timeline-wrapper {
   position: relative;
+  max-width: 920px;
+  margin: 0 auto;
   width: 100%;
-  padding-top: 10px;
+  padding: 40px 0 20px;
 }
 
-.timeline-connecting-line {
+/* EIXO CENTRAL COM LINHA PROGRESSIVA DE SCROLL */
+.vertical-timeline-axis {
   position: absolute;
-  top: 45px;
-  left: 5%;
-  right: 5%;
-  height: 2px;
-  background: linear-gradient(
-    90deg,
-    rgba(0, 208, 132, 0.15) 0%,
-    rgba(0, 208, 132, 0.7) 50%,
-    rgba(0, 208, 132, 0.15) 100%
-  );
+  top: 50px;
+  bottom: 50px;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+  background: var(--border-strong);
+  border-radius: 99px;
   z-index: 1;
 }
 
-.timeline-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-  position: relative;
-  z-index: 2;
+.vertical-axis-progress {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
+  background: linear-gradient(180deg, var(--green), #00ffaa);
+  border-radius: 99px;
+  box-shadow: 0 0 15px var(--green);
+  transition: height 0.15s ease-out;
 }
 
-.timeline-card {
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 18px;
-  padding: 26px 20px 24px;
+.vertical-steps-container {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 56px;
   position: relative;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  min-width: 0;
-  backdrop-filter: blur(12px);
+  z-index: 2;
 }
 
-.timeline-card:hover {
-  border-color: var(--green);
-  transform: translateY(-6px);
-  background: var(--surface-soft);
-  box-shadow: 0 16px 36px rgba(0, 208, 132, 0.15), 0 0 0 1px rgba(0, 208, 132, 0.3);
+.vertical-step-item {
+  display: grid;
+  grid-template-columns: 1fr 40px 1fr;
+  align-items: center;
+  gap: 0;
+  position: relative;
+  opacity: 0.3;
+  transform: translateY(24px);
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.timeline-card.featured-step {
-  border-color: rgba(0, 208, 132, 0.4);
-  background: linear-gradient(180deg, rgba(0, 208, 132, 0.06) 0%, var(--surface) 100%);
+.vertical-step-item.is-active {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-.card-top-bar {
+/* EIXO CENTRAL E PONTO DE CONEXÃO (NODE DOT) */
+.step-node-col {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 3;
+}
+
+.timeline-node-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 3px solid var(--border-strong);
+  transition: all 0.4s ease;
+  box-shadow: 0 0 0 4px var(--bg);
+}
+
+.vertical-step-item.is-active .timeline-node-dot {
+  background: var(--green);
+  border-color: #00ffaa;
+  box-shadow: 0 0 0 4px var(--bg), 0 0 16px var(--green-glow);
+  transform: scale(1.25);
+}
+
+/* LINHA TRACEJADA DE CONEXAO */
+.step-connector-line {
+  height: 2px;
+  border-top: 2px dashed var(--border-strong);
+  transition: all 0.4s ease;
+}
+
+.vertical-step-item.is-active .step-connector-line {
+  border-top-color: var(--green);
+  opacity: 0.8;
+}
+
+/* COLUNA DE ICONE CIRCULAR */
+.step-icon-col {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  position: relative;
 }
 
-.step-number {
-  font-family: monospace;
-  font-size: 1.7rem;
-  font-weight: 900;
-  color: var(--muted-deep);
-  letter-spacing: -0.04em;
-  line-height: 1;
-  transition: color 0.3s ease;
+.step-left .step-icon-col {
+  justify-content: flex-end;
 }
 
-.step-number.final {
-  color: var(--green);
+.step-right .step-icon-col {
+  justify-content: flex-start;
 }
 
-.timeline-card:hover .step-number {
-  color: var(--green);
-}
-
-.step-icon-bubble {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: var(--surface-soft);
-  border: 1px solid var(--border-strong);
-  color: var(--green);
+.vertical-icon-bubble {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border-strong);
+  color: var(--muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
-.step-icon-bubble svg {
-  width: 22px;
-  height: 22px;
+.vertical-icon-bubble svg {
+  width: 24px;
+  height: 24px;
 }
 
-.step-icon-bubble.highlight {
+.vertical-step-item.is-active .vertical-icon-bubble {
+  background: var(--surface-soft);
+  border-color: var(--green);
+  color: var(--green);
+  box-shadow: 0 0 24px rgba(0, 208, 132, 0.25);
+}
+
+.vertical-icon-bubble.highlight {
   background: var(--green);
   color: #000;
   border-color: var(--green);
-  box-shadow: 0 0 20px var(--green-glow);
+  box-shadow: 0 0 24px var(--green-glow);
 }
 
-.timeline-card:hover .step-icon-bubble {
-  background: var(--green);
-  color: #000;
-  border-color: var(--green);
-  box-shadow: 0 0 20px var(--green-glow);
+/* CARDS DE CONTEUDO DO PASSO */
+.step-card-col {
+  display: flex;
 }
 
-.card-body h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
+.step-left .step-card-col {
+  justify-content: flex-start;
+  padding-left: 20px;
+}
+
+.step-right .step-card-col {
+  justify-content: flex-end;
+  padding-right: 20px;
+  text-align: right;
+}
+
+.vertical-step-card {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  padding: 22px 24px;
+  max-width: 380px;
+  width: 100%;
+  transition: all 0.4s ease;
+  backdrop-filter: blur(10px);
+}
+
+.vertical-step-item.is-active .vertical-step-card {
+  border-color: rgba(0, 208, 132, 0.35);
+  background: var(--surface-soft);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.vertical-step-card.featured {
+  border-color: rgba(0, 208, 132, 0.5);
+  background: linear-gradient(180deg, rgba(0, 208, 132, 0.08) 0%, var(--surface-soft) 100%);
+}
+
+.vertical-step-label {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--green);
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+.vertical-step-label.highlight {
+  color: #00ffaa;
+}
+
+.vertical-step-card h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
   color: var(--heading);
   margin: 0 0 8px;
   letter-spacing: -0.02em;
 }
 
-.card-body p {
-  font-size: 0.88rem;
+.vertical-step-card p {
+  font-size: 0.9rem;
   color: var(--muted);
   line-height: 1.5;
   margin: 0;
 }
 
-.connector-arrow {
-  position: absolute;
-  right: -14px;
-  top: 32px;
-  color: var(--green);
-  font-weight: 800;
-  z-index: 3;
+/* RESPONSIVO MOBILE */
+@media (max-width: 768px) {
+  .vertical-timeline-axis {
+    left: 28px;
+  }
+
+  .vertical-step-item {
+    grid-template-columns: 56px 1fr;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .step-left .step-card-col,
+  .step-right .step-card-col {
+    padding: 0;
+    text-align: left;
+    justify-content: flex-start;
+  }
+
+  .step-node-col,
+  .step-connector-line {
+    display: none;
+  }
+
+  .step-left .step-icon-col,
+  .step-right .step-icon-col {
+    display: flex;
+    justify-content: center;
+  }
 }
 
 /* ==========================================================================
