@@ -20,10 +20,10 @@ export type SiteContent = {
   offerTitle: string;
   offerDescription: string;
   inclusions: string[];
-  faqs: FaqItem[];
+  faqs?: FaqItem[];
 };
 
-export const defaultSiteContent: SiteContent = {
+export const defaultSiteContent: Required<SiteContent> = {
   announcement: "🚀 API Oficial Meta Cloud v19 • Estrutura de Alta Conversão sem Risco de Banimento",
   heroBadge: "WhatsApp Business Cloud API Oficial",
   heroTitle: "Dispare campanhas no WhatsApp com 0% de risco de banimento.",
@@ -83,16 +83,23 @@ export const defaultSiteContent: SiteContent = {
 
 const contentFilePath = path.join(process.cwd(), "data", "landing-content.json");
 
-export async function getSiteContent(): Promise<SiteContent> {
+export async function getSiteContent(): Promise<Required<SiteContent>> {
   try {
     const raw = await readFile(contentFilePath, "utf-8");
-    return { ...defaultSiteContent, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    return {
+      ...defaultSiteContent,
+      ...parsed,
+      faqs: parsed.faqs && parsed.faqs.length > 0 ? parsed.faqs : defaultSiteContent.faqs,
+    };
   } catch {
     return defaultSiteContent;
   }
 }
 
-export async function saveSiteContent(content: SiteContent): Promise<void> {
+export async function saveSiteContent(content: Partial<SiteContent>): Promise<void> {
+  const current = await getSiteContent();
+  const merged = { ...current, ...content };
   await mkdir(path.dirname(contentFilePath), { recursive: true });
-  await writeFile(contentFilePath, JSON.stringify(content, null, 2), "utf-8");
+  await writeFile(contentFilePath, JSON.stringify(merged, null, 2), "utf-8");
 }
