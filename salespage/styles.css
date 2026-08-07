@@ -581,7 +581,7 @@ svg {
 }
 
 /* EIXO CENTRAL E PONTO DE CONEXÃO (NODE DOT) */
-.step-node-col {
+.step-axis-col {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -605,32 +605,41 @@ svg {
   transform: scale(1.25);
 }
 
+/* COLUNAS LATERAIS (ESQUERDA E DIREITA) */
+.step-side-col {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.step-side-col.left-side {
+  justify-content: flex-end;
+}
+
+.step-side-col.right-side {
+  justify-content: flex-start;
+}
+
+.step-side-col.empty {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* LINHA TRACEJADA DE CONEXAO */
-.step-connector-line {
+.step-dashed-connector {
+  flex: 1;
   height: 2px;
   border-top: 2px dashed var(--border-strong);
   transition: all 0.4s ease;
+  min-width: 24px;
 }
 
-.vertical-step-item.is-active .step-connector-line {
+.vertical-step-item.is-active .step-dashed-connector {
   border-top-color: var(--green);
   opacity: 0.8;
 }
 
-/* COLUNA DE ICONE CIRCULAR */
-.step-icon-col {
-  display: flex;
-  align-items: center;
-}
-
-.step-left .step-icon-col {
-  justify-content: flex-end;
-}
-
-.step-right .step-icon-col {
-  justify-content: flex-start;
-}
-
+/* BUBBLE DO ÍCONE */
 .vertical-icon-bubble {
   width: 52px;
   height: 52px;
@@ -643,6 +652,7 @@ svg {
   justify-content: center;
   transition: all 0.4s ease;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  flex-shrink: 0;
 }
 
 .vertical-icon-bubble svg {
@@ -665,30 +675,24 @@ svg {
 }
 
 /* CARDS DE CONTEUDO DO PASSO */
-.step-card-col {
-  display: flex;
-}
-
-.step-left .step-card-col {
-  justify-content: flex-start;
-  padding-left: 20px;
-}
-
-.step-right .step-card-col {
-  justify-content: flex-end;
-  padding-right: 20px;
-  text-align: right;
-}
-
 .vertical-step-card {
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: 16px;
-  padding: 22px 24px;
-  max-width: 380px;
+  padding: 20px 22px;
+  max-width: 340px;
   width: 100%;
   transition: all 0.4s ease;
   backdrop-filter: blur(10px);
+  flex-shrink: 0;
+}
+
+.step-left .vertical-step-card {
+  text-align: right;
+}
+
+.step-right .vertical-step-card {
+  text-align: left;
 }
 
 .vertical-step-item.is-active .vertical-step-card {
@@ -717,7 +721,7 @@ svg {
 }
 
 .vertical-step-card h3 {
-  font-size: 1.15rem;
+  font-size: 1.12rem;
   font-weight: 800;
   color: var(--heading);
   margin: 0 0 8px;
@@ -725,7 +729,7 @@ svg {
 }
 
 .vertical-step-card p {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--muted);
   line-height: 1.5;
   margin: 0;

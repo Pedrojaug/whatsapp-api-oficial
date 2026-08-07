@@ -181,44 +181,40 @@ export function SalesLanding({ content }: SalesLandingProps) {
             <div className="vertical-steps-container">
               {/* PASSO 01 - ESQUERDA */}
               <div className={`vertical-step-item step-left ${activeSteps.includes(0) ? "is-active" : ""}`}>
-                <div className="step-icon-col">
+                <div className="step-side-col left-side">
                   <div className="vertical-icon-bubble">
                     <ShieldCheckIcon />
                   </div>
-                </div>
-
-                <div className="step-connector-line" />
-
-                <div className="step-node-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-card-col">
+                  <div className="step-dashed-connector" />
                   <div className="vertical-step-card">
                     <span className="vertical-step-label">PASSO 01</span>
                     <h3>Conecte a Meta API</h3>
                     <p>Vinculação oficial em 2 minutos utilizando seu login do Facebook Business.</p>
                   </div>
                 </div>
+
+                <div className="step-axis-col">
+                  <div className="timeline-node-dot" />
+                </div>
+
+                <div className="step-side-col right-side empty" />
               </div>
 
               {/* PASSO 02 - DIREITA */}
               <div className={`vertical-step-item step-right ${activeSteps.includes(1) ? "is-active" : ""}`}>
-                <div className="step-card-col">
+                <div className="step-side-col left-side empty" />
+
+                <div className="step-axis-col">
+                  <div className="timeline-node-dot" />
+                </div>
+
+                <div className="step-side-col right-side">
                   <div className="vertical-step-card">
                     <span className="vertical-step-label">PASSO 02</span>
                     <h3>Importe seus Contatos</h3>
                     <p>Upload simples de planilhas CSV com tags personalizadas e segmentação.</p>
                   </div>
-                </div>
-
-                <div className="step-node-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-connector-line" />
-
-                <div className="step-icon-col">
+                  <div className="step-dashed-connector" />
                   <div className="vertical-icon-bubble">
                     <ListIcon />
                   </div>
@@ -227,44 +223,40 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
               {/* PASSO 03 - ESQUERDA */}
               <div className={`vertical-step-item step-left ${activeSteps.includes(2) ? "is-active" : ""}`}>
-                <div className="step-icon-col">
+                <div className="step-side-col left-side">
                   <div className="vertical-icon-bubble">
                     <MessageIcon />
                   </div>
-                </div>
-
-                <div className="step-connector-line" />
-
-                <div className="step-node-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-card-col">
+                  <div className="step-dashed-connector" />
                   <div className="vertical-step-card">
                     <span className="vertical-step-label">PASSO 03</span>
                     <h3>Crie o Template</h3>
                     <p>Cadastre mensagens com botões de ação e links rastreáveis homologados.</p>
                   </div>
                 </div>
+
+                <div className="step-axis-col">
+                  <div className="timeline-node-dot" />
+                </div>
+
+                <div className="step-side-col right-side empty" />
               </div>
 
               {/* PASSO 04 - DIREITA */}
               <div className={`vertical-step-item step-right ${activeSteps.includes(3) ? "is-active" : ""}`}>
-                <div className="step-card-col">
+                <div className="step-side-col left-side empty" />
+
+                <div className="step-axis-col">
+                  <div className="timeline-node-dot" />
+                </div>
+
+                <div className="step-side-col right-side">
                   <div className="vertical-step-card featured">
                     <span className="vertical-step-label highlight">PASSO 04</span>
                     <h3>Dispare e Converta</h3>
                     <p>Envio imediato com acompanhamento de entregas e cliques ao vivo no painel.</p>
                   </div>
-                </div>
-
-                <div className="step-node-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-connector-line" />
-
-                <div className="step-icon-col">
+                  <div className="step-dashed-connector" />
                   <div className="vertical-icon-bubble highlight">
                     <ZapIcon />
                   </div>
