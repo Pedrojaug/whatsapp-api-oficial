@@ -118,10 +118,6 @@ export function SalesLanding({ content }: SalesLandingProps) {
               Dispare campanhas no WhatsApp <span className="highlight-green">sem arriscar o seu número</span>
             </h1>
 
-            <p className="hero-subtext">
-              Disparo em massa pela API Oficial da Meta: templates aprovados, alta taxa de entrega e zero risco de banimento do seu chip comercial.
-            </p>
-
             <div className="hero-actions">
               <a className="primary-button glowing large" href="#planos">
                 <ArrowRightIcon />

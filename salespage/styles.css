@@ -368,12 +368,12 @@ svg {
 }
 
 .hero-copy h1 {
-  font-size: clamp(2.05rem, 3.3vw, 2.6rem);
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.03em;
+  font-size: clamp(2.35rem, 4.2vw, 3.45rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
   margin: 0;
-  color: var(--text);
+  color: #ffffff;
   word-break: break-word;
 }
 
@@ -384,11 +384,11 @@ svg {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: block;
-  font-size: 1.18em;
-  font-weight: 900;
-  margin-top: 6px;
-  letter-spacing: -0.035em;
-  line-height: 1.15;
+  font-size: 0.55em;
+  font-weight: 700;
+  margin-top: 10px;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
 }
 
 .hero-subtext {
