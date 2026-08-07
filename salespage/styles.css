@@ -674,17 +674,31 @@ svg {
   box-shadow: 0 0 24px var(--green-glow);
 }
 
-/* CARDS DE CONTEUDO DO PASSO */
+/* CARDS INTERATIVOS DE CONTEÚDO DO PASSO */
 .vertical-step-card {
   background: var(--surface);
   border: 1px solid var(--border-strong);
-  border-radius: 16px;
-  padding: 20px 22px;
-  max-width: 340px;
+  border-radius: 18px;
+  padding: 18px 20px;
+  max-width: 360px;
   width: 100%;
-  transition: all 0.4s ease;
+  transition: all 0.3s ease;
   backdrop-filter: blur(10px);
   flex-shrink: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.vertical-step-card:hover {
+  border-color: var(--green);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 208, 132, 0.18);
+}
+
+.vertical-step-card.is-expanded {
+  border-color: var(--green);
+  background: var(--surface-soft);
+  box-shadow: 0 14px 32px rgba(0, 208, 132, 0.2);
 }
 
 .step-left .vertical-step-card {
@@ -695,41 +709,80 @@ svg {
   text-align: left;
 }
 
-.vertical-step-item.is-active .vertical-step-card {
-  border-color: rgba(0, 208, 132, 0.35);
-  background: var(--surface-soft);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+.card-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
 }
 
-.vertical-step-card.featured {
-  border-color: rgba(0, 208, 132, 0.5);
-  background: linear-gradient(180deg, rgba(0, 208, 132, 0.08) 0%, var(--surface-soft) 100%);
+.step-left .card-top-header {
+  flex-direction: row-reverse;
 }
 
-.vertical-step-label {
-  display: inline-block;
-  font-family: monospace;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--green);
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
-}
-
-.vertical-step-label.highlight {
+.step-highlight-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 99px;
+  background: rgba(0, 208, 132, 0.15);
   color: #00ffaa;
+  border: 1px solid rgba(0, 208, 132, 0.4);
+  font-family: monospace;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  box-shadow: 0 0 12px rgba(0, 208, 132, 0.2);
+}
+
+.step-highlight-pill.highlight {
+  background: var(--green);
+  color: #000;
+  border-color: var(--green);
+  box-shadow: 0 0 14px var(--green-glow);
+}
+
+.expand-toggle-btn {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--muted);
+  transition: color 0.2s ease;
+}
+
+.vertical-step-card:hover .expand-toggle-btn {
+  color: var(--green);
 }
 
 .vertical-step-card h3 {
-  font-size: 1.12rem;
+  font-size: 1.15rem;
   font-weight: 800;
   color: var(--heading);
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   letter-spacing: -0.02em;
 }
 
-.vertical-step-card p {
+.impact-subtitle {
   font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.step-explanation-box {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-strong);
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-explanation-box p {
+  font-size: 0.85rem;
   color: var(--muted);
   line-height: 1.5;
   margin: 0;

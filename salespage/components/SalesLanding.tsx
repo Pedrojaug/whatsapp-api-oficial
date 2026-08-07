@@ -28,7 +28,12 @@ export function SalesLanding({ content }: SalesLandingProps) {
   const [contactCount, setContactCount] = useState<number>(5000);
   const [scrollProgress, setScrollProgress] = useState<number>(0);
   const [activeSteps, setActiveSteps] = useState<number[]>([]);
+  const [expandedTimelineStep, setExpandedTimelineStep] = useState<number | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
+
+  const toggleTimelineStep = (index: number) => {
+    setExpandedTimelineStep(expandedTimelineStep === index ? null : index);
+  };
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -186,10 +191,25 @@ export function SalesLanding({ content }: SalesLandingProps) {
                     <ShieldCheckIcon />
                   </div>
                   <div className="step-dashed-connector" />
-                  <div className="vertical-step-card">
-                    <span className="vertical-step-label">PASSO 01</span>
-                    <h3>Conecte a Meta API</h3>
-                    <p>Vinculação oficial em 2 minutos utilizando seu login do Facebook Business.</p>
+                  <div
+                    className={`vertical-step-card ${expandedTimelineStep === 0 ? "is-expanded" : ""}`}
+                    onClick={() => toggleTimelineStep(0)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="card-top-header">
+                      <span className="step-highlight-pill">PASSO 01</span>
+                      <span className="expand-toggle-btn">
+                        {expandedTimelineStep === 0 ? "Ocultar ▲" : "Ver detalhes ▼"}
+                      </span>
+                    </div>
+                    <h3>Conexão Oficial Meta</h3>
+                    <p className="impact-subtitle">⚡ Ativação em 2 minutos via Facebook Business</p>
+                    {expandedTimelineStep === 0 && (
+                      <div className="step-explanation-box">
+                        <p>Vinculação nativa homologada pela Meta. Sem QR Code, sem queda de chip e 100% à prova de banimento.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -209,10 +229,25 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 </div>
 
                 <div className="step-side-col right-side">
-                  <div className="vertical-step-card">
-                    <span className="vertical-step-label">PASSO 02</span>
-                    <h3>Importe seus Contatos</h3>
-                    <p>Upload simples de planilhas CSV com tags personalizadas e segmentação.</p>
+                  <div
+                    className={`vertical-step-card ${expandedTimelineStep === 1 ? "is-expanded" : ""}`}
+                    onClick={() => toggleTimelineStep(1)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="card-top-header">
+                      <span className="step-highlight-pill">PASSO 02</span>
+                      <span className="expand-toggle-btn">
+                        {expandedTimelineStep === 1 ? "Ocultar ▲" : "Ver detalhes ▼"}
+                      </span>
+                    </div>
+                    <h3>Importação de Contatos</h3>
+                    <p className="impact-subtitle">📊 Planilhas CSV com tags e opt-out automático</p>
+                    {expandedTimelineStep === 1 && (
+                      <div className="step-explanation-box">
+                        <p>Suba suas listas em segundos. O sistema organiza os contatos e remove automaticamente quem solicitar saída.</p>
+                      </div>
+                    )}
                   </div>
                   <div className="step-dashed-connector" />
                   <div className="vertical-icon-bubble">
@@ -228,10 +263,25 @@ export function SalesLanding({ content }: SalesLandingProps) {
                     <MessageIcon />
                   </div>
                   <div className="step-dashed-connector" />
-                  <div className="vertical-step-card">
-                    <span className="vertical-step-label">PASSO 03</span>
-                    <h3>Crie o Template</h3>
-                    <p>Cadastre mensagens com botões de ação e links rastreáveis homologados.</p>
+                  <div
+                    className={`vertical-step-card ${expandedTimelineStep === 2 ? "is-expanded" : ""}`}
+                    onClick={() => toggleTimelineStep(2)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="card-top-header">
+                      <span className="step-highlight-pill">PASSO 03</span>
+                      <span className="expand-toggle-btn">
+                        {expandedTimelineStep === 2 ? "Ocultar ▲" : "Ver detalhes ▼"}
+                      </span>
+                    </div>
+                    <h3>Templates Interativos</h3>
+                    <p className="impact-subtitle">🎯 Mensagens com botões de ação e links /t/</p>
+                    {expandedTimelineStep === 2 && (
+                      <div className="step-explanation-box">
+                        <p>Cadastre modelos com botões de resposta rápida e links rastreáveis que medem o interesse real de cada lead.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -251,10 +301,25 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 </div>
 
                 <div className="step-side-col right-side">
-                  <div className="vertical-step-card featured">
-                    <span className="vertical-step-label highlight">PASSO 04</span>
-                    <h3>Dispare e Converta</h3>
-                    <p>Envio imediato com acompanhamento de entregas e cliques ao vivo no painel.</p>
+                  <div
+                    className={`vertical-step-card featured ${expandedTimelineStep === 3 ? "is-expanded" : ""}`}
+                    onClick={() => toggleTimelineStep(3)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="card-top-header">
+                      <span className="step-highlight-pill highlight">PASSO 04</span>
+                      <span className="expand-toggle-btn">
+                        {expandedTimelineStep === 3 ? "Ocultar ▲" : "Ver detalhes ▼"}
+                      </span>
+                    </div>
+                    <h3>Disparo & Conversão</h3>
+                    <p className="impact-subtitle">🚀 Envio em massa com métricas ao vivo</p>
+                    {expandedTimelineStep === 3 && (
+                      <div className="step-explanation-box">
+                        <p>Dispare com alta prioridade de entrega e acompanhe visualizações e cliques em tempo real no seu painel.</p>
+                      </div>
+                    )}
                   </div>
                   <div className="step-dashed-connector" />
                   <div className="vertical-icon-bubble highlight">
