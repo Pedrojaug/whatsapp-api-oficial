@@ -61,7 +61,7 @@ export const defaultSiteContent: Required<SiteContent> = {
     {
       question: "Consigo integrar o Send Inteligentte com n8n, Make, Typebot ou meu CRM?",
       answer:
-        "Sim! O Send possui uma API REST pública em `/api/v1` protegida por API Key e suporte a Webhooks. Disponibilizamos templates de workflow prontos para n8n para você conectar seu CRM ou funil de vendas em minutos.",
+        "Sim! O Send possui uma API REST pública em /api/v1 protegida por API Key e suporte a Webhooks. Disponibilizamos templates de workflow prontos para n8n para você conectar seu CRM ou funil de vendas em minutos.",
     },
     {
       question: "Preciso manter o celular ligado à internet durante os disparos?",
@@ -71,7 +71,7 @@ export const defaultSiteContent: Required<SiteContent> = {
     {
       question: "Como funciona o rastreamento de links das campanhas?",
       answer:
-        "Cada link inserido na sua campanha pode ser encurtado com o nosso sistema nativo `/t/:shortCode`. Quando o contato clica no WhatsApp, registramos o clique em tempo real no seu painel para você saber exatamente quem respondeu ao CTA.",
+        "Cada link inserido na sua campanha pode ser encurtado com o nosso sistema nativo de rastreamento. Quando o contato clica no WhatsApp, registramos o clique em tempo real no seu painel para você saber exatamente quem respondeu ao CTA.",
     },
     {
       question: "Como é feita a ativação da minha conta após o pagamento?",

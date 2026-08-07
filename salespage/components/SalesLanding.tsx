@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
+import dashboardPreview from "@/public/dashboard-preview.png";
 import {
   ArrowRightIcon,
-  BagIcon,
   ChartIcon,
   CheckIcon,
   ChevronDownIcon,
@@ -13,12 +14,70 @@ import {
   CrossIcon,
   LinkIcon,
   ListIcon,
+  MenuIcon,
   MessageIcon,
+  QuoteIcon,
   ShieldCheckIcon,
   ZapIcon,
 } from "@/components/icons";
-import { formatCurrency, plans } from "@/lib/plans";
+import { plans } from "@/lib/plans";
 import type { SiteContent } from "@/lib/site-content";
+
+/* -------------------------------------------------------------------------
+ * Prova social.
+ *
+ * O texto de exemplo continua aqui de propósito, servindo de instrução para
+ * quem for preencher — mas a landing NÃO publica nada disso: isPlaceholder()
+ * filtra na renderização e a seção inteira some enquanto não houver dado real.
+ *
+ * Marcador de exemplo no ar converte pior que a ausência da seção, e inventar
+ * número ou depoimento seria prova social falsa. Abordagem portada do commit
+ * 6bf1aed (branch feat/salespage-redesign).
+ * ---------------------------------------------------------------------- */
+function isPlaceholder(value: string | undefined) {
+  return /\[\s*(EXEMPLO|SUBSTITUIR|N[ÚU]MERO|Nome|Cargo|Empresa|Mensagens|Empresas|Taxa|Campanhas)/i.test(
+    value ?? ""
+  );
+}
+
+const TESTIMONIALS = [
+  {
+    quote:
+      "[EXEMPLO] Substituir por depoimento real de cliente, descrevendo o problema antes da contratação e o resultado obtido.",
+    name: "[Nome do cliente]",
+    role: "[Cargo] • [Empresa]",
+    initials: "??",
+  },
+  {
+    quote:
+      "[EXEMPLO] Depoimentos com números concretos convertem mais. Ex.: quantas campanhas por mês, qual taxa de entrega, quanto tempo economizado.",
+    name: "[Nome do cliente]",
+    role: "[Cargo] • [Empresa]",
+    initials: "??",
+  },
+  {
+    quote:
+      "[EXEMPLO] Vale incluir ao menos um depoimento que trate da migração de um disparador não oficial para a API da Meta.",
+    name: "[Nome do cliente]",
+    role: "[Cargo] • [Empresa]",
+    initials: "??",
+  },
+];
+
+const METRICS = [
+  { value: "—", label: "[Mensagens entregues no total]" },
+  { value: "—", label: "[Empresas usando a plataforma]" },
+  { value: "—", label: "[Taxa média de entrega medida]" },
+  { value: "—", label: "[Campanhas disparadas por mês]" },
+];
+
+const NAV_LINKS = [
+  { href: "#como-funciona", label: "Como funciona" },
+  { href: "#recursos", label: "Recursos" },
+  { href: "#anti-ban", label: "API Oficial vs Paralelas" },
+  { href: "#planos", label: "Planos" },
+  { href: "#faq", label: "Dúvidas" },
+];
 
 type SalesLandingProps = {
   content: SiteContent;
@@ -27,6 +86,24 @@ type SalesLandingProps = {
 export function SalesLanding({ content }: SalesLandingProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [contactCount, setContactCount] = useState<number>(5000);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Trava o scroll do fundo e permite fechar o drawer com Esc.
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKeyDown);
+
+    return () => {
+      document.body.style.overflow = "";
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -36,8 +113,21 @@ export function SalesLanding({ content }: SalesLandingProps) {
   const calculatedReads = Math.floor(contactCount * 0.74);
   const calculatedClicks = Math.floor(contactCount * 0.31);
 
+  const cheapestMonthly = Math.min(
+    ...plans.map((p) => p.monthlyEquivalent ?? p.price)
+  );
+
+  // Só publica o que já foi preenchido de verdade.
+  const testimonials = TESTIMONIALS.filter(
+    (t) => !isPlaceholder(t.quote) && !isPlaceholder(t.name)
+  );
+  const metrics = METRICS.filter(
+    (m) => !isPlaceholder(m.label) && m.value.trim() !== "" && m.value.trim() !== "—"
+  );
+  const hasSocialProof = testimonials.length > 0 || metrics.length > 0;
+
   return (
-    <main className="main-wrapper">
+    <main className="main-wrapper" id="conteudo">
       {/* BARRA SUPERIOR DE ANÚNCIO */}
       <div className="top-announcement-bar">
         <span>⚡ Ativação assistida incluída — primeira campanha no ar esta semana.</span>
@@ -48,11 +138,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
         <Brand />
 
         <nav className="public-nav" aria-label="Navegação da oferta">
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#recursos">Recursos</a>
-          <a href="#anti-ban">API Oficial vs Paralelas</a>
-          <a href="#planos">Planos</a>
-          <a href="#faq">Dúvidas</a>
+          {NAV_LINKS.map((link) => (
+            <a key={link.href} href={link.href}>
+              {link.label}
+            </a>
+          ))}
         </nav>
 
         <div className="header-actions">
@@ -69,8 +159,68 @@ export function SalesLanding({ content }: SalesLandingProps) {
             <ZapIcon />
             Quero ativar minha conta
           </a>
+
+          <button
+            type="button"
+            className="menu-toggle"
+            onClick={() => setMenuOpen(true)}
+            aria-label="Abrir menu de navegação"
+            aria-expanded={menuOpen}
+          >
+            <MenuIcon />
+          </button>
         </div>
       </header>
+
+      {/* DRAWER DE NAVEGAÇÃO MOBILE */}
+      {menuOpen ? (
+        <>
+          <button
+            type="button"
+            className="drawer-overlay"
+            onClick={() => setMenuOpen(false)}
+            aria-label="Fechar menu"
+            tabIndex={-1}
+          />
+          <div className="mobile-drawer" role="dialog" aria-modal="true" aria-label="Menu de navegação">
+            <div className="drawer-header">
+              <Brand />
+              <button
+                type="button"
+                className="drawer-close"
+                onClick={() => setMenuOpen(false)}
+                aria-label="Fechar menu"
+                autoFocus
+              >
+                <CrossIcon />
+              </button>
+            </div>
+
+            <nav aria-label="Navegação principal">
+              {NAV_LINKS.map((link) => (
+                <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)}>
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+
+            <div className="drawer-footer">
+              <a
+                className="secondary-button"
+                href="https://app.sendinteligente.com.br"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Entrar no Painel
+              </a>
+              <a className="primary-button" href="#planos" onClick={() => setMenuOpen(false)}>
+                <ZapIcon />
+                Ver planos
+              </a>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <div className="sales-page">
         {/* HERO SECTION */}
@@ -124,10 +274,13 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </div>
 
             <div className="dashboard-img-wrapper">
-              <img
-                src="/dashboard-preview.png"
-                alt="Painel de Métricas Oficial do Send Inteligentte"
+              <Image
+                src={dashboardPreview}
+                alt="Painel de métricas do Send Inteligentte exibindo mensagens disparadas, entregues e lidas"
                 className="dashboard-real-img"
+                priority
+                sizes="(max-width: 1100px) 100vw, 55vw"
+                placeholder="blur"
               />
             </div>
           </div>
@@ -180,10 +333,10 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* COMPARTIVO: API OFICIAL VS PARALELAS */}
+        {/* COMPARATIVO: API OFICIAL VS PARALELAS */}
         <section className="comparison-section" id="anti-ban">
           <div className="section-header">
-            <span className="section-badge warning">Segurança Absoluta</span>
+            <span className="section-badge warning">Segurança da sua operação</span>
             <h2>API Oficial da Meta vs. Disparadores Paralelos</h2>
             <p>
               Não arrisque perder o número principal da sua empresa usando ferramentas não oficiais de automação por web scraping.
@@ -203,13 +356,13 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
               <ul className="comparison-list">
                 <li>
-                  <CrossIcon /> <strong>Risco Iminente de Banimento:</strong> O WhatsApp detecta o uso em poucos disparos e bloqueia o chip permanentemente.
+                  <CrossIcon /> <strong>Risco Elevado de Banimento:</strong> O WhatsApp detecta o padrão de uso e pode bloquear o chip permanentemente.
                 </li>
                 <li>
                   <CrossIcon /> <strong>Dependência do Celular:</strong> Se a bateria acabar ou a internet cair, a campanha para na hora.
                 </li>
                 <li>
-                  <CrossIcon /> <strong>Limites Reduzidos:</strong> Bloqueios frequentes ao tentar enviar mais de 50 mensagens.
+                  <CrossIcon /> <strong>Limites Reduzidos:</strong> Bloqueios frequentes ao tentar enviar grandes volumes.
                 </li>
                 <li>
                   <CrossIcon /> <strong>Sem Métricas Oficiais:</strong> Você não sabe se a mensagem foi entregue ou bloqueada pela operadora.
@@ -219,10 +372,10 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
             {/* SEND INTELIGENTTE (META OFICIAL) */}
             <div className="comparison-card success featured">
-              <div className="featured-banner">RECOMENDADO PELA META</div>
+              <div className="featured-banner">CAMINHO HOMOLOGADO</div>
               <div className="card-header">
                 <span className="status-badge success">
-                  <ShieldCheckIcon /> 100% Seguro & Oficial
+                  <ShieldCheckIcon /> Canal Oficial da Meta
                 </span>
                 <h3>Send Inteligentte (Cloud API v19)</h3>
                 <p className="card-sub">Conexão nativa com a infraestrutura da Meta</p>
@@ -230,13 +383,13 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
               <ul className="comparison-list">
                 <li>
-                  <CheckIcon /> <strong>0% Risco de Banimento:</strong> Disparos 100% em conformidade com os Termos de Serviço da Meta.
+                  <CheckIcon /> <strong>Sem Risco de Bloqueio por Automação:</strong> Os disparos seguem integralmente os Termos de Serviço da Meta.
                 </li>
                 <li>
                   <CheckIcon /> <strong>Totalmente em Nuvem:</strong> Funciona 24 horas por dia sem precisar de celular ligado.
                 </li>
                 <li>
-                  <CheckIcon /> <strong>Alta Escala e Velocidade:</strong> Dispare milhares de mensagens por hora com altíssima taxa de entrega.
+                  <CheckIcon /> <strong>Alta Escala e Velocidade:</strong> Dispare milhares de mensagens por hora dentro dos limites da sua conta na Meta.
                 </li>
                 <li>
                   <CheckIcon /> <strong>Relatórios Oficiais Meta:</strong> Saiba exatamente quem recebeu, leu e clicou nas ofertas.
@@ -247,6 +400,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
               </ul>
             </div>
           </div>
+
+          <p className="calculator-disclaimer" style={{ marginTop: 20 }}>
+            A API Oficial elimina o risco de bloqueio por automação não autorizada. A Meta ainda pode aplicar
+            restrições por qualidade — por isso o opt-out automático e a curadoria de listas fazem parte da plataforma.
+          </p>
         </section>
 
         {/* FEATURES GRID & RECURSOS */}
@@ -265,20 +423,24 @@ export function SalesLanding({ content }: SalesLandingProps) {
               <p>Dispare templates homologados diretamente pela infraestrutura da Meta com suporte a botões interativos e respostas rápidas.</p>
             </article>
 
-            <article className="feature-card">
+            <article className="feature-card" id="link-tracker">
               <div className="icon-wrapper cyan">
                 <LinkIcon />
               </div>
-              <h3>Links Rastreáveis (/t/)</h3>
-              <p>Encurte links das campanhas e acompanhe quais contatos clicaram no seu CTA em tempo real no painel.</p>
+              <h3>Links Rastreáveis</h3>
+              <p>
+                Encurte links das campanhas com <code className="inline-code">/t/:shortCode</code> e acompanhe quais contatos clicaram no seu CTA em tempo real.
+              </p>
             </article>
 
-            <article className="feature-card">
+            <article className="feature-card" id="api-webhooks">
               <div className="icon-wrapper purple">
                 <CpuIcon />
               </div>
               <h3>API Key & Webhooks n8n</h3>
-              <p>API REST dedicada em <code>/api/v1</code> com templates de workflow de n8n para conectar Typebot, Make, HubSpot e CRMs.</p>
+              <p>
+                API REST dedicada em <code className="inline-code">/api/v1</code> com templates de workflow de n8n para conectar Typebot, Make, HubSpot e CRMs.
+              </p>
             </article>
 
             <article className="feature-card">
@@ -307,21 +469,63 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
+        {/* PROVA SOCIAL — some por inteiro enquanto não houver dado real */}
+        {hasSocialProof ? (
+          <section className="social-proof-section" id="clientes">
+            <div className="section-header">
+              <span className="section-badge success">Quem já usa</span>
+              <h2>Operações que vendem no WhatsApp todo dia</h2>
+            </div>
+
+            {testimonials.length > 0 ? (
+              <div className="social-proof-grid">
+                {testimonials.map((t, i) => (
+                  <figure className="testimonial-card" key={i}>
+                    <div className="icon-wrapper cyan">
+                      <QuoteIcon />
+                    </div>
+                    <blockquote className="testimonial-quote">{t.quote}</blockquote>
+                    <figcaption className="testimonial-author">
+                      <span className="author-avatar" aria-hidden="true">{t.initials}</span>
+                      <span className="author-info">
+                        <strong>{t.name}</strong>
+                        <span>{t.role}</span>
+                      </span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            ) : null}
+
+            {metrics.length > 0 ? (
+              <div className="metrics-strip">
+                {metrics.map((m) => (
+                  <div className="metric-item" key={m.label}>
+                    <strong>{m.value}</strong>
+                    <span>{m.label}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         {/* SIMULADOR INTERATIVO DE ROI / IMPACTO */}
         <section className="roi-calculator-section">
           <div className="calculator-box">
             <div className="calculator-header">
               <span className="section-kicker">Simulador de Impacto</span>
               <h2>Calcule o alcance da sua próxima campanha</h2>
-              <p>Arraste o seletor abaixo e veja a projeção de entregabilidade com a API Oficial do Send Inteligentte.</p>
+              <p>Arraste o seletor abaixo e veja uma projeção de alcance com a API Oficial do Send Inteligentte.</p>
             </div>
 
             <div className="calculator-slider-container">
               <div className="slider-label">
-                <span>Tamanho da sua Lista de Contatos:</span>
+                <label htmlFor="roi-slider">Tamanho da sua Lista de Contatos:</label>
                 <strong>{contactCount.toLocaleString("pt-BR")} contatos</strong>
               </div>
               <input
+                id="roi-slider"
                 type="range"
                 min="1000"
                 max="50000"
@@ -329,6 +533,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 value={contactCount}
                 onChange={(e) => setContactCount(Number(e.target.value))}
                 className="roi-slider"
+                aria-valuetext={`${contactCount.toLocaleString("pt-BR")} contatos`}
               />
               <div className="slider-range-indicators">
                 <span>1.000</span>
@@ -337,9 +542,9 @@ export function SalesLanding({ content }: SalesLandingProps) {
               </div>
             </div>
 
-            <div className="calculator-results">
+            <div className="calculator-results" aria-live="polite">
               <div className="result-card">
-                <span>Mensagens Entregues (99.2%)</span>
+                <span>Mensagens Entregues</span>
                 <strong>{calculatedDeliveries.toLocaleString("pt-BR")}</strong>
                 <small className="result-sub">Alta prioridade na rede Meta</small>
               </div>
@@ -353,9 +558,16 @@ export function SalesLanding({ content }: SalesLandingProps) {
               <div className="result-card">
                 <span>Cliques na Oferta</span>
                 <strong>~{calculatedClicks.toLocaleString("pt-BR")}</strong>
-                <small className="result-sub">Rastreável com `/t/:shortCode`</small>
+                <small className="result-sub">
+                  Rastreável com <code className="inline-code">/t/:shortCode</code>
+                </small>
               </div>
             </div>
+
+            <p className="calculator-disclaimer">
+              Projeção ilustrativa baseada em médias de mercado para campanhas via API Oficial. Os resultados variam
+              conforme a qualidade da lista, o conteúdo do template e o segmento — não constituem garantia de desempenho.
+            </p>
           </div>
         </section>
 
@@ -443,23 +655,33 @@ export function SalesLanding({ content }: SalesLandingProps) {
               const isOpen = openFaq === index;
               return (
                 <div key={faq.question} className={`faq-item ${isOpen ? "is-open" : ""}`}>
-                  <button
-                    type="button"
-                    className="faq-question"
-                    onClick={() => toggleFaq(index)}
-                    aria-expanded={isOpen}
-                  >
-                    <span>{faq.question}</span>
-                    <span className="chevron-icon">
-                      <ChevronDownIcon />
-                    </span>
-                  </button>
+                  <h3>
+                    <button
+                      type="button"
+                      className="faq-question"
+                      onClick={() => toggleFaq(index)}
+                      aria-expanded={isOpen}
+                      aria-controls={`faq-answer-${index}`}
+                      id={`faq-question-${index}`}
+                    >
+                      <span>{faq.question}</span>
+                      <span className="chevron-icon">
+                        <ChevronDownIcon />
+                      </span>
+                    </button>
+                  </h3>
 
-                  {isOpen ? (
+                  {/* Permanece no DOM mesmo fechado: permite animar, Ctrl+F e indexação. */}
+                  <div
+                    className="faq-answer-wrap"
+                    id={`faq-answer-${index}`}
+                    role="region"
+                    aria-labelledby={`faq-question-${index}`}
+                  >
                     <div className="faq-answer">
                       <p>{faq.answer}</p>
                     </div>
-                  ) : null}
+                  </div>
                 </div>
               );
             })}
@@ -470,7 +692,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
         <section className="final-cta-section">
           <div className="cta-box">
             <h2>Pronto para escalar suas vendas com a API Oficial no WhatsApp?</h2>
-            <p>Junte-se às operações comerciais que vendem diariamente com alta taxa de entrega e zero risco de banimento.</p>
+            <p>Junte-se às operações comerciais que vendem diariamente com alta taxa de entrega pelo canal oficial da Meta.</p>
 
             <a className="primary-button glowing large" href="#planos">
               <ZapIcon />
@@ -485,7 +707,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           <div className="footer-status-bar">
             <div className="system-status-indicator">
               <span className="status-dot-green" />
-              <span>Sistemas Operacionais 100% • Meta Cloud API v19 Online</span>
+              <span>Integrado à Meta Cloud API v19</span>
             </div>
             <div className="system-security-badge">
               🔒 Criptografia AES-256 • Conexão Segura SSL
@@ -520,19 +742,15 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 <a href="https://github.com/Pedrojaug/whatsapp-api-oficial" target="_blank" rel="noopener noreferrer">
                   Documentação API REST
                 </a>
-                <a href="#recursos">n8n Workflows</a>
-                <a href="#recursos">Webhooks Engine</a>
-                <a href="#recursos">Link Tracker (/t/)</a>
+                <a href="#api-webhooks">n8n & Webhooks</a>
+                <a href="#link-tracker">Link Tracker</a>
+                <a href="#recursos">Todos os recursos</a>
               </div>
 
               <div className="link-group">
                 <strong>Legal & Atendimento</strong>
-                <Link href="/PoliticaDePrivacidade.html" target="_blank">
-                  Política de Privacidade
-                </Link>
-                <Link href="/TermosECondicoes.html" target="_blank">
-                  Termos e Condições
-                </Link>
+                <Link href="/politica-de-privacidade">Política de Privacidade</Link>
+                <Link href="/termos-e-condicoes">Termos e Condições</Link>
                 <a href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
                   Área do Cliente (Login)
                 </a>
@@ -558,6 +776,18 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </p>
           </div>
         </footer>
+      </div>
+
+      {/* BARRA DE CTA FIXA — SÓ APARECE NO MOBILE */}
+      <div className="mobile-cta-bar">
+        <span className="mobile-cta-info">
+          <span>A partir de</span>
+          <strong>R$ {cheapestMonthly}/mês</strong>
+        </span>
+        <a className="primary-button compact" href="#planos">
+          Ver planos
+          <ArrowRightIcon />
+        </a>
       </div>
     </main>
   );
