@@ -1,64 +1,45 @@
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
-import { ChartIcon, CheckIcon } from "@/components/icons";
-import { getPlan } from "@/lib/plans";
+import { CheckIcon, ArrowRightIcon } from "@/components/icons";
 
-type WelcomePageProps = {
-  searchParams: Promise<{
-    nome?: string;
-    plano?: string;
-  }>;
-};
-
-export default async function WelcomePage({ searchParams }: WelcomePageProps) {
-  const { nome, plano } = await searchParams;
-  const plan = getPlan(plano);
-  const displayName = nome?.trim() || "cliente";
-
+export default function BoasVindasPage() {
   return (
-    <main className="welcome-page">
-      <div>
-        <Brand centered label="Pagamento confirmado" />
+    <div className="welcome-wrapper">
+      <header className="site-header">
+        <Brand />
+      </header>
 
-        <section className="welcome-card">
-          <span className="success-badge">
+      <main className="welcome-container">
+        <div className="welcome-card">
+          <div className="success-icon-wrapper">
             <CheckIcon />
-          </span>
-          <h1>Bem-vindo ao Send Inteligente, {displayName}.</h1>
+          </div>
+
+          <h1>Pagamento Confirmado!</h1>
           <p>
-            Sua assinatura {plan.name.toLowerCase()} foi recebida. A sequência de boas-vindas já pode enviar as
-            orientações iniciais por WhatsApp e e-mail.
+            Parabéns! Sua conta no <strong>Send Inteligentte</strong> foi ativada com sucesso. Enviamos as credenciais e o guia de configuração inicial para o seu e-mail e WhatsApp.
           </p>
 
-          <div className="welcome-sequence">
-            <article>
-              <span>01</span>
-              <strong>Contato marcado como cliente</strong>
-              <small>Imediato</small>
-            </article>
-            <article>
-              <span>02</span>
-              <strong>Mensagem de boas-vindas enviada</strong>
-              <small>+1 min</small>
-            </article>
-            <article>
-              <span>03</span>
-              <strong>Orientações de ativação liberadas</strong>
-              <small>+5 min</small>
-            </article>
+          <div className="next-steps-box">
+            <h3>Próximos Passos:</h3>
+            <ol>
+              <li>Acesse o seu Dashboard Oficial</li>
+              <li>Conecte sua conta do WhatsApp Business na Meta</li>
+              <li>Cadastre seus templates e crie sua primeira campanha</li>
+            </ol>
           </div>
 
-          <div className="hero-actions centered-actions">
-            <Link className="primary-button" href="/admin">
-              <ChartIcon />
-              Acessar painel
-            </Link>
-            <Link className="secondary-button" href="/">
-              Voltar para oferta
-            </Link>
-          </div>
-        </section>
-      </div>
-    </main>
+          <a
+            className="primary-button large glowing"
+            href="https://app.sendinteligente.com.br"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Acessar o Painel Send Inteligentte
+            <ArrowRightIcon />
+          </a>
+        </div>
+      </main>
+    </div>
   );
 }
