@@ -126,17 +126,13 @@ export function SalesLanding({ content }: SalesLandingProps) {
         <section className="hero-section" id="hero">
           <div className="hero-copy">
             <span className="pill success">
-              <img src="/images/icon_flat_green.png" alt="WhatsApp Oficial" className="pill-badge-icon" />
+              <ShieldCheckIcon />
               {content.heroBadge}
             </span>
 
             <h1>
               Dispare campanhas no WhatsApp <span className="highlight-green">sem arriscar o seu número</span>
             </h1>
-
-            <p className="hero-subtitle">
-              Plataforma oficial SaaS multi-tenant conectada à <strong>Meta WhatsApp Business Cloud API v19</strong>. Alta entrega, disparo escalável e risco zero de banimento.
-            </p>
 
             <div className="hero-actions">
               <a className="primary-button glowing large" href="#planos">
@@ -154,69 +150,35 @@ export function SalesLanding({ content }: SalesLandingProps) {
             </div>
 
             <div className="proof-strip" aria-label="Diferenciais principais">
-              <span className="proof-chip"><CheckIcon /> API Oficial da Meta v19</span>
+              <span className="proof-chip"><CheckIcon /> API Oficial da Meta</span>
               <span className="proof-chip"><CheckIcon /> Opt-out automático (LGPD)</span>
               <span className="proof-chip"><CheckIcon /> Suporte na ativação</span>
             </div>
           </div>
 
-          {/* PAINEL HERO COM ÍCONE 3D VOLUMÉTRICO E GLASSMORPHISM */}
-          <div className="hero-visual-wrapper">
-            {/* ÍCONE 3D GLOW VOLUMÉTRICO EM DESTAQUE */}
-            <div className="hero-3d-glow-container">
-              <div className="glow-backdrop" />
-              <img
-                src="/images/hero_3d_glow.png"
-                alt="Send Inteligentte 3D Neon Glow Logo"
-                className="hero-3d-glow-img"
-              />
+          {/* PRINT REAL DO DASHBOARD EM DESTAQUE */}
+          <div className="product-preview-frame" aria-label="Painel de Métricas Real do Send Inteligentte">
+            <div className="window-topbar">
+              <div className="window-dots">
+                <span className="dot red" />
+                <span className="dot yellow" />
+                <span className="dot green" />
+              </div>
+              <div className="window-address-bar">
+                <span className="lock-icon">🔒</span>
+                <span>app.sendinteligente.com.br/metricas</span>
+              </div>
+              <div className="live-status-pill">
+                <span className="pulse-dot" /> AO VIVO
+              </div>
             </div>
 
-            {/* PRINT DO DASHBOARD COM GLASSMORPHISM */}
-            <div className="product-preview-frame glass-panel" aria-label="Painel de Métricas Real do Send Inteligentte">
-              <div className="window-topbar">
-                <div className="window-dots">
-                  <span className="dot red" />
-                  <span className="dot yellow" />
-                  <span className="dot green" />
-                </div>
-                <div className="window-address-bar">
-                  <span className="lock-icon">🔒</span>
-                  <span>app.sendinteligente.com.br/metricas</span>
-                </div>
-                <div className="live-status-pill">
-                  <span className="pulse-dot" /> AO VIVO
-                </div>
-              </div>
-
-              <div className="dashboard-img-wrapper">
-                <img
-                  src="/dashboard-preview.png"
-                  alt="Painel de Métricas Oficial do Send Inteligentte"
-                  className="dashboard-real-img"
-                />
-              </div>
-
-              {/* METRICS CARDS FLUTUANTES COM GLASSMORPHISM */}
-              <div className="glass-metric-badge badge-top-right">
-                <div className="metric-icon-circle green">
-                  <ShieldCheckIcon />
-                </div>
-                <div>
-                  <strong>99.2% Entregabilidade</strong>
-                  <span>Prioridade Máxima Meta</span>
-                </div>
-              </div>
-
-              <div className="glass-metric-badge badge-bottom-left">
-                <div className="metric-icon-circle cyan">
-                  <ZapIcon />
-                </div>
-                <div>
-                  <strong>0% Risco de Ban</strong>
-                  <span>Cloud API v19 Homologada</span>
-                </div>
-              </div>
+            <div className="dashboard-img-wrapper">
+              <img
+                src="/dashboard-preview.png"
+                alt="Painel de Métricas Oficial do Send Inteligentte"
+                className="dashboard-real-img"
+              />
             </div>
           </div>
         </section>
@@ -493,58 +455,6 @@ export function SalesLanding({ content }: SalesLandingProps) {
               <h3>Métricas Vivas de Conversão</h3>
               <p>Acompanhe disparados, entregues, lidos e taxa de vendas ao vivo sem planilhas.</p>
             </article>
-          </div>
-        </section>
-
-        {/* SEÇÃO DEDICADA DE INTEGRAÇÃO API & N8N COM 3D FLOATING ASSET */}
-        <section className="integration-section" id="integracao">
-          <div className="integration-container glass-panel">
-            <div className="integration-content">
-              <span className="section-badge cyan-badge">
-                <CpuIcon /> API REST & Automação n8n
-              </span>
-              <h2>Conecte seu sistema, CRM ou n8n em minutos</h2>
-              <p>
-                Com nossa <strong>API Pública nativa (/api/v1)</strong> e autenticação por chaves <code>sk_...</code>, você pode automatizar disparos transacionais, notificações de compra, confirmação de agendamentos e fluxos avançados de automação.
-              </p>
-
-              <div className="integration-features-list">
-                <div className="integration-item">
-                  <div className="check-bullet"><CheckIcon /></div>
-                  <div>
-                    <strong>Integração Nativa com n8n & Make</strong>
-                    <span>Template de workflow pronto para envio automatizado de mensagens e tratamento de webhooks.</span>
-                  </div>
-                </div>
-
-                <div className="integration-item">
-                  <div className="check-bullet"><CheckIcon /></div>
-                  <div>
-                    <strong>Rate Limit de 60 req/min por Chave</strong>
-                    <span>Capacidade de alta frequência para automações em escala com resposta instantânea.</span>
-                  </div>
-                </div>
-
-                <div className="integration-item">
-                  <div className="check-bullet"><CheckIcon /></div>
-                  <div>
-                    <strong>Disparo Programático via Endpoint Standard</strong>
-                    <span>Requisições simples em <code>POST /api/v1/send</code> com variáveis dinâmicas e retorno de status.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="integration-visual-col">
-              <div className="3d-floating-wrapper">
-                <div className="floating-glow-effect" />
-                <img
-                  src="/images/automation_3d_floating.png"
-                  alt="Automação e Integração 3D Send Inteligentte"
-                  className="automation-3d-img"
-                />
-              </div>
-            </div>
           </div>
         </section>
 
