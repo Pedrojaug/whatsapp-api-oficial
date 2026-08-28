@@ -3,6 +3,7 @@ import axios from "axios";
 import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
 import { resolveMetaMediaId } from "../utils/mediaUpload";
+import { normalizePhone } from "../services/phoneService";
 
 let isProcessing = false;
 let dispatchTimer: NodeJS.Timeout | null = null;
@@ -53,8 +54,7 @@ async function checkAndDispatch() {
           { scheduledAt: { lte: now } }
         ],
         AND: [
-          {
-            OR: [
+          {\n            OR: [
               { nextRetryAt: null },
               { nextRetryAt: { lte: now } }
             ]
@@ -77,12 +77,12 @@ async function checkAndDispatch() {
     // Verificar opt-outs em lote antes de processar
     const optedOutRecords = await prisma.optOut.findMany({
       where: {
-        phone: { in: pendingMessages.map((m) => m.to) },
+        phone: { in: pendingMessages.map((m) => normalizePhone(m.to)) },
         accountId: { in: [...new Set(pendingMessages.map((m) => m.accountId))] },
       },
       select: { phone: true, accountId: true },
     });
-    const optedOutSet = new Set(optedOutRecords.map((o) => `${o.accountId}:${o.phone}`));
+    const optedOutSet = new Set(optedOutRecords.map((o) => `${o.accountId}:${normalizePhone(o.phone)}`));
 
     console.log(`[Worker] Processando lote de ${pendingMessages.length} mensagens pendentes...`);
 
@@ -107,8 +107,9 @@ async function checkAndDispatch() {
     const mediaIdCache = new Map<string, string | null>();
 
     for (const msg of pendingMessages) {
+      const normalizedTo = normalizePhone(msg.to);
       // Bloquear envio para contatos que optaram por não receber mensagens (LGPD)
-      if (optedOutSet.has(`${msg.accountId}:${msg.to}`)) {
+      if (optedOutSet.has(`${msg.accountId}:${normalizedTo}`)) {
         await prisma.message.update({
           where: { id: msg.id },
           data: { status: "CANCELLED", errorMessage: "Contato optou por não receber mensagens (LGPD opt-out)." },
@@ -117,11 +118,11 @@ async function checkAndDispatch() {
           accountId: msg.accountId,
           messageId: msg.id,
           status: "CANCELLED",
-          to: msg.to,
+          to: normalizedTo,
           errorMessage: "Contato optou por não receber mensagens (LGPD opt-out).",
           updatedAt: new Date(),
         });
-        console.log(`[Worker] Mensagem ${msg.id} para ${msg.to} cancelada — contato está na lista de opt-out.`);
+        console.log(`[Worker] Mensagem ${msg.id} para ${normalizedTo} cancelada — contato está na lista de opt-out.`);
         continue;
       }
       try {
@@ -166,7 +167,7 @@ async function checkAndDispatch() {
           reconstructedBody = bodyComp.text;
           if (resolvedVars && resolvedVars.length > 0) {
             resolvedVars.forEach((val: any, idx: number) => {
-              reconstructedBody = reconstructedBody!.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), String(val));
+              reconstructedBody = reconstructedBody!.replace(new RegExp(`\\\\{\\\\{${idx + 1}\\\\}\\\\}`, 'g'), String(val));
             });
           }
         }
@@ -207,7 +208,7 @@ async function checkAndDispatch() {
           `https://graph.facebook.com/v19.0/${account.phoneNumberId}/messages`,
           {
             messaging_product: "whatsapp",
-            to: msg.to,
+            to: normalizedTo,
             type: "template",
             template: {
               name: msg.templateName,
@@ -235,7 +236,7 @@ async function checkAndDispatch() {
           }
         });
 
-        console.log(`[Worker] Mensagem ${msg.id} enviada com sucesso para ${msg.to}. Wamid: ${wamid}`);
+        console.log(`[Worker] Mensagem ${msg.id} enviada com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
 
         // Emitir evento em tempo real para SSE
         messageEventEmitter.emit("messageUpdated", {

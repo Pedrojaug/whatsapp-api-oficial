@@ -264,9 +264,10 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
     const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : null;
 
     const messagesData = list.contacts.map(contact => {
+      const normalizedContactPhone = normalizePhone(contact.phone);
       const resolvedVars = variables.map((v: string) => {
         if (v === "CONTACT_NAME") return contact.name || "";
-        if (v === "CONTACT_PHONE") return contact.phone;
+        if (v === "CONTACT_PHONE") return normalizedContactPhone;
         if (v.startsWith("CONTACT_VAR_")) {
           const idx = parseInt(v.replace("CONTACT_VAR_", "")) - 1;
           const contactVars = contact.variables as string[];
@@ -277,7 +278,7 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
 
       return {
         accountId,
-        to: normalizePhone(contact.phone),
+        to: normalizedContactPhone,
         templateName,
         variables: resolvedVars ? { variables: resolvedVars, mediaUrl } : (mediaUrl ? { mediaUrl } : {}),
         status: "PENDING",

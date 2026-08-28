@@ -1,6 +1,7 @@
 import { prisma } from "../db";
 import { calculateNextRun } from "../utils/campaignScheduler";
 import { triggerDispatcher } from "./dispatcher";
+import { normalizePhone } from "../services/phoneService";
 
 let campaignTimer: NodeJS.Timeout | null = null;
 
@@ -80,7 +81,7 @@ async function executeCampaign(campaign: {
       where: { accountId: campaign.accountId },
       select: { phone: true },
     });
-    const optedOutSet = new Set(optedOut.map((o) => o.phone));
+    const optedOutSet = new Set(optedOut.map((o) => normalizePhone(o.phone)));
 
     let contacts: Array<{ id: string; name: string | null; phone: string; variables: any }> = [];
     if (campaign.contactListId) {
@@ -93,9 +94,9 @@ async function executeCampaign(campaign: {
     const variableMappings: string[] = Array.isArray(campaign.variables) ? campaign.variables : [];
 
     const messagesToCreate = contacts
-      .filter((c) => !optedOutSet.has(c.phone))
+      .filter((c) => !optedOutSet.has(normalizePhone(c.phone)))
       .map((c) => ({
-        to: c.phone,
+        to: normalizePhone(c.phone),
         templateName: campaign.templateName,
         variables: resolveVariables(variableMappings, c),
         mediaUrl: campaign.mediaUrl ?? null,

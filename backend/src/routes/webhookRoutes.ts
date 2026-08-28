@@ -117,7 +117,11 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
                 let errorMessage = null;
                 if (errors && errors.length > 0) {
-                  errorMessage = errors[0].message;
+                  const err = errors[0];
+                  const code = err.code ? `[Erro ${err.code}] ` : "";
+                  const title = err.title || err.message || "Erro desconhecido";
+                  const details = err.error_data?.details ? ` - ${err.error_data.details}` : "";
+                  errorMessage = `${code}${title}${details}`;
                 }
 
                 // Procurar mensagem por wamid e atualizar status
