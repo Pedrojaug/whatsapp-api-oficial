@@ -184,8 +184,12 @@ export default function ContactsPage() {
 
             if (!phone || phone.length < 8) continue;
 
-            // Normalizar 9º dígito para números brasileiros (55+DDD+8dígitos -> 55+DDD+9+8dígitos)
-            if (phone.startsWith("55") && phone.length === 12) {
+            // Normalizar para padrão internacional E.164 brasileiro (55 + DDD + 9dígitos)
+            if (phone.length === 11 && /^[1-9]{2}9[0-9]{8}$/.test(phone)) {
+              phone = "55" + phone;
+            } else if (phone.length === 10 && /^[1-9]{2}[2-9][0-9]{7}$/.test(phone)) {
+              phone = "55" + phone.slice(0, 2) + "9" + phone.slice(2);
+            } else if (phone.startsWith("55") && phone.length === 12) {
               phone = phone.slice(0, 4) + "9" + phone.slice(4);
             }
 
@@ -256,8 +260,16 @@ export default function ContactsPage() {
         phone = cleanValue(line);
       }
 
-      const cleanPhone = phone.replace(/\D/g, "");
+      let cleanPhone = phone.replace(/\D/g, "");
       if (cleanPhone.length >= 8) {
+        if (cleanPhone.length === 11 && /^[1-9]{2}9[0-9]{8}$/.test(cleanPhone)) {
+          cleanPhone = "55" + cleanPhone;
+        } else if (cleanPhone.length === 10 && /^[1-9]{2}[2-9][0-9]{7}$/.test(cleanPhone)) {
+          cleanPhone = "55" + cleanPhone.slice(0, 2) + "9" + cleanPhone.slice(2);
+        } else if (cleanPhone.startsWith("55") && cleanPhone.length === 12) {
+          cleanPhone = cleanPhone.slice(0, 4) + "9" + cleanPhone.slice(4);
+        }
+
         parsed.push({
           phone: cleanPhone,
           name: name || undefined,
@@ -291,11 +303,17 @@ export default function ContactsPage() {
       parsedContacts = xlsxContacts;
     } else {
       parsedContacts = manualContacts
-        .map(c => ({
-          name: c.name.trim() || undefined,
-          phone: c.phone.trim().replace(/\D/g, ""),
-          variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
-        }))
+        .map(c => {
+          let p = c.phone.trim().replace(/\D/g, "");
+          if (p.length === 11 && /^[1-9]{2}9[0-9]{8}$/.test(p)) p = "55" + p;
+          else if (p.length === 10 && /^[1-9]{2}[2-9][0-9]{7}$/.test(p)) p = "55" + p.slice(0, 2) + "9" + p.slice(2);
+          else if (p.startsWith("55") && p.length === 12) p = p.slice(0, 4) + "9" + p.slice(4);
+          return {
+            name: c.name.trim() || undefined,
+            phone: p,
+            variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
+          };
+        })
         .filter(c => c.phone.length >= 8);
       
       if (parsedContacts.length === 0) {
@@ -345,12 +363,18 @@ export default function ContactsPage() {
     }
 
     const parsedContacts = editContacts
-      .map(c => ({
-        id: c.id || undefined,
-        name: c.name.trim() || undefined,
-        phone: c.phone.trim().replace(/\D/g, ""),
-        variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
-      }))
+      .map(c => {
+        let p = c.phone.trim().replace(/\D/g, "");
+        if (p.length === 11 && /^[1-9]{2}9[0-9]{8}$/.test(p)) p = "55" + p;
+        else if (p.length === 10 && /^[1-9]{2}[2-9][0-9]{7}$/.test(p)) p = "55" + p.slice(0, 2) + "9" + p.slice(2);
+        else if (p.startsWith("55") && p.length === 12) p = p.slice(0, 4) + "9" + p.slice(4);
+        return {
+          id: c.id || undefined,
+          name: c.name.trim() || undefined,
+          phone: p,
+          variables: c.variablesStr ? c.variablesStr.split(",").map(v => v.trim()).filter(Boolean) : []
+        };
+      })
       .filter(c => c.phone.length >= 8);
 
     if (parsedContacts.length === 0) {
@@ -408,8 +432,7 @@ export default function ContactsPage() {
         </button>
       </div>
 
-      {!selectedAccount ? (
-        <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
+      {!selectedAccount ? (\n        <div className="glass" style={{ padding: "40px", textAlign: "center", borderRadius: "var(--radius-xl)" }}>
           <p style={{ color: "var(--text-muted)" }}>Cadastre uma conta da Meta primeiro nas Configurações.</p>
         </div>
       ) : (
@@ -926,7 +949,6 @@ export default function ContactsPage() {
                       </tbody>
                     </table>
                   </div>
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Todos os telefones devem conter o código do país (ex: 55 para o Brasil) e DDD.</span>
                 </div>
 
                 {/* Footer Actions */}
@@ -942,72 +964,85 @@ export default function ContactsPage() {
         </ModalPortal>
       )}
 
-      {/* Modal de Edição de Tags */}
+      {/* Modal de Tags */}
       {tagModal && (
         <ModalPortal>
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
-            <div className="glass fade-in" style={{ width: "480px", maxWidth: "95vw", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+            <div className="glass fade-in" style={{ width: "450px", maxWidth: "95vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: "700" }}>Tags — {tagModal.listName}</h3>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: "700" }}>Gerenciar Tags — {tagModal.listName}</h3>
                 <button type="button" onClick={() => setTagModal(null)} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer" }}>✕</button>
               </div>
 
-              <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "18px" }}>
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "16px" }}>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <input
                     type="text"
-                    placeholder="Nova tag (Enter para adicionar)"
+                    placeholder="Adicionar tag (ex: leads, vip)"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        const trimmed = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
-                        if (trimmed && !tagModalTags.includes(trimmed)) {
-                          setTagModalTags([...tagModalTags, trimmed]);
+                        const val = tagInput.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+                        if (val && !tagModalTags.includes(val)) {
+                          setTagModalTags([...tagModalTags, val]);
+                          setTagInput("");
                         }
-                        setTagInput("");
                       }
                     }}
-                    style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                    style={{ flex: 1, padding: "10px 12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
                   />
                   <button
                     type="button"
                     onClick={() => {
-                      const trimmed = tagInput.trim().toLowerCase().replace(/\s+/g, "-");
-                      if (trimmed && !tagModalTags.includes(trimmed)) {
-                        setTagModalTags([...tagModalTags, trimmed]);
+                      const val = tagInput.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+                      if (val && !tagModalTags.includes(val)) {
+                        setTagModalTags([...tagModalTags, val]);
+                        setTagInput("");
                       }
-                      setTagInput("");
                     }}
-                    className="btn btn-secondary"
-                    style={{ padding: "10px 16px", fontSize: "0.9rem" }}
+                    className="btn btn-primary"
+                    style={{ padding: "10px 16px", fontSize: "0.85rem" }}
                   >
-                    + Add
+                    +
                   </button>
                 </div>
 
-                <div style={{ minHeight: "60px", display: "flex", flexWrap: "wrap", gap: "8px", padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(0,0,0,0.15)", border: "1px solid var(--border-color)" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", minHeight: "40px" }}>
                   {tagModalTags.length === 0 ? (
-                    <span style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Nenhuma tag. Digite acima e pressione Enter.</span>
+                    <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Nenhuma tag adicionada.</span>
                   ) : (
                     tagModalTags.map((tag) => (
                       <span
                         key={tag}
-                        onClick={() => setTagModalTags(tagModalTags.filter((t) => t !== tag))}
-                        title="Clique para remover"
-                        className="tag-chip tag-chip--interactive"
+                        style={{
+                          background: "rgba(0, 194, 107, 0.15)",
+                          color: "var(--primary)",
+                          padding: "4px 10px",
+                          borderRadius: "12px",
+                          fontSize: "0.8rem",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px"
+                        }}
                       >
-                        #{tag} <span style={{ opacity: 0.6, fontSize: "0.7rem" }}>✕</span>
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => setTagModalTags(tagModalTags.filter((t) => t !== tag))}
+                          style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", fontSize: "0.85rem", padding: 0, lineHeight: 1 }}
+                        >
+                          ✕
+                        </button>
                       </span>
                     ))
                   )}
                 </div>
-                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Clique em uma tag para removê-la. Pressione Enter para adicionar.</span>
 
                 <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
-                  <button type="button" onClick={() => setTagModal(null)} className="btn btn-secondary">Cancelar</button>
-                  <button type="button" onClick={handleSaveTags} disabled={savingTags} className="btn btn-primary" style={{ minWidth: "120px" }}>
+                  <button type="button" onClick={() => setTagModal(null)} className="btn btn-secondary" style={{ padding: "8px 16px", fontSize: "0.85rem" }}>Cancelar</button>
+                  <button type="button" onClick={handleSaveTags} disabled={savingTags} className="btn btn-primary" style={{ padding: "8px 16px", fontSize: "0.85rem" }}>
                     {savingTags ? "Salvando..." : "Salvar Tags"}
                   </button>
                 </div>
