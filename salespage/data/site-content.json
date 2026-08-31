@@ -1,28 +1,28 @@
 {
-  "announcement": "Infraestrutura Oficial Meta Cloud v19 • Disparos sem Bloqueios e Implantação Assistida",
-  "heroBadge": "Meta WhatsApp Cloud API v19",
-  "heroTitle": "Dispare campanhas no WhatsApp com a estabilidade da API Oficial da Meta.",
-  "heroDescription": "A plataforma direta e robusta para empresas que precisam de envios em escala com templates homologados, opt-out automático (LGPD), links rastreáveis e integração nativa via n8n e REST API.",
-  "primaryCta": "Ver Planos de Acesso",
-  "secondaryCta": "Comparativo Oficial vs Paralelas",
+  "announcement": "Infraestrutura Oficial do WhatsApp • Campanhas Estáveis e Onboarding Assistido",
+  "heroBadge": "API Oficial do WhatsApp",
+  "heroTitle": "Seu WhatsApp comercial. Sem depender de celular, QR Code ou improviso.",
+  "heroDescription": "O Send Inteligentte coloca suas campanhas para rodar pela API oficial do WhatsApp, com gestão de contatos, templates homologados, automações e acompanhamento de entregas em um só lugar.",
+  "primaryCta": "Quero começar",
+  "secondaryCta": "Ver como funciona",
   "proofItems": [
-    "Conexão direta Meta Cloud API v19",
-    "Opt-out e Blacklist Automático",
-    "Integração n8n & REST API",
-    "Implantação e Suporte Próximo"
+    "API oficial do WhatsApp",
+    "Disparos programados em nuvem",
+    "Opt-out automático (LGPD)",
+    "Integração via REST API & n8n"
   ],
-  "previewCampaign": "Campanha de Recuperação & Avisos",
-  "templateMessage": "Olá, {{nome}}! Seu pedido #{{codigo}} foi confirmado. Para acompanhar o envio ou falar com nosso suporte, clique no botão abaixo.",
-  "offerKicker": "Acesso & Implantação",
-  "offerTitle": "Estrutura completa com suporte direto na configuração",
-  "offerDescription": "Sem burocracia corporativa ou contratos anuais amarrados: ativamos seu número oficial, organizamos seus primeiros templates e deixamos sua operação pronta para rodar.",
+  "previewCampaign": "Campanha Promocional & Avisos",
+  "templateMessage": "Olá, {{nome}}! Seu pedido #{{codigo}} foi confirmado. Para acompanhar o envio ou falar com nosso atendimento, clique no botão abaixo.",
+  "offerKicker": "Previsibilidade & Estrutura",
+  "offerTitle": "Não vendemos disparo. Vendemos previsibilidade.",
+  "offerDescription": "Seu time não precisa pensar em sessão, QR Code, celular conectado ou infraestrutura de envio. Você define a campanha; o Send Inteligentte cuida da operação com acompanhamento assistido.",
   "inclusions": [
-    "Acesso completo ao Painel Send Inteligentte",
-    "Configuração assistida do número e Meta Cloud API",
-    "Modelos de templates homologados pela Meta",
-    "Links encurtados rastreáveis com métricas de cliques (/t/)",
-    "Filtro inteligente de opt-out e blacklist (LGPD)",
-    "Chave de API dedicada e templates prontos para n8n",
-    "Relatórios claros de disparados, entregues e lidos"
+    "Acesso completo ao painel operacional Send Inteligentte",
+    "Configuração assistida do número e WhatsApp Cloud API",
+    "Auxílio na criação e aprovação de templates homologados",
+    "Links rastreáveis com métricas de cliques (/t/:slug)",
+    "Identificação e blacklist automática de descadastro (LGPD)",
+    "Chave de API dedicada e webhooks para integração com CRM",
+    "Acompanhamento e suporte humano direto com nossa equipe"
   ]
 }

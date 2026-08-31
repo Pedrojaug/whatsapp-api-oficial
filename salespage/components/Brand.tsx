@@ -15,7 +15,7 @@ export function Brand({ href = "/", label }: BrandProps) {
         </svg>
       </span>
       <span className="brand-text">
-        Send <strong>Inteligentte</strong>
+        Send Inteligentte
         {label ? <small className="brand-sub-label"> • {label}</small> : null}
       </span>
     </Link>
