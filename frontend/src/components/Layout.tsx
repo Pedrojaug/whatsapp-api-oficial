@@ -1,222 +1,217 @@
-import { useState, useEffect, useRef } from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
-import { gsap } from "gsap";
-import { EASE, DUR } from "../utils/motion";
-import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
-import AuthPages from "./AuthPages";
-import {
-  BarChart3,
-  MessageSquare,
-  FileText,
-  Users,
-  Send,
-  Image as ImageIcon,
-  Settings2,
-  Wrench,
-  LogOut,
-  Sun,
-  Moon,
-  ShieldOff,
-  Link2,
-  Megaphone,
-  KeyRound,
-  CreditCard
-} from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
+import { useSSE } from "../hooks/useSSE";
 
-const SUPPORT_WHATSAPP = "5583920017106";
-const SUPPORT_WHATSAPP_URL = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent("Olá! Preciso de suporte com o Send Inteligentte.")}`;
-
-function WhatsAppIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.554 4.122 1.523 5.855L.057 23.882a.5.5 0 0 0 .613.612l6.101-1.457A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.808 9.808 0 0 1-5.034-1.387l-.36-.214-3.733.892.937-3.63-.235-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
-    </svg>
-  );
+interface LayoutProps {
+  children: React.ReactNode;
 }
 
-export default function Layout() {
-  const { token, user, isImpersonating, impersonatorName, login, logout, stopImpersonating } = useAuth();
+export default function Layout({ children }: LayoutProps) {
+  const { user, logout, isImpersonating, stopImpersonating, impersonatorName } = useAuth();
   const { accounts, selectedAccount, selectAccount } = useAccount();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const navigate = useNavigate();
+  const { theme, toggleTheme } = useTheme();
   const location = useLocation();
-  const mainRef = useRef<HTMLElement>(null);
+  const navigate = useNavigate();
 
-  // Theme state — default dark, persisted in localStorage
-  const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
-    localStorage.getItem("theme") !== "light"
-  );
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
 
-  useEffect(() => {
-    if (isDarkTheme) {
-      document.body.classList.remove("light-theme");
-      localStorage.setItem("theme", "dark");
-    } else {
-      document.body.classList.add("light-theme");
-      localStorage.setItem("theme", "light");
+  // SSE Notifications
+  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: string }>>([]);
+
+  useSSE((data: any) => {
+    if (data.type === "STATUS_UPDATE") {
+      const newNotif = {
+        id: Math.random().toString(),
+        message: `Mensagem ${data.messageId?.slice(0, 8)}... mudou para ${data.status}`,
+        type: data.status === "FAILED" ? "error" : "info",
+      };
+      setNotifications((prev) => [newNotif, ...prev.slice(0, 4)]);
+      setTimeout(() => {
+        setNotifications((prev) => prev.filter((n) => n.id !== newNotif.id));
+      }, 5000);
     }
-  }, [isDarkTheme]);
+  });
 
-  // Sincronização de status das mensagens em tempo real (SSE) com reconexão automática robusta
+  // Fechar dropdowns ao clicar fora
   useEffect(() => {
-    if (!selectedAccount || !token) return;
-
-    let eventSource: EventSource | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let isMounted = true;
-
-    const connect = () => {
-      if (!isMounted) return;
-      const sseUrl = `${API_BASE_URL.replace("/api", "")}/api/accounts/${selectedAccount.id}/messages/events?token=${encodeURIComponent(token)}`;
-      eventSource = new EventSource(sseUrl);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "connected") {
-            // SSE conectou (ou reconectou) — dispara evento para páginas recarregarem dados
-            window.dispatchEvent(new CustomEvent("sseConnected"));
-          } else if (data.type === "messageUpdated") {
-            // Dispara evento customizado para que qualquer página possa escutar
-            window.dispatchEvent(new CustomEvent("messageUpdated", { detail: data }));
-          }
-        } catch (err) {
-          console.error("Erro ao processar atualização em tempo real:", err);
-        }
-      };
-
-      eventSource.onerror = () => {
-        // Fecha a conexão com erro e reconecta manualmente após 3 segundos
-        eventSource?.close();
-        eventSource = null;
-        if (isMounted) {
-          reconnectTimeout = setTimeout(connect, 3000);
-        }
-      };
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".user-dropdown-container")) setUserDropdownOpen(false);
+      if (!target.closest(".account-dropdown-container")) setAccountDropdownOpen(false);
     };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
 
-    connect();
-
-    return () => {
-      isMounted = false;
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      eventSource?.close();
-    };
-  }, [selectedAccount, token]);
-
-  // Stagger-reveal glass cards on every route change (with subtle scale)
+  // Fechar menu mobile ao trocar de rota
   useEffect(() => {
-    if (!mainRef.current) return;
-    const cards = mainRef.current.querySelectorAll<HTMLElement>(".glass");
-    if (!cards.length) return;
-    gsap.fromTo(
-      cards,
-      { opacity: 0, y: 28, scale: 0.97 },
-      { opacity: 1, y: 0, scale: 1, duration: DUR.base, ease: EASE, stagger: 0.07, clearProps: "transform" }
-    );
+    setMobileMenuOpen(false);
   }, [location.pathname]);
 
-  // IMPORTANTE: hooks não podem vir depois deste return condicional (Rules of Hooks).
-  // O useState abaixo ficava após o return e mudava a contagem de hooks entre os
-  // renders logado/deslogado, derrubando a árvore React inteira (tela preta) no
-  // login, no logout e no auto-logout por sessão expirada.
-  const [now] = useState(() => Date.now());
+  const navItems = [
+    { label: "Dashboard", path: "/dashboard", icon: "📊" },
+    { label: "Campanhas", path: "/campaigns", icon: "🚀" },
+    { label: "Templates", path: "/templates", icon: "📝" },
+    { label: "Listas & Contatos", path: "/contacts", icon: "👥" },
+    { label: "Mensagens & Logs", path: "/messages", icon: "✉️" },
+    { label: "Live Chat", path: "/chat", icon: "💬" },
+    { label: "Links Rastreáveis", path: "/tracking", icon: "🔗" },
+    { label: "Mídia & Arquivos", path: "/media", icon: "📁" },
+    { label: "Opt-Out (Descadastro)", path: "/optout", icon: "🚫" },
+    { label: "Contas WhatsApp", path: "/accounts", icon: "⚙️" },
+    { label: "Chaves de API", path: "/api-keys", icon: "🔑" },
+    { label: "Assinatura & Planos", path: "/subscription", icon: "💳" },
+  ];
 
-  if (!token) {
-    return <AuthPages onLoginSuccess={login} />;
+  if (user?.role === "SUPERUSER") {
+    navItems.push({ label: "Administração", path: "/admin", icon: "🛡️" });
   }
 
-  // ── Trial logic ──────────────────────────────────────────────────────────────
-  const TRIAL_DAYS = 3;
-  const isPaid      = user?.planTier === "paid";
+  // Verificar expiração de trial / plano
+  const plan = user?.plan || "free";
   const isSuperUser = user?.role === "SUPERUSER";
-  const createdAt   = user?.createdAt ? new Date(user.createdAt) : null;
-  const daysSince   = createdAt ? Math.floor((now - createdAt.getTime()) / 86_400_000) : 0;
-  const daysLeft    = Math.max(0, TRIAL_DAYS - daysSince);
-  const trialExpired  = !isPaid && !isSuperUser && daysSince >= TRIAL_DAYS;
+  const isPaid = ["starter", "pro", "enterprise"].includes(plan);
+
+  let daysLeft = 0;
+  let trialExpired = false;
+  let showBlockedModal = false;
+
+  if (!isPaid && !isSuperUser) {
+    if (user?.trialExpiresAt) {
+      const now = new Date().getTime();
+      const expires = new Date(user.trialExpiresAt).getTime();
+      const diffMs = expires - now;
+      daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (diffMs <= 0) {
+        trialExpired = true;
+        showBlockedModal = true;
+      }
+    } else if (user?.createdAt) {
+      // Fallback para contas legadas sem trialExpiresAt: 3 dias a partir de createdAt
+      const now = new Date().getTime();
+      const created = new Date(user.createdAt).getTime();
+      const diffMs = (created + 3 * 24 * 60 * 60 * 1000) - now;
+      daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+      if (diffMs <= 0) {
+        trialExpired = true;
+        showBlockedModal = true;
+      }
+    }
+  }
+
+  // Permitir acesso às rotas de assinatura/billing mesmo se bloqueado
+  const isBillingRoute = ["/subscription", "/billing"].includes(location.pathname);
+  const blockAccess = showBlockedModal && !isBillingRoute && !isImpersonating;
+
   const showTrialBanner = !isPaid && !isSuperUser && !trialExpired;
 
-  const handleAccountChange = (accountId: string) => {
-    const acc = accounts.find((a) => a.id === accountId);
-    selectAccount(acc || null);
-  };
-
-  const closeSidebar = () => setIsSidebarOpen(false);
-
+  // Montar link direto para o WhatsApp do suporte comercial
   const PAYMENT_WA = `https://wa.me/5583920017106?text=${encodeURIComponent("Olá! Quero assinar o Send Inteligentte. Meu e-mail é: " + (user?.email || ""))}`;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh", position: "relative" }}>
-      {/* Background Ambient Glows */}
-      <div className="ambient-glow-1"></div>
-      <div className="ambient-glow-2"></div>
-
-      {/* ── Trial expired paywall ── */}
-      {trialExpired && !isImpersonating && (
+    <div className="layout-root" data-theme={theme}>
+      {/* ── Modal de Bloqueio por Trial Expirado ── */}
+      {blockAccess && (
         <div style={{
-          position: "fixed", inset: 0, zIndex: 10000,
-          background: "rgba(5,7,15,0.92)",
-          backdropFilter: "blur(8px)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          padding: "24px",
+          position: "fixed",
+          inset: 0,
+          background: "rgba(8,8,10,0.92)",
+          backdropFilter: "blur(12px)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "20px",
         }}>
-          <div className="glass" style={{
-            maxWidth: "460px", width: "100%",
-            padding: "40px 36px", borderRadius: "var(--radius-xl)",
-            border: "1px solid rgba(255,255,255,0.08)",
-            display: "flex", flexDirection: "column", alignItems: "center",
-            gap: "20px", textAlign: "center",
+          <div style={{
+            background: "rgba(18,18,22,0.98)",
+            border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "20px",
+            padding: "40px 36px",
+            maxWidth: "460px",
+            width: "100%",
+            textAlign: "center",
+            boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
           }}>
-            <div style={{
-              width: "60px", height: "60px", borderRadius: "50%",
-              background: "rgba(251,191,36,0.1)",
-              border: "1.5px solid rgba(251,191,36,0.35)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: "1.7rem",
-            }}>⏰</div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "var(--text-primary)" }}>
-                Seu período de teste encerrou
-              </h2>
-              <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", lineHeight: 1.6 }}>
-                Seus <strong>3 dias gratuitos</strong> expiraram há {daysSince - TRIAL_DAYS} dia{daysSince - TRIAL_DAYS !== 1 ? "s" : ""}.
-                Para continuar enviando mensagens pelo Send Inteligentte, ative seu plano.
-              </p>
-            </div>
-
-            <a
-              href={PAYMENT_WA}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-primary"
-              style={{ width: "100%", textAlign: "center", textDecoration: "none", fontSize: "0.95rem", padding: "14px" }}
-            >
-              Assinar agora via WhatsApp
-            </a>
-
-            <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-              Após a confirmação do pagamento, seu acesso é reativado em até 24h.<br />
-              Dúvidas? Fale com a equipe Inteligentte.
+            <div style={{ fontSize: "3rem", marginBottom: "16px" }}>⏳</div>
+            <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>
+              Período de Teste Encerrado
+            </h2>
+            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "28px" }}>
+              Seus 3 dias de teste gratuito terminaram. Para continuar disparando mensagens com a API Oficial da Meta e gerenciar seus contatos, assine um plano.
             </p>
-
-            <button
-              onClick={logout}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: "var(--text-muted)", fontSize: "0.8rem", textDecoration: "underline",
-              }}
-            >
-              Sair da conta
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <a
+                href={PAYMENT_WA}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: "13px 20px",
+                  background: "linear-gradient(135deg, #00c26b, #00a85c)",
+                  color: "#fff",
+                  borderRadius: "10px",
+                  fontWeight: 600,
+                  fontSize: "0.95rem",
+                  textDecoration: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                }}
+              >
+                💬 Falar com Suporte & Assinar
+              </a>
+              <Link
+                to="/subscription"
+                style={{
+                  padding: "11px 20px",
+                  background: "rgba(255,255,255,0.06)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(255,255,255,0.8)",
+                  borderRadius: "10px",
+                  fontSize: "0.88rem",
+                  textDecoration: "none",
+                }}
+              >
+                Ver Planos Disponíveis
+              </Link>
+            </div>
+            <p style={{ marginTop: "20px", fontSize: "0.78rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.4 }}>
+              Após a confirmação do pagamento, seu acesso é reativado em até 24h.<br />
+              Dúvidas? Entre em contato pelo WhatsApp acima.
+            </p>
           </div>
         </div>
       )}
 
+      {/* ── Banner de Notificações Rápidas SSE ── */}
+      <div style={{ position: "fixed", top: "20px", right: "20px", zIndex: 9999, display: "flex", flexDirection: "column", gap: "10px" }}>
+        {notifications.map((n) => (
+          <div
+            key={n.id}
+            style={{
+              padding: "12px 20px",
+              background: n.type === "error" ? "rgba(239, 68, 68, 0.9)" : "rgba(0, 194, 107, 0.9)",
+              backdropFilter: "blur(8px)",
+              borderRadius: "var(--radius-md)",
+              color: "#fff",
+              fontSize: "0.88rem",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+              animation: "slideIn 0.3s ease",
+            }}
+          >
+            {n.message}
+          </div>
+        ))}
+      </div>
+
       {/* ── Email verification banner ── */}
-      {user && !user.emailVerified && !isImpersonating && user.role !== "SUPERUSER" && (
+      {user && !user.emailVerified && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
         <div style={{
           background: "linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06))",
           borderBottom: "1px solid rgba(251,191,36,0.25)",
@@ -235,7 +230,7 @@ export default function Layout() {
       )}
 
       {/* ── Trial countdown banner ── */}
-      {showTrialBanner && !isImpersonating && (
+      {showTrialBanner && user?.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && (
         <div style={{
           background: "linear-gradient(90deg, rgba(251,191,36,0.1), rgba(251,191,36,0.04))",
           borderBottom: "1px solid rgba(251,191,36,0.22)",
@@ -276,7 +271,7 @@ export default function Layout() {
       )}
 
       {/* ── Onboarding banner (new user, no accounts yet) ── */}
-      {user && accounts.length === 0 && !isImpersonating && (
+      {user && accounts.length === 0 && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && (
         <div style={{
           background: "linear-gradient(90deg, rgba(0,194,107,0.1), rgba(0,194,107,0.04))",
           borderBottom: "1px solid rgba(0,194,107,0.2)",
@@ -290,13 +285,15 @@ export default function Layout() {
           zIndex: 1001,
           flexWrap: "wrap",
         }}>
-          <span>🚀 <strong>Bem-vindo!</strong> Conecte seu primeiro número WhatsApp Business para começar a disparar mensagens.</span>
+          <span>
+            👋 <strong>Bem-vindo ao Send Inteligentte!</strong> Conecte sua conta do WhatsApp Oficial da Meta para começar a disparar.
+          </span>
           <button
             onClick={() => navigate("/accounts")}
             style={{
-              background: "rgba(0,194,107,0.2)",
-              border: "1px solid rgba(0,194,107,0.4)",
-              color: "#00c26b",
+              background: "#00c26b",
+              color: "#000",
+              border: "none",
               padding: "5px 14px",
               borderRadius: "6px",
               cursor: "pointer",
@@ -306,285 +303,293 @@ export default function Layout() {
               whiteSpace: "nowrap",
             }}
           >
-            Conectar agora →
+            Conectar WhatsApp →
           </button>
         </div>
       )}
 
+      {/* ── Banner de Suporte (Impersonation) ── */}
       {isImpersonating && (
-        <div style={{
-          backgroundColor: "#ffe4e6",
-          color: "#9f1239",
-          padding: "10px 24px",
-          textAlign: "center",
-          fontSize: "0.88rem",
-          fontWeight: "600",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          zIndex: 1001,
-          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-        }}>
-          <span>
-            ⚠️ MODO SUPORTE ATIVO: Visualizando e configurando o painel de <strong>{user?.name || user?.email}</strong> (por {impersonatorName}).
-          </span>
+        <div
+          style={{
+            background: "linear-gradient(90deg, #f59e0b, #d97706)",
+            color: "#000",
+            padding: "8px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: "0.85rem",
+            fontWeight: "600",
+            zIndex: 9999,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span>⚠️ MODO SUPORTE ATIVO: Visualizando e configurando o painel de <strong>{user?.name || user?.email}</strong> (por {impersonatorName}).</span>
+          </div>
           <button
-            onClick={() => {
-              stopImpersonating();
-              navigate("/admin");
-            }}
-            className="btn btn-secondary"
+            onClick={stopImpersonating}
             style={{
-              backgroundColor: "#fff",
-              color: "#1e1b4b",
+              background: "#000",
+              color: "#fff",
               border: "none",
-              padding: "6px 14px",
-              fontSize: "0.85rem",
-              fontWeight: "700",
-              cursor: "pointer"
+              padding: "4px 12px",
+              borderRadius: "4px",
+              cursor: "pointer",
+              fontSize: "0.8rem",
+              fontWeight: "600",
             }}
           >
-            Voltar para Administrador
+            Encerrar Suporte
           </button>
         </div>
       )}
 
-      {/* Mobile overlay */}
-      {isSidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar} />}
-
-      {/* Mobile header — sits above the flex row, hidden on desktop */}
-      <header className="mobile-header">
-        <button
-          className={`hamburger-btn${isSidebarOpen ? " open" : ""}`}
-          onClick={() => setIsSidebarOpen(v => !v)}
-          aria-label="Menu"
-        >
-          <span /><span /><span />
-        </button>
-        <div className="mobile-header__logo" onClick={() => navigate("/")} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: "8px" }}>
-          <div style={{ width: "40px", height: "40px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
-          </div>
-          <div style={{ fontSize: "1.15rem", fontWeight: 400, display: "flex", alignItems: "center" }}>
-            <span style={{ color: "var(--primary)", fontWeight: 700 }}>Send</span>
-            <span style={{ marginLeft: "3px", color: "var(--text-primary)" }}>Inteligentte</span>
-          </div>
-        </div>
-        <div className="account-select-wrapper" style={{ minWidth: 0, maxWidth: "160px" }}>
-          <select
-            value={selectedAccount?.id || ""}
-            onChange={(e) => handleAccountChange(e.target.value)}
-            className="field-input"
-            style={{ cursor: "pointer", fontSize: "0.78rem", padding: "6px 28px 6px 10px" }}
+      {/* ── Top Header Bar ── */}
+      <header className="topbar">
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <button
+            type="button"
+            className="mobile-toggle-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Abrir Menu"
           >
-            {accounts.length === 0 ? (
-              <option value="">Sem contas</option>
-            ) : (
-              accounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>{acc.name}</option>
-              ))
-            )}
-          </select>
+            ☰
+          </button>
+
+          <Link to="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "1.4rem" }}>⚡</span>
+            <span style={{ fontWeight: "700", fontSize: "1.15rem", letterSpacing: "-0.5px", color: "var(--text-primary)" }}>
+              Send <span style={{ color: "var(--primary)" }}>Inteligentte</span>
+            </span>
+          </Link>
         </div>
-      </header>
 
-      <div className="app-layout">
-        {/* Sidebar */}
-        <aside className={`app-sidebar glass${isSidebarOpen ? " open" : ""}`}>
-          <div className="sidebar-logo" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
-            <div className="sidebar-logo-mark" style={{ 
-              display: "flex", 
-              alignItems: "center", 
-              justifyContent: "center", 
-              background: "transparent", 
-              border: "none", 
-              width: "42px", 
-              height: "42px",
-              flexShrink: 0 
-            }}>
-              <img src="/logo-mark.png" style={{ height: "100%", width: "auto", objectFit: "contain" }} />
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="sidebar-logo-text" style={{ fontSize: "1.1rem", fontWeight: 400, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                <span style={{ color: "var(--primary)", fontWeight: 700 }}>Send</span>
-                <span style={{ marginLeft: "4px", color: "var(--text-primary)" }}>Inteligentte</span>
-                <span className="sidebar-logo-badge" style={{ marginLeft: "4px", flexShrink: 0 }}>Beta</span>
-              </div>
-              <div style={{ fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "1px" }}>por Inteligentte Lab</div>
-            </div>
-          </div>
-
-          {/* Account Switcher */}
-          <div className="field">
-            <label className="nav-section-label">Conta Ativa</label>
-            <div className="account-select-wrapper">
-              <select
-                value={selectedAccount?.id || ""}
-                onChange={(e) => handleAccountChange(e.target.value)}
-                className="field-input"
-                style={{ cursor: "pointer", paddingRight: "32px" }}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          {/* Seletor de Conta Meta */}
+          {accounts.length > 0 && (
+            <div className="account-dropdown-container" style={{ position: "relative" }}>
+              <button
+                type="button"
+                className="btn btn-secondary account-selector-btn"
+                onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "7px 14px",
+                  fontSize: "0.85rem",
+                  borderRadius: "var(--radius-md)",
+                }}
               >
-                {accounts.length === 0 ? (
-                  <option value="">Sem contas cadastradas</option>
-                ) : (
-                  accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>{acc.name}</option>
-                  ))
-                )}
-              </select>
-            </div>
-          </div>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--primary)", display: "inline-block" }}></span>
+                <span style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {selectedAccount?.name || "Selecionar Conta"}
+                </span>
+                <span style={{ fontSize: "0.7rem", opacity: 0.6 }}>▼</span>
+              </button>
 
-          {/* Navigation Menu */}
-          <nav style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-            <span className="nav-section-label">Principal</span>
-            <NavLink to="/metrics" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <BarChart3 size={18} className="nav-icon" /> Métricas
-            </NavLink>
-            <NavLink to="/chat" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <MessageSquare size={18} className="nav-icon" /> Chat & Atendimento
-            </NavLink>
-
-            <span className="nav-section-label" style={{ marginTop: "6px" }}>Campanhas</span>
-            <NavLink to="/templates" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <FileText size={18} className="nav-icon" /> Templates Meta
-            </NavLink>
-            <NavLink to="/lists" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <Users size={18} className="nav-icon" /> Listas de Contatos
-            </NavLink>
-            <NavLink to="/messages" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <Send size={18} className="nav-icon" /> Envio & Histórico
-            </NavLink>
-            <NavLink to="/media" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <ImageIcon size={18} className="nav-icon" /> Galeria de Mídias
-            </NavLink>
-            <NavLink to="/optouts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <ShieldOff size={18} className="nav-icon" /> Opt-out (LGPD)
-            </NavLink>
-            <NavLink to="/link-tracking" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <Link2 size={18} className="nav-icon" /> Rastreamento de Links
-            </NavLink>
-            <NavLink to="/campaigns" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <Megaphone size={18} className="nav-icon" /> Campanhas Recorrentes
-            </NavLink>
-
-            <span className="nav-section-label" style={{ marginTop: "6px" }}>Configurações</span>
-            <NavLink to="/accounts" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <Settings2 size={18} className="nav-icon" /> Contas Meta API
-            </NavLink>
-            <NavLink to="/billing" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <CreditCard size={18} className="nav-icon" /> Assinatura & Plano
-            </NavLink>
-            <NavLink to="/api-keys" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-              <KeyRound size={18} className="nav-icon" /> API Pública
-            </NavLink>
-            {(user?.role === "SUPERUSER" || !!localStorage.getItem("admin_token")) && !isImpersonating && (
-              <NavLink to="/admin" onClick={closeSidebar} className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
-                <Wrench size={18} className="nav-icon" /> Administração
-              </NavLink>
-            )}
-          </nav>
-
-          {/* Bottom Section */}
-          <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px", borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
-            {user && (
-              <>
-                <div className="user-card">
-                  <div className="user-avatar">
-                    {(user.name || user.email).charAt(0).toUpperCase()}
+              {accountDropdownOpen && (
+                <div
+                  className="glass-dropdown"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    right: 0,
+                    minWidth: "220px",
+                    background: "var(--dropdown-bg)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "var(--radius-lg)",
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                    zIndex: 1000,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{ padding: "8px 12px", fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Suas Contas WhatsApp
                   </div>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {accounts.map((acc) => (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      onClick={() => {
+                        selectAccount(acc);
+                        setAccountDropdownOpen(false);
+                      }}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "10px 14px",
+                        background: selectedAccount?.id === acc.id ? "rgba(0, 194, 107, 0.1)" : "transparent",
+                        color: selectedAccount?.id === acc.id ? "var(--primary)" : "var(--text-primary)",
+                        border: "none",
+                        borderBottom: "1px solid rgba(255,255,255,0.03)",
+                        cursor: "pointer",
+                        fontSize: "0.85rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span>{acc.name}</span>
+                      {selectedAccount?.id === acc.id && <span>✓</span>}
+                    </button>
+                  ))}
+                  <div style={{ padding: "8px", borderTop: "1px solid var(--border-color)" }}>
+                    <Link
+                      to="/accounts"
+                      onClick={() => setAccountDropdownOpen(false)}
+                      style={{
+                        display: "block",
+                        textAlign: "center",
+                        padding: "6px",
+                        fontSize: "0.8rem",
+                        color: "var(--primary)",
+                        textDecoration: "none",
+                      }}
+                    >
+                      + Gerenciar Contas
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Toggle de Tema Claro/Escuro */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="theme-toggle-btn"
+            title={`Alternar para tema ${theme === "dark" ? "claro" : "escuro"}`}
+            aria-label="Alternar Tema"
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
+
+          {/* Menu do Usuário */}
+          {user && (
+            <div className="user-dropdown-container" style={{ position: "relative" }}>
+              <button
+                type="button"
+                className="user-avatar-btn"
+                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg, var(--primary), #008f4c)",
+                  color: "#000",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: "0.9rem",
+                }}
+              >
+                {(user.name || user.email).charAt(0).toUpperCase()}
+              </button>
+
+              {userDropdownOpen && (
+                <div
+                  className="glass-dropdown"
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 8px)",
+                    right: 0,
+                    minWidth: "200px",
+                    background: "var(--dropdown-bg)",
+                    border: "1px solid var(--border-color)",
+                    borderRadius: "var(--radius-lg)",
+                    boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
+                    zIndex: 1000,
+                    overflow: "hidden",
+                  }}
+                >
+                  <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border-color)" }}>
+                    <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "var(--text-primary)" }}>
                       {user.name || user.email}
                     </div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
                       {user.email}
                     </div>
                   </div>
+
+                  <div style={{ padding: "6px 0" }}>
+                    <Link
+                      to="/subscription"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="dropdown-item"
+                    >
+                      💳 Meu Plano & Faturas
+                    </Link>
+                    <Link
+                      to="/api-keys"
+                      onClick={() => setUserDropdownOpen(false)}
+                      className="dropdown-item"
+                    >
+                      🔑 Chaves de Integração
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUserDropdownOpen(false);
+                        logout();
+                      }}
+                      className="dropdown-item"
+                      style={{ width: "100%", textAlign: "left", color: "var(--error)" }}
+                    >
+                      🚪 Sair da Conta
+                    </button>
+                  </div>
                 </div>
-                <button
-                  onClick={logout}
-                  className="nav-item"
-                  style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
-                >
-                  <LogOut size={18} className="nav-icon" /> Sair da Conta
-                </button>
-              </>
-            )}
-
-            {/* Theme Toggle */}
-            <button
-              id="theme-toggle-btn"
-              onClick={() => setIsDarkTheme(!isDarkTheme)}
-              title={isDarkTheme ? "Mudar para tema claro" : "Mudar para tema escuro"}
-              className="nav-item"
-              style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.875rem" }}
-            >
-              {isDarkTheme ? (
-                <>
-                  <Sun size={18} className="nav-icon" /> Tema Claro
-                </>
-              ) : (
-                <>
-                  <Moon size={18} className="nav-icon" /> Tema Escuro
-                </>
               )}
-            </button>
-
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
-              Desenvolvido por Inteligentte Lab | v1.0.0
             </div>
-          </div>
+          )}
+        </div>
+      </header>
+
+      {/* ── Main App Shell (Sidebar + Content) ── */}
+      <div className="layout-body">
+        {/* Sidebar Desktop & Mobile */}
+        <aside className={`sidebar ${mobileMenuOpen ? "sidebar-mobile-open" : ""}`}>
+          <nav style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "16px 12px" }}>
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`nav-link ${isActive ? "nav-link-active" : ""}`}
+                >
+                  <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="app-main" ref={mainRef}>
-          <div className="app-main-inner">
-            <Outlet />
-          </div>
+        {/* Backdrop for mobile */}
+        {mobileMenuOpen && (
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.6)",
+              backdropFilter: "blur(4px)",
+              zIndex: 90,
+            }}
+          />
+        )}
+
+        {/* Main Page Content */}
+        <main className="content-area">
+          {children}
         </main>
       </div>
-
-      {/* Floating Support Button */}
-      <a
-        href={SUPPORT_WHATSAPP_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Falar com Suporte"
-        className="support-fab"
-        style={{
-          position: "fixed",
-          bottom: "24px",
-          right: "24px",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          background: "#25D366",
-          color: "#fff",
-          border: "none",
-          borderRadius: "50px",
-          padding: "12px 20px 12px 16px",
-          fontSize: "0.85rem",
-          fontWeight: 600,
-          fontFamily: "inherit",
-          cursor: "pointer",
-          textDecoration: "none",
-          boxShadow: "0 4px 20px rgba(37,211,102,0.4)",
-          transition: "transform 0.15s ease, box-shadow 0.15s ease",
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1.05)";
-          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 6px 28px rgba(37,211,102,0.55)";
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1)";
-          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 4px 20px rgba(37,211,102,0.4)";
-        }}
-      >
-        <WhatsAppIcon />
-        <span className="support-fab-text">Suporte</span>
-      </a>
     </div>
   );
 }
