@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Brand } from "@/components/Brand";
 import {
@@ -8,12 +8,18 @@ import {
   ChartIcon,
   CheckIcon,
   ChevronDownIcon,
+  CodeIcon,
   CpuIcon,
   CrossIcon,
+  DatabaseIcon,
+  GlobeIcon,
+  LayersIcon,
   LinkIcon,
   ListIcon,
   MessageIcon,
+  ServerIcon,
   ShieldCheckIcon,
+  TerminalIcon,
   ZapIcon,
 } from "@/components/icons";
 import { plans } from "@/lib/plans";
@@ -26,30 +32,8 @@ type SalesLandingProps = {
 export function SalesLanding({ content }: SalesLandingProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [contactCount, setContactCount] = useState<number>(5000);
-  const [scrollProgress, setScrollProgress] = useState<number>(0);
-  const [activeSteps, setActiveSteps] = useState<number[]>([]);
-  const [expandedTimelineStep, setExpandedTimelineStep] = useState<number | null>(null);
-  const [toastIndex, setToastIndex] = useState<number>(0);
-  const [showToast, setShowToast] = useState<boolean>(true);
-  const timelineRef = useRef<HTMLDivElement>(null);
-
-  const proofNotifications = [
-    { name: "Marcos V.", city: "São Paulo, SP", action: "Ativou a Meta API no Plano Anual", time: "há 3 min" },
-    { name: "Agência Vox", city: "Belo Horizonte, MG", action: "Disparou +12.000 mensagens oficiais", time: "há 7 min" },
-    { name: "Rodrigo S.", city: "Curitiba, PR", action: "Migrou para o Send Inteligentte", time: "há 14 min" },
-    { name: "Dra. Camila N.", city: "Rio de Janeiro, RJ", action: "Ativou o Plano Trimestral", time: "há 21 min" },
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setToastIndex((prev) => (prev + 1) % proofNotifications.length);
-    }, 7000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const toggleTimelineStep = (index: number) => {
-    setExpandedTimelineStep(expandedTimelineStep === index ? null : index);
-  };
+  const [activeCodeTab, setActiveCodeTab] = useState<"curl" | "n8n" | "csv">("curl");
+  const [copiedSnippet, setCopiedSnippet] = useState<boolean>(false);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
@@ -57,49 +41,64 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
   const calculatedDeliveries = Math.floor(contactCount * 0.992);
   const calculatedReads = Math.floor(contactCount * 0.74);
-  const calculatedClicks = Math.floor(contactCount * 0.31);
+  const calculatedClicks = Math.floor(contactCount * 0.28);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!timelineRef.current) return;
-      const rect = timelineRef.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
+  const handleCopy = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedSnippet(true);
+    setTimeout(() => setCopiedSnippet(false), 2000);
+  };
 
-      // Calcular o progresso de preenchimento da linha central
-      const totalHeight = rect.height;
-      const currentTop = windowHeight * 0.5 - rect.top;
-      let progress = currentTop / (totalHeight * 0.85);
-      progress = Math.max(0, Math.min(1, progress));
-      setScrollProgress(progress);
+  const snippets = {
+    curl: `curl -X POST https://app.sendinteligente.com.br/api/v1/messages \\
+  -H "Authorization: Bearer sk_live_9f83a1b42c..." \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "phoneNumber": "5511999998888",
+    "templateName": "aviso_promocao_v1",
+    "language": "pt_BR",
+    "parameters": [
+      { "type": "text", "text": "Carlos" },
+      { "type": "text", "text": "15% OFF" }
+    ]
+  }'`,
+    n8n: `// Webhook de Entrega e Leitura (Send Inteligentte -> n8n / CRM)
+{
+  "event": "message.status_updated",
+  "messageId": "msg_89f023a12",
+  "recipientPhone": "5511999998888",
+  "status": "READ", // SENT | DELIVERED | READ | FAILED
+  "templateName": "aviso_promocao_v1",
+  "clickedTrackingLink": true,
+  "clickedUrl": "https://suaempresa.com.br/oferta-vip",
+  "timestamp": "2026-08-31T14:30:00.000Z"
+}`,
+    csv: `Nome,Telefone,CodigoPedido,Desconto
+Carlos Silva,5511999998888,PED-9402,15%
+Mariana Costa,5521988887777,PED-9403,20%
+Lucas Souza,5531977776666,PED-9404,10%
 
-      // Ativar visualmente os passos à medida que entram no viewport
-      const stepItems = timelineRef.current.querySelectorAll(".vertical-step-item");
-      const newActive: number[] = [];
-      stepItems.forEach((el, index) => {
-        const stepRect = el.getBoundingClientRect();
-        if (stepRect.top < windowHeight * 0.72) {
-          newActive.push(index);
-        }
-      });
-      setActiveSteps(newActive);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
+// O sistema mapeia automaticamente {{1}}, {{2}} e higieniza números
+// Aplicando filtro automático de Blacklist/Opt-out antes do envio.`,
+  };
 
   return (
     <main className="main-wrapper">
-      {/* HEADER COMPACTO E LIMPO */}
+      {/* BARRA SUPERIOR DE CONFORMIDADE */}
+      <div className="top-announcement-bar">
+        <span>{content.announcement}</span>
+      </div>
+
+      {/* HEADER PRINCIPAL */}
       <header className="site-header">
         <Brand />
 
-        <nav className="public-nav" aria-label="Navegação da oferta">
+        <nav className="public-nav" aria-label="Navegação do site">
+          <a href="#cenario">Por que API Oficial?</a>
           <a href="#como-funciona">Como funciona</a>
-          <a href="#simulador">Simulador</a>
-          <a href="#recursos">Recursos</a>
-          <a href="#anti-ban">API Oficial vs Paralelas</a>
+          <a href="#recursos">Engenharia</a>
+          <a href="#integracao">API & n8n</a>
+          <a href="#simulador">Calculadora</a>
           <a href="#planos">Planos</a>
           <a href="#faq">Dúvidas</a>
         </nav>
@@ -111,12 +110,12 @@ export function SalesLanding({ content }: SalesLandingProps) {
             target="_blank"
             rel="noopener noreferrer"
           >
-            Entrar
+            Área do Cliente
           </a>
 
           <a className="primary-button compact" href="#planos">
             <ZapIcon />
-            Ativar Conta
+            <span>Ativar Conta</span>
           </a>
         </div>
       </header>
@@ -124,223 +123,92 @@ export function SalesLanding({ content }: SalesLandingProps) {
       <div className="sales-page">
         {/* HERO SECTION */}
         <section className="hero-section" id="hero">
-          <div className="hero-copy">
-            <span className="pill success">
-              <ShieldCheckIcon />
-              {content.heroBadge}
-            </span>
-
-            <h1>
-              Dispare campanhas no WhatsApp <span className="highlight-green">sem arriscar o seu número</span>
-            </h1>
-
-            <div className="hero-actions">
-              <a className="primary-button glowing large" href="#planos">
-                <ArrowRightIcon />
-                Quero ativar minha conta
-              </a>
-              <a className="secondary-button" href="#simulador">
-                Simular Alcance
-              </a>
-            </div>
-
-            <div className="hero-guarantee-tag">
-              <ShieldCheckIcon />
-              <span>Garantia incondicional de 7 dias — Teste 100% sem risco</span>
-            </div>
-
-            <div className="proof-strip" aria-label="Diferenciais principais">
-              <span className="proof-chip"><CheckIcon /> API Oficial da Meta</span>
-              <span className="proof-chip"><CheckIcon /> Opt-out automático (LGPD)</span>
-              <span className="proof-chip"><CheckIcon /> Suporte na ativação</span>
-            </div>
-          </div>
-
-          {/* PRINT REAL DO DASHBOARD EM DESTAQUE */}
-          <div className="product-preview-frame" aria-label="Painel de Métricas Real do Send Inteligentte">
-            <div className="window-topbar">
-              <div className="window-dots">
-                <span className="dot red" />
-                <span className="dot yellow" />
-                <span className="dot green" />
+          <div className="hero-container">
+            <div className="hero-copy">
+              <div className="hero-badge-wrapper">
+                <span className="pill status-live">
+                  <span className="pulse-indicator" />
+                  {content.heroBadge}
+                </span>
+                <span className="pill neutral">Sem dependência de celular</span>
               </div>
-              <div className="window-address-bar">
-                <span className="lock-icon">🔒</span>
-                <span>app.sendinteligente.com.br/metricas</span>
+
+              <h1>
+                Dispare campanhas no WhatsApp com a{" "}
+                <span className="text-gradient">estabilidade da API Oficial</span> da Meta.
+              </h1>
+
+              <p className="hero-lead">
+                {content.heroDescription}
+              </p>
+
+              <div className="hero-actions">
+                <a className="primary-button large" href="#planos">
+                  <ZapIcon />
+                  <span>{content.primaryCta}</span>
+                </a>
+                <a
+                  className="secondary-button large"
+                  href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20d%C3%BAvidas%20sobre%20o%20Send%20Inteligentte%20e%20a%20API%20Oficial."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageIcon />
+                  <span>Falar com o Suporte</span>
+                </a>
               </div>
-              <div className="live-status-pill">
-                <span className="pulse-dot" /> AO VIVO
+
+              <div className="trust-badges-grid">
+                <div className="trust-badge-item">
+                  <ShieldCheckIcon />
+                  <span><strong>7 dias de garantia</strong> incondicional</span>
+                </div>
+                <div className="trust-badge-item">
+                  <CheckIcon />
+                  <span><strong>Onboarding assistido</strong> na ativação</span>
+                </div>
+                <div className="trust-badge-item">
+                  <CheckIcon />
+                  <span><strong>Sem contratos</strong> ou fidelidade oculta</span>
+                </div>
               </div>
             </div>
 
-            <div className="dashboard-img-wrapper">
-              <img
-                src="/dashboard-preview.png"
-                alt="Painel de Métricas Oficial do Send Inteligentte"
-                className="dashboard-real-img"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* LINHA DO TEMPO VERTICAL INTERATIVA COM SCROLL */}
-        <section className="timeline-section" id="como-funciona" ref={timelineRef}>
-          <div className="section-header">
-            <span className="section-badge">Linha do Tempo</span>
-            <h2>Como funciona a operação em 4 passos</h2>
-            <p>Acompanhe o fluxo seguro do cadastro ao disparo em massa.</p>
-          </div>
-
-          <div className="vertical-timeline-wrapper">
-            {/* EIXO CENTRAL VERTICAL */}
-            <div className="vertical-timeline-axis">
-              <div
-                className="vertical-axis-progress"
-                style={{ height: `${scrollProgress * 100}%` }}
-              />
-            </div>
-
-            <div className="vertical-steps-container">
-              {/* PASSO 01 - ESQUERDA */}
-              <div className={`vertical-step-item step-left ${activeSteps.includes(0) ? "is-active" : ""}`}>
-                <div className="step-side-col left-side">
-                  <div className="vertical-icon-bubble">
+            {/* PRODUCT PREVIEW FRAME */}
+            <div className="product-preview-container">
+              <div className="product-preview-frame">
+                <div className="window-topbar">
+                  <div className="window-dots">
+                    <span className="dot" />
+                    <span className="dot" />
+                    <span className="dot" />
+                  </div>
+                  <div className="window-address-bar">
+                    <span className="lock-icon">🔒</span>
+                    <span className="address-text">app.sendinteligente.com.br/dashboard</span>
+                  </div>
+                  <div className="window-meta-tag">
                     <ShieldCheckIcon />
+                    <span>Meta Cloud v19 Conectado</span>
                   </div>
-                  <div className="step-dashed-connector" />
-                  <div
-                    className={`vertical-step-card ${expandedTimelineStep === 0 ? "is-expanded" : ""}`}
-                    onClick={() => toggleTimelineStep(0)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="card-top-header">
-                      <span className="step-highlight-pill">PASSO 01</span>
-                      <span className="expand-toggle-btn">
-                        {expandedTimelineStep === 0 ? "Ocultar ▲" : "Ver detalhes ▼"}
-                      </span>
+                </div>
+
+                <div className="dashboard-img-wrapper">
+                  <img
+                    src="/dashboard-preview.png"
+                    alt="Painel Operacional do Send Inteligentte com Métricas de Disparo"
+                    className="dashboard-real-img"
+                  />
+                  <div className="dashboard-overlay-card">
+                    <div className="overlay-metric">
+                      <span className="metric-label">Taxa de Entrega</span>
+                      <strong className="metric-val">99.4%</strong>
                     </div>
-                    <h3 className="main-step-title">Conexão Oficial Meta</h3>
-                    {expandedTimelineStep === 0 && (
-                      <div className="step-explanation-box">
-                        <p className="impact-subtitle">⚡ Ativação em 2 minutos via Facebook Business</p>
-                        <p className="detail-text">Vinculação nativa homologada pela Meta. Sem QR Code, sem queda de chip e 100% à prova de banimento.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="step-axis-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-side-col right-side empty" />
-              </div>
-
-              {/* PASSO 02 - DIREITA */}
-              <div className={`vertical-step-item step-right ${activeSteps.includes(1) ? "is-active" : ""}`}>
-                <div className="step-side-col left-side empty" />
-
-                <div className="step-axis-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-side-col right-side">
-                  <div
-                    className={`vertical-step-card ${expandedTimelineStep === 1 ? "is-expanded" : ""}`}
-                    onClick={() => toggleTimelineStep(1)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="card-top-header">
-                      <span className="step-highlight-pill">PASSO 02</span>
-                      <span className="expand-toggle-btn">
-                        {expandedTimelineStep === 1 ? "Ocultar ▲" : "Ver detalhes ▼"}
-                      </span>
+                    <div className="overlay-divider" />
+                    <div className="overlay-metric">
+                      <span className="metric-label">Proteção de Número</span>
+                      <strong className="metric-val green">100% Homologado</strong>
                     </div>
-                    <h3 className="main-step-title">Importação de Contatos</h3>
-                    {expandedTimelineStep === 1 && (
-                      <div className="step-explanation-box">
-                        <p className="impact-subtitle">📊 Planilhas CSV com tags e opt-out automático</p>
-                        <p className="detail-text">Suba suas listas em segundos. O sistema organiza os contatos e remove automaticamente quem solicitar saída.</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="step-dashed-connector" />
-                  <div className="vertical-icon-bubble">
-                    <ListIcon />
-                  </div>
-                </div>
-              </div>
-
-              {/* PASSO 03 - ESQUERDA */}
-              <div className={`vertical-step-item step-left ${activeSteps.includes(2) ? "is-active" : ""}`}>
-                <div className="step-side-col left-side">
-                  <div className="vertical-icon-bubble">
-                    <MessageIcon />
-                  </div>
-                  <div className="step-dashed-connector" />
-                  <div
-                    className={`vertical-step-card ${expandedTimelineStep === 2 ? "is-expanded" : ""}`}
-                    onClick={() => toggleTimelineStep(2)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="card-top-header">
-                      <span className="step-highlight-pill">PASSO 03</span>
-                      <span className="expand-toggle-btn">
-                        {expandedTimelineStep === 2 ? "Ocultar ▲" : "Ver detalhes ▼"}
-                      </span>
-                    </div>
-                    <h3 className="main-step-title">Templates Interativos</h3>
-                    {expandedTimelineStep === 2 && (
-                      <div className="step-explanation-box">
-                        <p className="impact-subtitle">🎯 Mensagens com botões de ação e links /t/</p>
-                        <p className="detail-text">Cadastre modelos com botões de resposta rápida e links rastreáveis que medem o interesse real de cada lead.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="step-axis-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-side-col right-side empty" />
-              </div>
-
-              {/* PASSO 04 - DIREITA */}
-              <div className={`vertical-step-item step-right ${activeSteps.includes(3) ? "is-active" : ""}`}>
-                <div className="step-side-col left-side empty" />
-
-                <div className="step-axis-col">
-                  <div className="timeline-node-dot" />
-                </div>
-
-                <div className="step-side-col right-side">
-                  <div
-                    className={`vertical-step-card featured ${expandedTimelineStep === 3 ? "is-expanded" : ""}`}
-                    onClick={() => toggleTimelineStep(3)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="card-top-header">
-                      <span className="step-highlight-pill highlight">PASSO 04</span>
-                      <span className="expand-toggle-btn">
-                        {expandedTimelineStep === 3 ? "Ocultar ▲" : "Ver detalhes ▼"}
-                      </span>
-                    </div>
-                    <h3 className="main-step-title">Disparo & Conversão</h3>
-                    {expandedTimelineStep === 3 && (
-                      <div className="step-explanation-box">
-                        <p className="impact-subtitle">🚀 Envio em massa com métricas ao vivo</p>
-                        <p className="detail-text">Dispare com alta prioridade de entrega e acompanhe visualizações e cliques em tempo real no seu painel.</p>
-                      </div>
-                    )}
-                  </div>
-                  <div className="step-dashed-connector" />
-                  <div className="vertical-icon-bubble highlight">
-                    <ZapIcon />
                   </div>
                 </div>
               </div>
@@ -348,20 +216,370 @@ export function SalesLanding({ content }: SalesLandingProps) {
           </div>
         </section>
 
-        {/* SIMULADOR INTERATIVO DE IMPACTO */}
+        {/* CENÁRIO & COMPARATIVO AUTÊNTICO */}
+        <section className="problem-solution-section" id="cenario">
+          <div className="section-header">
+            <span className="section-badge">O Dilema do Mercado</span>
+            <h2>Por que operações sérias abandonam disparadores por QR Code</h2>
+            <p>Entenda as diferenças reais entre automações amadoras, gigantes corporativos engessados e o Send Inteligentte.</p>
+          </div>
+
+          <div className="comparison-three-grid">
+            {/* CARD 1: NÃO OFICIAIS */}
+            <div className="comparison-col danger-border">
+              <div className="col-header">
+                <span className="col-tag danger">Risco Crítico</span>
+                <h3>Disparadores por QR Code / Baileys</h3>
+                <p className="col-sub">Emulação de WhatsApp Web & Scraping</p>
+              </div>
+              <ul className="comparison-points">
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Banimento Frequente do Chip:</strong>
+                    <span>A Meta detecta padrões de emulação e bloqueia números de forma irreversível.</span>
+                  </div>
+                </li>
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Dependência de Celular Ligado:</strong>
+                    <span>Se a bateria acabar, o Wi-Fi oscilar ou a sessão cair, a operação inteira congela.</span>
+                  </div>
+                </li>
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Falta de Métricas Confiáveis:</strong>
+                    <span>Sem confirmação oficial de entrega; você não sabe se a mensagem chegou ou foi descartada.</span>
+                  </div>
+                </li>
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Risco de Imagem e LGPD:</strong>
+                    <span>Sem gestão de descadastro (opt-out), gerando denúncias de spam imediatas.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* CARD 2: ENTERPRISE TRADICIONAL */}
+            <div className="comparison-col muted-border">
+              <div className="col-header">
+                <span className="col-tag muted">Corporativo Tradicional</span>
+                <h3>Plataformas Antigas & Enterprise</h3>
+                <p className="col-sub">Zenvia, Take Blip, RD Conversas</p>
+              </div>
+              <ul className="comparison-points">
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Custo Base Exorbitante:</strong>
+                    <span>Mensalidades fixas de R$ 500 a R$ 2.500 apenas para manter a plataforma ativa.</span>
+                  </div>
+                </li>
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Contratos e Fidelidade:</strong>
+                    <span>Amarras contratuais de 12 meses e burocracia comercial demorada para ativar.</span>
+                  </div>
+                </li>
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Sistemas Complexos e Lentos:</strong>
+                    <span>Centenas de recursos legados que seu time não utiliza e dificultam a criação de campanhas.</span>
+                  </div>
+                </li>
+                <li>
+                  <CrossIcon />
+                  <div>
+                    <strong>Suporte Lento por Ticket:</strong>
+                    <span>Filas demoradas de atendimento quando você precisa de ajuda rápida.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* CARD 3: SEND INTELIGENTTE (VENCEDOR) */}
+            <div className="comparison-col highlight-border">
+              <div className="featured-top-badge">A SOLUÇÃO IDEAL</div>
+              <div className="col-header">
+                <span className="col-tag success">API Oficial Meta Cloud</span>
+                <h3>Send Inteligentte</h3>
+                <p className="col-sub">Infraestrutura em nuvem direta e sem atrito</p>
+              </div>
+              <ul className="comparison-points">
+                <li>
+                  <CheckIcon />
+                  <div>
+                    <strong>Conexão Oficial Meta Graph v19:</strong>
+                    <span>Tráfego homologado com segurança total para a reputação da sua marca e número.</span>
+                  </div>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <div>
+                    <strong>100% em Nuvem (24/7):</strong>
+                    <span>Funciona independente de aparelho celular ou conexão de internet local.</span>
+                  </div>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <div>
+                    <strong>Preço Justo e Sem Fidelidade:</strong>
+                    <span>Planos acessíveis para operações de todos os tamanhos, com cancelamento simples.</span>
+                  </div>
+                </li>
+                <li>
+                  <CheckIcon />
+                  <div>
+                    <strong>Onboarding Assistido Próximo:</strong>
+                    <span>Acompanhamento direto com nossa equipe para homologar seu número e templates.</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* COMO FUNCIONA (4 ETAPAS CLARAS) */}
+        <section className="steps-pipeline-section" id="como-funciona">
+          <div className="section-header">
+            <span className="section-badge">Fluxo Operacional</span>
+            <h2>Da ativação ao primeiro disparo em 4 passos simples</h2>
+            <p>Processo transparente e guiado para colocar sua operação no ar sem complicações técnicas.</p>
+          </div>
+
+          <div className="pipeline-grid">
+            <div className="pipeline-card">
+              <div className="step-number-badge">01</div>
+              <div className="card-icon-header">
+                <ShieldCheckIcon />
+              </div>
+              <h3>Conexão Oficial Meta</h3>
+              <p>
+                Vinculação direta via Meta Business Manager. Seu número recebe o selo de infraestrutura oficial em nuvem, pronto para escalar.
+              </p>
+              <div className="card-footer-pill">
+                <span>Homologação Cloud API</span>
+              </div>
+            </div>
+
+            <div className="pipeline-card">
+              <div className="step-number-badge">02</div>
+              <div className="card-icon-header">
+                <ListIcon />
+              </div>
+              <h3>Gestão e Higienização</h3>
+              <p>
+                Importe planilhas CSV com nomes e variáveis customizadas. O sistema filtra automaticamente contatos que solicitaram descadastro.
+              </p>
+              <div className="card-footer-pill">
+                <span>Opt-out & LGPD Nativo</span>
+              </div>
+            </div>
+
+            <div className="pipeline-card">
+              <div className="step-number-badge">03</div>
+              <div className="card-icon-header">
+                <MessageIcon />
+              </div>
+              <h3>Templates & Links Rastreáveis</h3>
+              <p>
+                Crie mensagens com botões interativos e encurtador de links próprio (<code>/t/:codigo</code>) para medir cliques e intenção de compra.
+              </p>
+              <div className="card-footer-pill">
+                <span>Rastreamento Individual</span>
+              </div>
+            </div>
+
+            <div className="pipeline-card highlighted">
+              <div className="step-number-badge">04</div>
+              <div className="card-icon-header">
+                <ZapIcon />
+              </div>
+              <h3>Disparo & Métricas Vivas</h3>
+              <p>
+                Envio assíncrono com transactional outbox e controle de vazão. Acompanhe taxas de entrega, leitura e cliques em tempo real.
+              </p>
+              <div className="card-footer-pill success">
+                <span>Relatórios em Tempo Real</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ENGENHARIA & RECURSOS TÉCNICOS */}
+        <section className="tech-features-section" id="recursos">
+          <div className="section-header">
+            <span className="section-badge">Engenharia do Produto</span>
+            <h2>Construído para confiabilidade, velocidade e escala</h2>
+            <p>Recursos pensados para garantir a entrega de cada mensagem e proteger a integridade do seu número comercial.</p>
+          </div>
+
+          <div className="tech-features-grid">
+            <article className="tech-card">
+              <div className="tech-card-icon">
+                <ServerIcon />
+              </div>
+              <h3>Meta WhatsApp Cloud API v19</h3>
+              <p>
+                Conexão nativa com a infraestrutura de mensagens da Meta. Alta disponibilidade e elegibilidade para selo de verificação oficial.
+              </p>
+            </article>
+
+            <article className="tech-card">
+              <div className="tech-card-icon">
+                <ShieldCheckIcon />
+              </div>
+              <h3>Opt-out e Blacklist Automático</h3>
+              <p>
+                Identificação automática de pedidos de saída ("PARAR", "SAIR") para respeitar a LGPD e manter a nota de qualidade do número alta.
+              </p>
+            </article>
+
+            <article className="tech-card">
+              <div className="tech-card-icon">
+                <LinkIcon />
+              </div>
+              <h3>Links Rastreáveis (/t/:slug)</h3>
+              <p>
+                Encurtador próprio que mapeia exatamente qual lead clicou no link da campanha, permitindo ações imediatas de fechamento comercial.
+              </p>
+            </article>
+
+            <article className="tech-card">
+              <div className="tech-card-icon">
+                <LayersIcon />
+              </div>
+              <h3>Transactional Outbox com Retries</h3>
+              <p>
+                Fila de mensagens com persistência transacional e re-tentativas com backoff exponencial para garantir entrega sem duplicidades.
+              </p>
+            </article>
+
+            <article className="tech-card">
+              <div className="tech-card-icon">
+                <TerminalIcon />
+              </div>
+              <h3>API REST & Chaves de API Seguras</h3>
+              <p>
+                Endpoints públicos em <code>/api/v1</code> protegidos por hash SHA-256 (<code>sk_live_...</code>) para integração com seus sistemas e backends.
+              </p>
+            </article>
+
+            <article className="tech-card">
+              <div className="tech-card-icon">
+                <CpuIcon />
+              </div>
+              <h3>Integração com n8n, Make & CRMs</h3>
+              <p>
+                Webhooks de eventos de entrega e templates de fluxo prontos para n8n, conectando formulários, Typebot e CRMs em minutos.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        {/* DEMO INTERATIVA DE CÓDIGO / INTEGRAÇÃO */}
+        <section className="code-integration-section" id="integracao">
+          <div className="integration-container">
+            <div className="integration-copy">
+              <span className="section-badge">Developer Experience</span>
+              <h2>Integre com seu ecossistema em minutos</h2>
+              <p>
+                Seja disparando manualmente por planilhas CSV ou automatizando com n8n, Webhooks e REST API, o Send Inteligentte se adapta ao seu fluxo.
+              </p>
+
+              <div className="integration-points">
+                <div className="point-item">
+                  <CheckIcon />
+                  <span>Templates n8n prontos para importar com 1 clique</span>
+                </div>
+                <div className="point-item">
+                  <CheckIcon />
+                  <span>Webhooks em tempo real com eventos de entrega e clique</span>
+                </div>
+                <div className="point-item">
+                  <CheckIcon />
+                  <span>Documentação técnica clara para desenvolvedores</span>
+                </div>
+              </div>
+
+              <div className="cta-doc-wrapper">
+                <a
+                  className="secondary-button"
+                  href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20as%20integra%C3%A7%C3%B5es%20da%20API%20do%20Send."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <CodeIcon />
+                  <span>Tirar Dúvidas de Integração</span>
+                </a>
+              </div>
+            </div>
+
+            {/* CAIXA DE CÓDIGO INTERATIVA */}
+            <div className="code-box-wrapper">
+              <div className="code-box-header">
+                <div className="code-tabs">
+                  <button
+                    type="button"
+                    className={`code-tab-btn ${activeCodeTab === "curl" ? "active" : ""}`}
+                    onClick={() => setActiveCodeTab("curl")}
+                  >
+                    cURL / API REST
+                  </button>
+                  <button
+                    type="button"
+                    className={`code-tab-btn ${activeCodeTab === "n8n" ? "active" : ""}`}
+                    onClick={() => setActiveCodeTab("n8n")}
+                  >
+                    Webhook n8n / CRM
+                  </button>
+                  <button
+                    type="button"
+                    className={`code-tab-btn ${activeCodeTab === "csv" ? "active" : ""}`}
+                    onClick={() => setActiveCodeTab("csv")}
+                  >
+                    Estrutura CSV
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  className="copy-btn"
+                  onClick={() => handleCopy(snippets[activeCodeTab])}
+                  aria-label="Copiar código"
+                >
+                  {copiedSnippet ? "Copiado! ✓" : "Copiar"}
+                </button>
+              </div>
+
+              <pre className="code-content">
+                <code>{snippets[activeCodeTab]}</code>
+              </pre>
+            </div>
+          </div>
+        </section>
+
+        {/* CALCULADORA & TRANSPARÊNCIA DE CUSTOS META */}
         <section className="roi-calculator-section" id="simulador">
           <div className="calculator-box">
             <div className="calculator-header">
-              <span className="section-badge success">Simulador de Impacto</span>
+              <span className="section-badge">Transparência Total</span>
               <h2>Simule o alcance da sua próxima campanha</h2>
-              <p>Arraste o seletor e veja a projeção real de entregabilidade com a API Oficial.</p>
+              <p>Arraste a barra para estimar métricas de entrega e visualização baseadas na infraestrutura oficial.</p>
             </div>
 
             <div className="calculator-slider-container">
               <div className="slider-label">
-                <span>Sua Lista de Contatos:</span>
+                <span>Tamanho da sua lista de contatos:</span>
                 <strong>{contactCount.toLocaleString("pt-BR")} contatos</strong>
               </div>
+
               <input
                 type="range"
                 min="1000"
@@ -370,7 +588,9 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 value={contactCount}
                 onChange={(e) => setContactCount(Number(e.target.value))}
                 className="roi-slider"
+                aria-label="Seletor de quantidade de contatos"
               />
+
               <div className="slider-range-indicators">
                 <span>1.000</span>
                 <span>25.000</span>
@@ -380,156 +600,44 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
             <div className="calculator-results">
               <div className="result-card">
-                <span>Mensagens Entregues (99.2%)</span>
+                <span className="result-title">Mensagens Entregues (~99.2%)</span>
                 <strong>{calculatedDeliveries.toLocaleString("pt-BR")}</strong>
-                <small className="result-sub">Alta prioridade na rede Meta</small>
+                <small>Alta prioridade na rede Meta Cloud</small>
               </div>
 
               <div className="result-card highlight">
-                <span>Visualizações Estimadas</span>
+                <span className="result-title">Aberturas Estimadas (~74%)</span>
                 <strong>~{calculatedReads.toLocaleString("pt-BR")}</strong>
-                <small className="result-sub">Taxa média de abertura no WhatsApp</small>
+                <small>Taxa média de leitura no WhatsApp</small>
               </div>
 
               <div className="result-card">
-                <span>Cliques na Oferta</span>
+                <span className="result-title">Cliques em Links (~28%)</span>
                 <strong>~{calculatedClicks.toLocaleString("pt-BR")}</strong>
-                <small className="result-sub">Rastreável com `/t/:shortCode`</small>
+                <small>Rastreados individualmente com /t/</small>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* SUPERPODERES DO SEND */}
-        <section className="benefit-section" id="recursos">
-          <div className="section-header">
-            <span className="section-badge">Superpoderes do Send</span>
-            <h2>Tudo o que sua operação precisa para explodir em vendas</h2>
-          </div>
-
-          <div className="features-grid">
-            <article className="feature-card">
-              <div className="icon-wrapper green">
+            <div className="meta-pricing-explanation">
+              <div className="explanation-header">
                 <ShieldCheckIcon />
+                <h4>Como funciona a cobrança oficial da Meta?</h4>
               </div>
-              <h3>0% Risco de Banimento</h3>
-              <p>Sua conta opera 100% homologada na infraestrutura oficial da Meta com selo de verificação.</p>
-            </article>
-
-            <article className="feature-card">
-              <div className="icon-wrapper cyan">
-                <LinkIcon />
-              </div>
-              <h3>Links Rastreáveis (/t/)</h3>
-              <p>Saiba exatamente quem clicou nas suas ofertas e converta leads quentes em tempo real.</p>
-            </article>
-
-            <article className="feature-card">
-              <div className="icon-wrapper purple">
-                <CpuIcon />
-              </div>
-              <h3>Automação n8n & Webhooks</h3>
-              <p>API REST dedicada em <code>/api/v1</code> para integrar Typebot, Make, HubSpot e qualquer CRM.</p>
-            </article>
-
-            <article className="feature-card">
-              <div className="icon-wrapper green">
-                <ListIcon />
-              </div>
-              <h3>Opt-out LGPD Automático</h3>
-              <p>Filtro inteligente que remove automaticamente contatos que pedirem para sair da lista.</p>
-            </article>
-
-            <article className="feature-card">
-              <div className="icon-wrapper cyan">
-                <MessageIcon />
-              </div>
-              <h3>Listas Segmentadas</h3>
-              <p>Agrupe contatos por interesse, etapa no funil ou histórico e envie mensagens cirúrgicas.</p>
-            </article>
-
-            <article className="feature-card">
-              <div className="icon-wrapper purple">
-                <ChartIcon />
-              </div>
-              <h3>Métricas Vivas de Conversão</h3>
-              <p>Acompanhe disparados, entregues, lidos e taxa de vendas ao vivo sem planilhas.</p>
-            </article>
-          </div>
-        </section>
-
-        {/* COMPARATIVO */}
-        <section className="comparison-section" id="anti-ban">
-          <div className="section-header">
-            <span className="section-badge warning">Decisão Inteligente</span>
-            <h2>API Oficial da Meta vs. Disparadores Paralelos</h2>
-            <p>Escolha a segurança do seu canal de vendas oficial contra o risco de perder o número.</p>
-          </div>
-
-          <div className="comparison-grid">
-            {/* SEND INTELIGENTTE NA ESQUERDA */}
-            <div className="comparison-card success featured">
-              <div className="featured-banner">RECOMENDADO PELA META</div>
-              <div className="card-header">
-                <span className="status-badge success">
-                  <ShieldCheckIcon /> 100% Seguro & Oficial
-                </span>
-                <h3>Send Inteligentte (Cloud API v19)</h3>
-                <p className="card-sub">Conexão nativa com a infraestrutura da Meta</p>
-              </div>
-
-              <ul className="comparison-list">
-                <li>
-                  <CheckIcon /> <strong>0% Risco de Banimento:</strong> Disparos 100% em conformidade com as diretrizes Meta.
-                </li>
-                <li>
-                  <CheckIcon /> <strong>Totalmente em Nuvem:</strong> Funciona 24/7 sem depender de celular ou internet ligada.
-                </li>
-                <li>
-                  <CheckIcon /> <strong>Alta Escala e Velocidade:</strong> Dispare milhares de mensagens com altíssima entregabilidade.
-                </li>
-                <li>
-                  <CheckIcon /> <strong>Relatórios Oficiais Meta:</strong> Saiba exatamente quem recebeu, leu e clicou nas ofertas.
-                </li>
-                <li>
-                  <CheckIcon /> <strong>Suporte ao Selo Verde:</strong> Elegível para a verificação oficial de conta comercial.
-                </li>
-              </ul>
-            </div>
-
-            {/* PARALELAS NA DIREITA */}
-            <div className="comparison-card danger">
-              <div className="card-header">
-                <span className="status-badge danger">
-                  <CrossIcon /> Alto Risco de Perda
-                </span>
-                <h3>Disparadores Paralelos / Baileys</h3>
-                <p className="card-sub">Automação por QR Code e raspagem de tela</p>
-              </div>
-
-              <ul className="comparison-list">
-                <li>
-                  <CrossIcon /> <strong>Risco Iminente de Banimento:</strong> O WhatsApp detecta o uso e bloqueia o chip permanentemente.
-                </li>
-                <li>
-                  <CrossIcon /> <strong>Dependência do Celular:</strong> Se a bateria acabar ou o sinal cair, a campanha trava.
-                </li>
-                <li>
-                  <CrossIcon /> <strong>Limites Reduzidos:</strong> Bloqueios frequentes ao tentar enviar mais de 50 mensagens.
-                </li>
-                <li>
-                  <CrossIcon /> <strong>Sem Métricas Oficiais:</strong> Você não sabe se a mensagem foi entregue ou barrada.
-                </li>
-              </ul>
+              <p>
+                A Meta fornece <strong>1.000 conversas de serviço gratuitas todos os meses</strong> para cada conta oficial.
+                Para disparos ativos de marketing e utilidade, a Meta debita uma pequena taxa por conversa diretamente na sua conta do Facebook Business.
+                A assinatura do <strong>Send Inteligentte</strong> cobre todo o painel, links rastreáveis, infraestrutura de envio, outbox e suporte assistido.
+              </p>
             </div>
           </div>
         </section>
 
-        {/* CARDS DE PLANOS & PREÇOS */}
+        {/* PLANOS & PREÇOS */}
         <section className="pricing-section" id="planos">
           <div className="section-header">
-            <h2>Um plano só. Escolha a periodicidade.</h2>
-            <p>Todos os recursos liberados em qualquer plano. Economize nos planos de maior duração.</p>
+            <span className="section-badge">Planos & Acesso</span>
+            <h2>Estrutura completa. Escolha a melhor periodicidade.</h2>
+            <p>Todos os recursos liberados em qualquer plano. Desconto progressivo nos planos mais longos.</p>
           </div>
 
           <div className="plans-grid">
@@ -541,7 +649,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
                 {plan.badge ? <div className="plan-badge">{plan.badge}</div> : null}
 
                 <div className="plan-header">
-                  <h3>{plan.name.toUpperCase()}</h3>
+                  <h3>{plan.name}</h3>
 
                   <div className="plan-price-wrapper">
                     <span className="currency">R$</span>
@@ -551,12 +659,16 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
                   {plan.monthlyEquivalent ? (
                     <div className="monthly-equivalent">
-                      equivale a <strong>R$ {plan.monthlyEquivalent}/mês</strong>
+                      Equivale a <strong>R$ {plan.monthlyEquivalent}/mês</strong>
                     </div>
                   ) : (
-                    <div className="monthly-equivalent muted">valor cheio por mês</div>
+                    <div className="monthly-equivalent muted">Cobrança mensal sem fidelidade</div>
                   )}
+
+                  <p className="plan-description-text">{plan.description}</p>
                 </div>
+
+                <div className="plan-divider" />
 
                 <ul className="plan-features">
                   {plan.features.map((feature) => (
@@ -571,26 +683,28 @@ export function SalesLanding({ content }: SalesLandingProps) {
                   className={`primary-button full-width ${plan.highlighted ? "glowing" : "secondary-style"}`}
                   href={`/checkout?plano=${plan.slug}`}
                 >
-                  Assinar {plan.name.toLowerCase()} →
+                  <span>Assinar {plan.name}</span>
+                  <ArrowRightIcon />
                 </Link>
 
-                <p className="fine-print">Sem fidelidade. Cancele quando quiser.</p>
+                <p className="fine-print">Pagamento seguro via Asaas • Cancele quando quiser</p>
               </div>
             ))}
           </div>
 
-          {/* BOX INCLUSO EM QUALQUER PLANO */}
+          {/* BANNER DE IMPLANTAÇÃO ASSISTIDA */}
           <div className="inclusions-banner-box">
             <div className="banner-left">
-              <span className="section-kicker green-text">INCLUSO EM QUALQUER PLANO</span>
-              <h3>Ativação assistida, do zero à primeira campanha.</h3>
+              <span className="section-kicker green-text">ONBOARDING ASSISTIDO</span>
+              <h3>Configuração guiada do zero à primeira campanha.</h3>
+              <p>Nossa equipe técnica acompanha os primeiros passos da sua conta para garantir que seus templates e número estejam 100% homologados.</p>
             </div>
             <div className="banner-right">
               <ul>
-                <li><CheckIcon /> Configuração assistida do número oficial</li>
-                <li><CheckIcon /> Importação e organização das suas listas</li>
-                <li><CheckIcon /> Criação dos primeiros templates Meta</li>
-                <li><CheckIcon /> Acompanhamento na primeira campanha</li>
+                <li><CheckIcon /> Vinculação assistida do seu Meta Business Manager</li>
+                <li><CheckIcon /> Orientação na aprovação de templates oficiais</li>
+                <li><CheckIcon /> Suporte na formatação e importação das primeiras listas</li>
+                <li><CheckIcon /> Verificação de regras de opt-out e boas práticas anti-spam</li>
               </ul>
             </div>
           </div>
@@ -601,7 +715,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
           <div className="section-header">
             <span className="section-badge">Tire suas Dúvidas</span>
             <h2>Perguntas Frequentes</h2>
-            <p>Tudo o que você precisa saber sobre a API Oficial e o Send Inteligentte.</p>
+            <p>Respostas diretas sobre a API Oficial, requisitos técnicos e funcionamento da plataforma.</p>
           </div>
 
           <div className="faq-accordion">
@@ -631,76 +745,56 @@ export function SalesLanding({ content }: SalesLandingProps) {
             })}
           </div>
 
-          {/* BANNER SUPORTE WHATSAPP NO FAQ */}
+          {/* BANNER SUPORTE WHATSAPP */}
           <div className="faq-whatsapp-cta">
             <div className="faq-cta-left">
-              <span className="faq-cta-badge">💬 DÚVIDAS DE INTEGRAÇÃO?</span>
-              <h3>Fale agora com um Especialista no WhatsApp</h3>
-              <p>Quer entender se o seu número atual é elegível para a API Oficial da Meta? Nosso time ajuda você ao vivo.</p>
+              <span className="faq-cta-badge">ATENDIMENTO DIRETO</span>
+              <h3>Ficou com alguma dúvida sobre a API Oficial?</h3>
+              <p>Fale diretamente com nossa equipe técnica pelo WhatsApp. Ajudamos a avaliar se o seu caso de uso está pronto para a API Oficial.</p>
             </div>
             <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20d%C3%BAvidas%20sobre%20a%20API%20Oficial%20do%20Send%20Inteligentte."
+              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20conversar%20sobre%20o%20Send%20Inteligentte%20e%20a%20API%20Oficial."
               target="_blank"
               rel="noopener noreferrer"
               className="whatsapp-support-btn"
             >
-              <MessageIcon /> Falar no WhatsApp
+              <MessageIcon />
+              <span>Falar no WhatsApp</span>
             </a>
           </div>
         </section>
 
-        {/* CTA FINAL DE CONVERSÃO */}
+        {/* CTA FINAL */}
         <section className="final-cta-section">
           <div className="cta-box">
-            <h2>Pronto para escalar suas vendas no WhatsApp sem risco?</h2>
-            <p>Junte-se às operações comerciais que vendem diariamente pela API Oficial da Meta.</p>
+            <h2>Pronto para profissionalizar seus disparos no WhatsApp?</h2>
+            <p>Conecte sua operação à API Oficial da Meta e tenha estabilidade contínua para suas campanhas comerciais.</p>
 
-            <a className="primary-button glowing large" href="#planos">
-              <ZapIcon />
-              Garantir meu Acesso ao Send Inteligentte
-            </a>
+            <div className="final-cta-actions">
+              <a className="primary-button large" href="#planos">
+                <ZapIcon />
+                <span>Escolher meu Plano de Acesso</span>
+              </a>
+            </div>
 
             <div className="guarantee-footer-tag">
               <ShieldCheckIcon />
-              <span>Garantia incondicional de 7 dias • Teste 100% sem risco</span>
+              <span>Garantia incondicional de 7 dias • Teste sem risco</span>
             </div>
           </div>
         </section>
 
-        {/* SOCIAL PROOF TOAST FLUTUANTE */}
-        {showToast && (
-          <div className="social-proof-toast" role="status" aria-live="polite">
-            <button
-              type="button"
-              className="toast-close-btn"
-              onClick={() => setShowToast(false)}
-              aria-label="Fechar notificação"
-            >
-              ×
-            </button>
-            <div className="toast-avatar">
-              <ZapIcon />
-            </div>
-            <div className="toast-content">
-              <div className="toast-top-row">
-                <strong>{proofNotifications[toastIndex].name}</strong>
-                <span className="toast-city">({proofNotifications[toastIndex].city})</span>
-              </div>
-              <p className="toast-action">{proofNotifications[toastIndex].action}</p>
-              <span className="toast-time">⚡ {proofNotifications[toastIndex].time}</span>
-            </div>
-          </div>
-        )}
-
-        {/* RODAPÉ SIMPLES */}
+        {/* RODAPÉ */}
         <footer className="site-footer simple-footer">
           <div className="simple-footer-content">
             <Brand />
 
             <nav className="simple-footer-nav" aria-label="Links do rodapé">
+              <a href="#cenario">Por que Oficial?</a>
               <a href="#como-funciona">Como funciona</a>
-              <a href="#simulador">Simulador</a>
-              <a href="#recursos">Recursos</a>
+              <a href="#recursos">Engenharia</a>
+              <a href="#integracao">API & n8n</a>
+              <a href="#simulador">Calculadora</a>
               <a href="#planos">Planos</a>
               <Link href="/PoliticaDePrivacidade.html" target="_blank">Privacidade</Link>
               <Link href="/TermosECondicoes.html" target="_blank">Termos</Link>
@@ -710,7 +804,11 @@ export function SalesLanding({ content }: SalesLandingProps) {
 
           <div className="simple-footer-bottom">
             <p>© {new Date().getFullYear()} Send Inteligentte. Todos os direitos reservados.</p>
-            <p className="secure-badge">🛡️ Processamento Seguro via Asaas</p>
+            <div className="footer-badges">
+              <span className="footer-pill">🛡️ Processamento Seguro Asaas</span>
+              <span className="footer-pill">⚡ Meta WhatsApp Cloud v19</span>
+              <span className="footer-pill">🔒 Conformidade LGPD</span>
+            </div>
           </div>
         </footer>
       </div>
