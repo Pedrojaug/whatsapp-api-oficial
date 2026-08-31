@@ -5,21 +5,15 @@ import Link from "next/link";
 import { Brand } from "@/components/Brand";
 import {
   ArrowRightIcon,
-  ChartIcon,
   CheckIcon,
   ChevronDownIcon,
   CodeIcon,
-  CpuIcon,
   CrossIcon,
-  DatabaseIcon,
-  GlobeIcon,
   LayersIcon,
   LinkIcon,
   ListIcon,
   MessageIcon,
-  ServerIcon,
   ShieldCheckIcon,
-  TerminalIcon,
   ZapIcon,
 } from "@/components/icons";
 import { plans } from "@/lib/plans";
@@ -31,17 +25,12 @@ type SalesLandingProps = {
 
 export function SalesLanding({ content }: SalesLandingProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
-  const [contactCount, setContactCount] = useState<number>(5000);
   const [activeCodeTab, setActiveCodeTab] = useState<"curl" | "n8n" | "csv">("curl");
   const [copiedSnippet, setCopiedSnippet] = useState<boolean>(false);
 
   const toggleFaq = (index: number) => {
     setOpenFaq(openFaq === index ? null : index);
   };
-
-  const calculatedDeliveries = Math.floor(contactCount * 0.992);
-  const calculatedReads = Math.floor(contactCount * 0.74);
-  const calculatedClicks = Math.floor(contactCount * 0.28);
 
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -62,7 +51,7 @@ export function SalesLanding({ content }: SalesLandingProps) {
       { "type": "text", "text": "15% OFF" }
     ]
   }'`,
-    n8n: `// Webhook de Entrega e Leitura (Send Inteligentte -> n8n / CRM)
+    n8n: `// Webhook em tempo real: Send Inteligentte -> n8n / CRM
 {
   "event": "message.status_updated",
   "messageId": "msg_89f023a12",
@@ -71,36 +60,29 @@ export function SalesLanding({ content }: SalesLandingProps) {
   "templateName": "aviso_promocao_v1",
   "clickedTrackingLink": true,
   "clickedUrl": "https://suaempresa.com.br/oferta-vip",
-  "timestamp": "2026-08-31T14:30:00.000Z"
+  "timestamp": "2026-08-31T15:00:00.000Z"
 }`,
     csv: `Nome,Telefone,CodigoPedido,Desconto
 Carlos Silva,5511999998888,PED-9402,15%
 Mariana Costa,5521988887777,PED-9403,20%
 Lucas Souza,5531977776666,PED-9404,10%
 
-// O sistema mapeia automaticamente {{1}}, {{2}} e higieniza números
-// Aplicando filtro automático de Blacklist/Opt-out antes do envio.`,
+// Mapeamento automático de variáveis {{1}}, {{2}} e
+// higienização automática com filtro de Opt-out (LGPD).`,
   };
 
   return (
     <main className="main-wrapper">
-      {/* BARRA SUPERIOR DE CONFORMIDADE */}
-      <div className="top-announcement-bar">
-        <span>{content.announcement}</span>
-      </div>
-
-      {/* HEADER PRINCIPAL */}
+      {/* 1. HEADER MINIMALISTA */}
       <header className="site-header">
         <Brand />
 
-        <nav className="public-nav" aria-label="Navegação do site">
-          <a href="#cenario">Por que API Oficial?</a>
+        <nav className="public-nav" aria-label="Navegação principal">
           <a href="#como-funciona">Como funciona</a>
-          <a href="#recursos">Engenharia</a>
-          <a href="#integracao">API & n8n</a>
-          <a href="#simulador">Calculadora</a>
+          <a href="#recursos">Recursos</a>
+          <a href="#comparativo">Por que oficial?</a>
+          <a href="#integracoes">Integrações</a>
           <a href="#planos">Planos</a>
-          <a href="#faq">Dúvidas</a>
         </nav>
 
         <div className="header-actions">
@@ -110,32 +92,23 @@ Lucas Souza,5531977776666,PED-9404,10%
             target="_blank"
             rel="noopener noreferrer"
           >
-            Área do Cliente
+            Entrar
           </a>
 
           <a className="primary-button compact" href="#planos">
-            <ZapIcon />
-            <span>Ativar Conta</span>
+            <span>Começar agora</span>
           </a>
         </div>
       </header>
 
       <div className="sales-page">
-        {/* HERO SECTION */}
+        {/* 2. HERO SECTION */}
         <section className="hero-section" id="hero">
           <div className="hero-container">
             <div className="hero-copy">
-              <div className="hero-badge-wrapper">
-                <span className="pill status-live">
-                  <span className="pulse-indicator" />
-                  {content.heroBadge}
-                </span>
-                <span className="pill neutral">Sem dependência de celular</span>
-              </div>
-
               <h1>
-                Dispare campanhas no WhatsApp com a{" "}
-                <span className="text-gradient">estabilidade da API Oficial</span> da Meta.
+                Seu WhatsApp comercial. <br />
+                <span className="text-highlight">Sem depender de celular, QR Code ou improviso.</span>
               </h1>
 
               <p className="hero-lead">
@@ -144,404 +117,259 @@ Lucas Souza,5531977776666,PED-9404,10%
 
               <div className="hero-actions">
                 <a className="primary-button large" href="#planos">
-                  <ZapIcon />
                   <span>{content.primaryCta}</span>
+                  <ArrowRightIcon />
                 </a>
-                <a
-                  className="secondary-button large"
-                  href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20d%C3%BAvidas%20sobre%20o%20Send%20Inteligentte%20e%20a%20API%20Oficial."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <MessageIcon />
-                  <span>Falar com o Suporte</span>
+                <a className="secondary-button large" href="#como-funciona">
+                  <span>{content.secondaryCta}</span>
                 </a>
               </div>
 
-              <div className="trust-badges-grid">
-                <div className="trust-badge-item">
-                  <ShieldCheckIcon />
-                  <span><strong>7 dias de garantia</strong> incondicional</span>
-                </div>
-                <div className="trust-badge-item">
-                  <CheckIcon />
-                  <span><strong>Onboarding assistido</strong> na ativação</span>
-                </div>
-                <div className="trust-badge-item">
-                  <CheckIcon />
-                  <span><strong>Sem contratos</strong> ou fidelidade oculta</span>
-                </div>
+              <div className="hero-discrete-tags">
+                <span>API oficial do WhatsApp</span>
+                <span className="tag-dot">•</span>
+                <span>Disparos em nuvem 24/7</span>
+                <span className="tag-dot">•</span>
+                <span>Opt-out automático (LGPD)</span>
+                <span className="tag-dot">•</span>
+                <span>Integração via REST API & n8n</span>
               </div>
             </div>
 
-            {/* PRODUCT PREVIEW FRAME */}
-            <div className="product-preview-container">
-              <div className="product-preview-frame">
-                <div className="window-topbar">
+            {/* SHOWCASE EDITORIAL DO PRODUTO */}
+            <div className="hero-product-showcase">
+              <div className="product-window">
+                <div className="window-bar">
                   <div className="window-dots">
                     <span className="dot" />
                     <span className="dot" />
                     <span className="dot" />
                   </div>
-                  <div className="window-address-bar">
-                    <span className="lock-icon">🔒</span>
-                    <span className="address-text">app.sendinteligente.com.br/dashboard</span>
-                  </div>
-                  <div className="window-meta-tag">
-                    <ShieldCheckIcon />
-                    <span>Meta Cloud v19 Conectado</span>
+                  <div className="window-title">app.sendinteligente.com.br/dashboard</div>
+                  <div className="window-status-pill">
+                    <span className="live-dot" />
+                    <span>Oficial Conectado</span>
                   </div>
                 </div>
 
-                <div className="dashboard-img-wrapper">
+                <div className="window-body">
                   <img
                     src="/dashboard-preview.png"
-                    alt="Painel Operacional do Send Inteligentte com Métricas de Disparo"
-                    className="dashboard-real-img"
+                    alt="Interface do Painel Operacional Send Inteligentte"
+                    className="product-screenshot"
                   />
-                  <div className="dashboard-overlay-card">
-                    <div className="overlay-metric">
-                      <span className="metric-label">Taxa de Entrega</span>
-                      <strong className="metric-val">99.4%</strong>
-                    </div>
-                    <div className="overlay-divider" />
-                    <div className="overlay-metric">
-                      <span className="metric-label">Proteção de Número</span>
-                      <strong className="metric-val green">100% Homologado</strong>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* CENÁRIO & COMPARATIVO AUTÊNTICO */}
-        <section className="problem-solution-section" id="cenario">
-          <div className="section-header">
-            <span className="section-badge">O Dilema do Mercado</span>
-            <h2>Por que operações sérias abandonam disparadores por QR Code</h2>
-            <p>Entenda as diferenças reais entre automações amadoras, gigantes corporativos engessados e o Send Inteligentte.</p>
+        {/* 3. DESTRUIR A OBJEÇÃO: O RISCO DO IMPROVISO */}
+        <section className="problem-statement-section" id="como-funciona">
+          <div className="editorial-header">
+            <h2>
+              O problema não é enviar uma mensagem. <br />
+              É enviar milhares delas sem transformar seu número em um problema.
+            </h2>
+            <p>
+              Muitas operações ainda dependem de QR Code, sessões de WhatsApp Web, celulares conectados ou soluções que simulam o aplicativo. Funciona... até deixar de funcionar. O Send Inteligentte foi construído para operações que precisam de previsibilidade.
+            </p>
           </div>
 
-          <div className="comparison-three-grid">
-            {/* CARD 1: NÃO OFICIAIS */}
-            <div className="comparison-col danger-border">
-              <div className="col-header">
-                <span className="col-tag danger">Risco Crítico</span>
-                <h3>Disparadores por QR Code / Baileys</h3>
-                <p className="col-sub">Emulação de WhatsApp Web & Scraping</p>
-              </div>
-              <ul className="comparison-points">
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Banimento Frequente do Chip:</strong>
-                    <span>A Meta detecta padrões de emulação e bloqueia números de forma irreversível.</span>
-                  </div>
-                </li>
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Dependência de Celular Ligado:</strong>
-                    <span>Se a bateria acabar, o Wi-Fi oscilar ou a sessão cair, a operação inteira congela.</span>
-                  </div>
-                </li>
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Falta de Métricas Confiáveis:</strong>
-                    <span>Sem confirmação oficial de entrega; você não sabe se a mensagem chegou ou foi descartada.</span>
-                  </div>
-                </li>
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Risco de Imagem e LGPD:</strong>
-                    <span>Sem gestão de descadastro (opt-out), gerando denúncias de spam imediatas.</span>
-                  </div>
-                </li>
-              </ul>
+          <div className="problem-comparison-grid">
+            <div className="problem-card muted">
+              <div className="card-kicker danger">QR Code / Emulação</div>
+              <h3>Sessões instáveis</h3>
+              <p>Seu negócio fica preso a uma sessão de navegador que expira, desconecta e corre risco constante de bloqueio do chip.</p>
             </div>
 
-            {/* CARD 2: ENTERPRISE TRADICIONAL */}
-            <div className="comparison-col muted-border">
-              <div className="col-header">
-                <span className="col-tag muted">Corporativo Tradicional</span>
-                <h3>Plataformas Antigas & Enterprise</h3>
-                <p className="col-sub">Zenvia, Take Blip, RD Conversas</p>
-              </div>
-              <ul className="comparison-points">
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Custo Base Exorbitante:</strong>
-                    <span>Mensalidades fixas de R$ 500 a R$ 2.500 apenas para manter a plataforma ativa.</span>
-                  </div>
-                </li>
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Contratos e Fidelidade:</strong>
-                    <span>Amarras contratuais de 12 meses e burocracia comercial demorada para ativar.</span>
-                  </div>
-                </li>
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Sistemas Complexos e Lentos:</strong>
-                    <span>Centenas de recursos legados que seu time não utiliza e dificultam a criação de campanhas.</span>
-                  </div>
-                </li>
-                <li>
-                  <CrossIcon />
-                  <div>
-                    <strong>Suporte Lento por Ticket:</strong>
-                    <span>Filas demoradas de atendimento quando você precisa de ajuda rápida.</span>
-                  </div>
-                </li>
-              </ul>
+            <div className="problem-card muted">
+              <div className="card-kicker danger">Aparelho Celular</div>
+              <h3>Gargalo físico</h3>
+              <p>Bateria descarregada, Wi-Fi oscilando ou celular desligado travam imediatamente o envio das mensagens da sua empresa.</p>
             </div>
 
-            {/* CARD 3: SEND INTELIGENTTE (VENCEDOR) */}
-            <div className="comparison-col highlight-border">
-              <div className="featured-top-badge">A SOLUÇÃO IDEAL</div>
-              <div className="col-header">
-                <span className="col-tag success">API Oficial Meta Cloud</span>
-                <h3>Send Inteligentte</h3>
-                <p className="col-sub">Infraestrutura em nuvem direta e sem atrito</p>
-              </div>
-              <ul className="comparison-points">
-                <li>
-                  <CheckIcon />
-                  <div>
-                    <strong>Conexão Oficial Meta Graph v19:</strong>
-                    <span>Tráfego homologado com segurança total para a reputação da sua marca e número.</span>
-                  </div>
-                </li>
-                <li>
-                  <CheckIcon />
-                  <div>
-                    <strong>100% em Nuvem (24/7):</strong>
-                    <span>Funciona independente de aparelho celular ou conexão de internet local.</span>
-                  </div>
-                </li>
-                <li>
-                  <CheckIcon />
-                  <div>
-                    <strong>Preço Justo e Sem Fidelidade:</strong>
-                    <span>Planos acessíveis para operações de todos os tamanhos, com cancelamento simples.</span>
-                  </div>
-                </li>
-                <li>
-                  <CheckIcon />
-                  <div>
-                    <strong>Onboarding Assistido Próximo:</strong>
-                    <span>Acompanhamento direto com nossa equipe para homologar seu número e templates.</span>
-                  </div>
-                </li>
-              </ul>
+            <div className="problem-card highlighted">
+              <div className="card-kicker green">Send Inteligentte</div>
+              <h3>Infraestrutura oficial</h3>
+              <p>As campanhas rodam diretamente nos servidores em nuvem da Meta, com estabilidade 24 horas por dia, 7 dias por semana.</p>
             </div>
           </div>
         </section>
 
-        {/* COMO FUNCIONA (4 ETAPAS CLARAS) */}
-        <section className="steps-pipeline-section" id="como-funciona">
-          <div className="section-header">
-            <span className="section-badge">Fluxo Operacional</span>
-            <h2>Da ativação ao primeiro disparo em 4 passos simples</h2>
-            <p>Processo transparente e guiado para colocar sua operação no ar sem complicações técnicas.</p>
+        {/* 4. POR QUE ISSO IMPORTA: PREVISIBILIDADE COMERCIAL */}
+        <section className="value-pillars-section">
+          <div className="editorial-header">
+            <h2>Quando o canal de vendas é importante demais para depender de improviso.</h2>
+            <p>Tudo o que sua equipe precisa para ter tranquilidade operacional e foco exclusivo em vender mais.</p>
           </div>
 
-          <div className="pipeline-grid">
-            <div className="pipeline-card">
-              <div className="step-number-badge">01</div>
-              <div className="card-icon-header">
-                <ShieldCheckIcon />
-              </div>
-              <h3>Conexão Oficial Meta</h3>
-              <p>
-                Vinculação direta via Meta Business Manager. Seu número recebe o selo de infraestrutura oficial em nuvem, pronto para escalar.
-              </p>
-              <div className="card-footer-pill">
-                <span>Homologação Cloud API</span>
-              </div>
+          <div className="value-pillars-grid">
+            <div className="pillar-item">
+              <div className="pillar-number">01</div>
+              <h3>Operação contínua</h3>
+              <p>Sua equipe não precisa deixar nenhum computador ou celular conectado para a campanha funcionar e entregar.</p>
             </div>
 
-            <div className="pipeline-card">
-              <div className="step-number-badge">02</div>
-              <div className="card-icon-header">
-                <ListIcon />
-              </div>
-              <h3>Gestão e Higienização</h3>
-              <p>
-                Importe planilhas CSV com nomes e variáveis customizadas. O sistema filtra automaticamente contatos que solicitaram descadastro.
-              </p>
-              <div className="card-footer-pill">
-                <span>Opt-out & LGPD Nativo</span>
-              </div>
+            <div className="pillar-item">
+              <div className="pillar-number">02</div>
+              <h3>Mais controle</h3>
+              <p>Campanhas, contatos, templates homologados e resultados consolidados em um único ambiente limpo.</p>
             </div>
 
-            <div className="pipeline-card">
-              <div className="step-number-badge">03</div>
-              <div className="card-icon-header">
+            <div className="pillar-item">
+              <div className="pillar-number">03</div>
+              <h3>Saída respeitada (LGPD)</h3>
+              <p>O contato que não deseja mais receber mensagens é identificado e retirado automaticamente das próximas listas.</p>
+            </div>
+
+            <div className="pillar-item">
+              <div className="pillar-number">04</div>
+              <h3>Integrações de verdade</h3>
+              <p>API REST pública, webhooks em tempo real e templates prontos para n8n, Make, Typebot e seu CRM.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* 5. MOSTRAR O PRODUTO EM AÇÃO */}
+        <section className="product-features-section" id="recursos">
+          <div className="editorial-header">
+            <h2>Tudo o que você precisa para transformar uma lista em campanha.</h2>
+            <p>Interface direta, desenvolvida para ser operada sem atrito por times de marketing, vendas e tecnologia.</p>
+          </div>
+
+          <div className="product-features-grid">
+            <div className="feature-block">
+              <div className="feature-icon-box">
                 <MessageIcon />
               </div>
-              <h3>Templates & Links Rastreáveis</h3>
-              <p>
-                Crie mensagens com botões interativos e encurtador de links próprio (<code>/t/:codigo</code>) para medir cliques e intenção de compra.
-              </p>
-              <div className="card-footer-pill">
-                <span>Rastreamento Individual</span>
-              </div>
+              <h3>Campanhas</h3>
+              <p>Importe sua lista de contatos, selecione o template homologado e coloque a campanha para rodar com controle de vazão.</p>
             </div>
 
-            <div className="pipeline-card highlighted">
-              <div className="step-number-badge">04</div>
-              <div className="card-icon-header">
-                <ZapIcon />
+            <div className="feature-block">
+              <div className="feature-icon-box">
+                <ListIcon />
               </div>
-              <h3>Disparo & Métricas Vivas</h3>
-              <p>
-                Envio assíncrono com transactional outbox e controle de vazão. Acompanhe taxas de entrega, leitura e cliques em tempo real.
-              </p>
-              <div className="card-footer-pill success">
-                <span>Relatórios em Tempo Real</span>
-              </div>
+              <h3>Gestão de contatos</h3>
+              <p>Organize sua base por tags, personalize variáveis como nome e pedido, e respeite automaticamente quem pediu para sair.</p>
             </div>
-          </div>
-        </section>
 
-        {/* ENGENHARIA & RECURSOS TÉCNICOS */}
-        <section className="tech-features-section" id="recursos">
-          <div className="section-header">
-            <span className="section-badge">Engenharia do Produto</span>
-            <h2>Construído para confiabilidade, velocidade e escala</h2>
-            <p>Recursos pensados para garantir a entrega de cada mensagem e proteger a integridade do seu número comercial.</p>
-          </div>
-
-          <div className="tech-features-grid">
-            <article className="tech-card">
-              <div className="tech-card-icon">
-                <ServerIcon />
-              </div>
-              <h3>Meta WhatsApp Cloud API v19</h3>
-              <p>
-                Conexão nativa com a infraestrutura de mensagens da Meta. Alta disponibilidade e elegibilidade para selo de verificação oficial.
-              </p>
-            </article>
-
-            <article className="tech-card">
-              <div className="tech-card-icon">
-                <ShieldCheckIcon />
-              </div>
-              <h3>Opt-out e Blacklist Automático</h3>
-              <p>
-                Identificação automática de pedidos de saída ("PARAR", "SAIR") para respeitar a LGPD e manter a nota de qualidade do número alta.
-              </p>
-            </article>
-
-            <article className="tech-card">
-              <div className="tech-card-icon">
+            <div className="feature-block">
+              <div className="feature-icon-box">
                 <LinkIcon />
               </div>
-              <h3>Links Rastreáveis (/t/:slug)</h3>
-              <p>
-                Encurtador próprio que mapeia exatamente qual lead clicou no link da campanha, permitindo ações imediatas de fechamento comercial.
-              </p>
-            </article>
+              <h3>Links rastreáveis</h3>
+              <p>Encurtador próprio que identifica individualmente cada lead que clicou na mensagem para ações rápidas de fechamento.</p>
+            </div>
 
-            <article className="tech-card">
-              <div className="tech-card-icon">
+            <div className="feature-block">
+              <div className="feature-icon-box">
                 <LayersIcon />
               </div>
-              <h3>Transactional Outbox com Retries</h3>
-              <p>
-                Fila de mensagens com persistência transacional e re-tentativas com backoff exponencial para garantir entrega sem duplicidades.
-              </p>
-            </article>
-
-            <article className="tech-card">
-              <div className="tech-card-icon">
-                <TerminalIcon />
-              </div>
-              <h3>API REST & Chaves de API Seguras</h3>
-              <p>
-                Endpoints públicos em <code>/api/v1</code> protegidos por hash SHA-256 (<code>sk_live_...</code>) para integração com seus sistemas e backends.
-              </p>
-            </article>
-
-            <article className="tech-card">
-              <div className="tech-card-icon">
-                <CpuIcon />
-              </div>
-              <h3>Integração com n8n, Make & CRMs</h3>
-              <p>
-                Webhooks de eventos de entrega e templates de fluxo prontos para n8n, conectando formulários, Typebot e CRMs em minutos.
-              </p>
-            </article>
+              <h3>Métricas de entrega</h3>
+              <p>Acompanhe em tempo real o que aconteceu com cada disparo: mensagens entregues, lidas, clicadas e eventuais falhas.</p>
+            </div>
           </div>
         </section>
 
-        {/* DEMO INTERATIVA DE CÓDIGO / INTEGRAÇÃO */}
-        <section className="code-integration-section" id="integracao">
-          <div className="integration-container">
-            <div className="integration-copy">
-              <span className="section-badge">Developer Experience</span>
-              <h2>Integre com seu ecossistema em minutos</h2>
+        {/* 6. TABELA COMPARATIVA: OFICIAL MUDA TUDO */}
+        <section className="comparison-table-section" id="comparativo">
+          <div className="editorial-header">
+            <h2>Oficial muda tudo.</h2>
+            <p>Veja as diferenças práticas entre soluções improvisadas por QR Code e a infraestrutura oficial do Send Inteligentte.</p>
+          </div>
+
+          <div className="table-wrapper">
+            <table className="comparison-table">
+              <thead>
+                <tr>
+                  <th className="th-feature">Critério Operacional</th>
+                  <th className="th-other">Disparadores por QR Code</th>
+                  <th className="th-official">Send Inteligentte</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="td-label">Depende de celular ligado?</td>
+                  <td className="td-other"><CrossIcon /> Sim (celular obrigatório)</td>
+                  <td className="td-official"><CheckIcon /> <strong>Não (100% em Nuvem)</strong></td>
+                </tr>
+                <tr>
+                  <td className="td-label">Sessão de WhatsApp Web instável?</td>
+                  <td className="td-other"><CrossIcon /> Sim (cai com frequência)</td>
+                  <td className="td-official"><CheckIcon /> <strong>Não (Conexão direta Meta)</strong></td>
+                </tr>
+                <tr>
+                  <td className="td-label">API Oficial do WhatsApp?</td>
+                  <td className="td-other"><CrossIcon /> Não (emulação não autorizada)</td>
+                  <td className="td-official"><CheckIcon /> <strong>Sim (Homologado pela Meta)</strong></td>
+                </tr>
+                <tr>
+                  <td className="td-label">Métricas reais de entrega e leitura?</td>
+                  <td className="td-other"><CrossIcon /> Limitadas e imprecisas</td>
+                  <td className="td-official"><CheckIcon /> <strong>Sim (Relatórios em tempo real)</strong></td>
+                </tr>
+                <tr>
+                  <td className="td-label">Opt-out e descadastro automático (LGPD)?</td>
+                  <td className="td-other"><CrossIcon /> Não (risco de denúncia de spam)</td>
+                  <td className="td-official"><CheckIcon /> <strong>Sim (Filtro automático de saída)</strong></td>
+                </tr>
+                <tr>
+                  <td className="td-label">Integração com n8n, Make e CRMs?</td>
+                  <td className="td-other"><CrossIcon /> Instável e complexa</td>
+                  <td className="td-official"><CheckIcon /> <strong>Sim (REST API & Webhooks)</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {/* 7. INTEGRAÇÕES (A TECNOLOGIA COMO PROVA) */}
+        <section className="integrations-section" id="integracoes">
+          <div className="integrations-container">
+            <div className="integrations-copy">
+              <h2>Feito para integrar com o que sua operação já usa.</h2>
               <p>
-                Seja disparando manualmente por planilhas CSV ou automatizando com n8n, Webhooks e REST API, o Send Inteligentte se adapta ao seu fluxo.
+                Disponibilizamos endpoints REST, webhooks e templates prontos para conectar formulários, n8n, Make, Typebot e seu CRM em minutos.
               </p>
 
-              <div className="integration-points">
-                <div className="point-item">
+              <div className="integrations-bullets">
+                <div className="bullet-row">
                   <CheckIcon />
-                  <span>Templates n8n prontos para importar com 1 clique</span>
+                  <span>Templates n8n prontos para importar</span>
                 </div>
-                <div className="point-item">
+                <div className="bullet-row">
                   <CheckIcon />
-                  <span>Webhooks em tempo real com eventos de entrega e clique</span>
+                  <span>Webhooks com status de entrega e cliques</span>
                 </div>
-                <div className="point-item">
+                <div className="bullet-row">
                   <CheckIcon />
-                  <span>Documentação técnica clara para desenvolvedores</span>
+                  <span>Autenticação segura via API Key</span>
                 </div>
-              </div>
-
-              <div className="cta-doc-wrapper">
-                <a
-                  className="secondary-button"
-                  href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20saber%20mais%20sobre%20as%20integra%C3%A7%C3%B5es%20da%20API%20do%20Send."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <CodeIcon />
-                  <span>Tirar Dúvidas de Integração</span>
-                </a>
               </div>
             </div>
 
-            {/* CAIXA DE CÓDIGO INTERATIVA */}
-            <div className="code-box-wrapper">
-              <div className="code-box-header">
-                <div className="code-tabs">
+            <div className="code-editor-box">
+              <div className="code-editor-header">
+                <div className="code-tabs-nav">
                   <button
                     type="button"
-                    className={`code-tab-btn ${activeCodeTab === "curl" ? "active" : ""}`}
+                    className={`tab-btn ${activeCodeTab === "curl" ? "active" : ""}`}
                     onClick={() => setActiveCodeTab("curl")}
                   >
-                    cURL / API REST
+                    API REST (cURL)
                   </button>
                   <button
                     type="button"
-                    className={`code-tab-btn ${activeCodeTab === "n8n" ? "active" : ""}`}
+                    className={`tab-btn ${activeCodeTab === "n8n" ? "active" : ""}`}
                     onClick={() => setActiveCodeTab("n8n")}
                   >
                     Webhook n8n / CRM
                   </button>
                   <button
                     type="button"
-                    className={`code-tab-btn ${activeCodeTab === "csv" ? "active" : ""}`}
+                    className={`tab-btn ${activeCodeTab === "csv" ? "active" : ""}`}
                     onClick={() => setActiveCodeTab("csv")}
                   >
                     Estrutura CSV
@@ -550,7 +378,7 @@ Lucas Souza,5531977776666,PED-9404,10%
 
                 <button
                   type="button"
-                  className="copy-btn"
+                  className="copy-code-btn"
                   onClick={() => handleCopy(snippets[activeCodeTab])}
                   aria-label="Copiar código"
                 >
@@ -558,119 +386,90 @@ Lucas Souza,5531977776666,PED-9404,10%
                 </button>
               </div>
 
-              <pre className="code-content">
+              <pre className="code-body">
                 <code>{snippets[activeCodeTab]}</code>
               </pre>
             </div>
           </div>
         </section>
 
-        {/* CALCULADORA & TRANSPARÊNCIA DE CUSTOS META */}
-        <section className="roi-calculator-section" id="simulador">
-          <div className="calculator-box">
-            <div className="calculator-header">
-              <span className="section-badge">Transparência Total</span>
-              <h2>Simule o alcance da sua próxima campanha</h2>
-              <p>Arraste a barra para estimar métricas de entrega e visualização baseadas na infraestrutura oficial.</p>
-            </div>
-
-            <div className="calculator-slider-container">
-              <div className="slider-label">
-                <span>Tamanho da sua lista de contatos:</span>
-                <strong>{contactCount.toLocaleString("pt-BR")} contatos</strong>
-              </div>
-
-              <input
-                type="range"
-                min="1000"
-                max="50000"
-                step="1000"
-                value={contactCount}
-                onChange={(e) => setContactCount(Number(e.target.value))}
-                className="roi-slider"
-                aria-label="Seletor de quantidade de contatos"
-              />
-
-              <div className="slider-range-indicators">
-                <span>1.000</span>
-                <span>25.000</span>
-                <span>50.000</span>
-              </div>
-            </div>
-
-            <div className="calculator-results">
-              <div className="result-card">
-                <span className="result-title">Mensagens Entregues (~99.2%)</span>
-                <strong>{calculatedDeliveries.toLocaleString("pt-BR")}</strong>
-                <small>Alta prioridade na rede Meta Cloud</small>
-              </div>
-
-              <div className="result-card highlight">
-                <span className="result-title">Aberturas Estimadas (~74%)</span>
-                <strong>~{calculatedReads.toLocaleString("pt-BR")}</strong>
-                <small>Taxa média de leitura no WhatsApp</small>
-              </div>
-
-              <div className="result-card">
-                <span className="result-title">Cliques em Links (~28%)</span>
-                <strong>~{calculatedClicks.toLocaleString("pt-BR")}</strong>
-                <small>Rastreados individualmente com /t/</small>
-              </div>
-            </div>
-
-            <div className="meta-pricing-explanation">
-              <div className="explanation-header">
-                <ShieldCheckIcon />
-                <h4>Como funciona a cobrança oficial da Meta?</h4>
-              </div>
+        {/* 8. PROVA OPERACIONAL (ONBOARDING & SUPORTE HUMANO) */}
+        <section className="operational-proof-section">
+          <div className="operational-proof-card">
+            <div className="proof-header">
+              <span className="proof-kicker">Estrutura & Acompanhamento</span>
+              <h2>Não vendemos disparo. Vendemos previsibilidade.</h2>
               <p>
-                A Meta fornece <strong>1.000 conversas de serviço gratuitas todos os meses</strong> para cada conta oficial.
-                Para disparos ativos de marketing e utilidade, a Meta debita uma pequena taxa por conversa diretamente na sua conta do Facebook Business.
-                A assinatura do <strong>Send Inteligentte</strong> cobre todo o painel, links rastreáveis, infraestrutura de envio, outbox e suporte assistido.
+                Seu time não precisa pensar em sessão, QR Code ou infraestrutura de envio. Você define a campanha; nós cuidamos da operação com acompanhamento próximo.
               </p>
+            </div>
+
+            <div className="proof-deliverables-grid">
+              <div className="deliverable-item">
+                <div className="item-icon"><ShieldCheckIcon /></div>
+                <h4>Configuração assistida</h4>
+                <p>Ajudamos a vincular seu Meta Business Manager e cadastrar seu número oficial sem dores de cabeça.</p>
+              </div>
+
+              <div className="deliverable-item">
+                <div className="item-icon"><MessageIcon /></div>
+                <h4>Templates e campanhas</h4>
+                <p>Orientação direta para criar e aprovar modelos de mensagem homologados pelo WhatsApp.</p>
+              </div>
+
+              <div className="deliverable-item">
+                <div className="item-icon"><CodeIcon /></div>
+                <h4>Integração descomplicada</h4>
+                <p>Conecte a ferramenta ao restante do seu ecossistema via API Key, webhooks e fluxos no n8n.</p>
+              </div>
+
+              <div className="deliverable-item">
+                <div className="item-icon"><ZapIcon /></div>
+                <h4>Suporte humano direto</h4>
+                <p>Quando surgir qualquer dúvida, você conversa diretamente com quem desenvolve e opera a plataforma.</p>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* PLANOS & PREÇOS */}
+        {/* 9. PLANOS & PREÇOS SIMPLIFICADOS */}
         <section className="pricing-section" id="planos">
-          <div className="section-header">
-            <span className="section-badge">Planos & Acesso</span>
-            <h2>Estrutura completa. Escolha a melhor periodicidade.</h2>
-            <p>Todos os recursos liberados em qualquer plano. Desconto progressivo nos planos mais longos.</p>
+          <div className="editorial-header">
+            <h2>Escolha o tamanho da sua operação.</h2>
+            <p>Todos os planos incluem acesso completo à plataforma, infraestrutura oficial em nuvem e implantação assistida.</p>
           </div>
 
-          <div className="plans-grid">
+          <div className="pricing-grid">
             {plans.map((plan) => (
               <div
                 key={plan.slug}
-                className={`plan-card ${plan.highlighted ? "highlighted" : ""}`}
+                className={`pricing-card ${plan.highlighted ? "is-highlighted" : ""}`}
               >
-                {plan.badge ? <div className="plan-badge">{plan.badge}</div> : null}
+                {plan.badge ? <div className="card-top-tag">{plan.badge}</div> : null}
 
-                <div className="plan-header">
+                <div className="card-meta">
                   <h3>{plan.name}</h3>
 
-                  <div className="plan-price-wrapper">
+                  <div className="card-price-row">
                     <span className="currency">R$</span>
-                    <span className="price">{plan.price}</span>
-                    <span className="period">{plan.period}</span>
+                    <span className="price-number">{plan.price}</span>
+                    <span className="price-period">{plan.period}</span>
                   </div>
 
                   {plan.monthlyEquivalent ? (
-                    <div className="monthly-equivalent">
+                    <div className="price-equivalent">
                       Equivale a <strong>R$ {plan.monthlyEquivalent}/mês</strong>
                     </div>
                   ) : (
-                    <div className="monthly-equivalent muted">Cobrança mensal sem fidelidade</div>
+                    <div className="price-equivalent muted">Cobrança mensal sem fidelidade</div>
                   )}
 
-                  <p className="plan-description-text">{plan.description}</p>
+                  <p className="plan-summary-text">{plan.description}</p>
                 </div>
 
-                <div className="plan-divider" />
+                <div className="card-separator" />
 
-                <ul className="plan-features">
+                <ul className="card-feature-list">
                   {plan.features.map((feature) => (
                     <li key={feature}>
                       <CheckIcon />
@@ -680,63 +479,50 @@ Lucas Souza,5531977776666,PED-9404,10%
                 </ul>
 
                 <Link
-                  className={`primary-button full-width ${plan.highlighted ? "glowing" : "secondary-style"}`}
+                  className={`primary-button full-width ${plan.highlighted ? "action-highlight" : "action-standard"}`}
                   href={`/checkout?plano=${plan.slug}`}
                 >
                   <span>Assinar {plan.name}</span>
                   <ArrowRightIcon />
                 </Link>
 
-                <p className="fine-print">Pagamento seguro via Asaas • Cancele quando quiser</p>
+                <p className="card-footnote">Pagamento seguro via Asaas • Cancele quando quiser</p>
               </div>
             ))}
           </div>
 
-          {/* BANNER DE IMPLANTAÇÃO ASSISTIDA */}
-          <div className="inclusions-banner-box">
-            <div className="banner-left">
-              <span className="section-kicker green-text">ONBOARDING ASSISTIDO</span>
-              <h3>Configuração guiada do zero à primeira campanha.</h3>
-              <p>Nossa equipe técnica acompanha os primeiros passos da sua conta para garantir que seus templates e número estejam 100% homologados.</p>
-            </div>
-            <div className="banner-right">
-              <ul>
-                <li><CheckIcon /> Vinculação assistida do seu Meta Business Manager</li>
-                <li><CheckIcon /> Orientação na aprovação de templates oficiais</li>
-                <li><CheckIcon /> Suporte na formatação e importação das primeiras listas</li>
-                <li><CheckIcon /> Verificação de regras de opt-out e boas práticas anti-spam</li>
-              </ul>
-            </div>
+          <div className="guarantee-box">
+            <ShieldCheckIcon />
+            <span>Garantia incondicional de 7 dias • Teste sua operação sem risco financeiro</span>
           </div>
         </section>
 
-        {/* PERGUNTAS FREQUENTES */}
+        {/* 10. PERGUNTAS FREQUENTES */}
         <section className="faq-section" id="faq">
-          <div className="section-header">
-            <span className="section-badge">Tire suas Dúvidas</span>
+          <div className="editorial-header">
             <h2>Perguntas Frequentes</h2>
-            <p>Respostas diretas sobre a API Oficial, requisitos técnicos e funcionamento da plataforma.</p>
+            <p>Respostas diretas sobre a API Oficial, funcionamento da plataforma e implantação.</p>
           </div>
 
-          <div className="faq-accordion">
+          <div className="faq-container">
             {(content.faqs ?? []).map((faq, index) => {
               const isOpen = openFaq === index;
               return (
-                <div key={faq.question} className={`faq-item ${isOpen ? "is-open" : ""}`}>
+                <div key={faq.question} className={`faq-row ${isOpen ? "open" : ""}`}>
                   <button
                     type="button"
-                    className="faq-question"
+                    className="faq-question-btn"
                     onClick={() => toggleFaq(index)}
                     aria-expanded={isOpen}
                   >
                     <span>{faq.question}</span>
-                    <span className="chevron-icon">
+                    <span className="chevron-arrow">
                       <ChevronDownIcon />
                     </span>
                   </button>
 
                   {isOpen ? (
-                    <div className="faq-answer">
+                    <div className="faq-answer-block">
                       <p>{faq.answer}</p>
                     </div>
                   ) : null}
@@ -745,56 +531,48 @@ Lucas Souza,5531977776666,PED-9404,10%
             })}
           </div>
 
-          {/* BANNER SUPORTE WHATSAPP */}
-          <div className="faq-whatsapp-cta">
-            <div className="faq-cta-left">
-              <span className="faq-cta-badge">ATENDIMENTO DIRETO</span>
-              <h3>Ficou com alguma dúvida sobre a API Oficial?</h3>
-              <p>Fale diretamente com nossa equipe técnica pelo WhatsApp. Ajudamos a avaliar se o seu caso de uso está pronto para a API Oficial.</p>
-            </div>
+          <div className="faq-contact-box">
+            <p>Ficou com alguma dúvida específica sobre o seu caso de uso?</p>
             <a
-              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20conversar%20sobre%20o%20Send%20Inteligentte%20e%20a%20API%20Oficial."
+              href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20d%C3%BAvidas%20sobre%20o%20Send%20Inteligentte%20e%20a%20API%20Oficial."
               target="_blank"
               rel="noopener noreferrer"
-              className="whatsapp-support-btn"
+              className="faq-whatsapp-link"
             >
               <MessageIcon />
-              <span>Falar no WhatsApp</span>
+              <span>Falar diretamente no WhatsApp</span>
             </a>
           </div>
         </section>
 
-        {/* CTA FINAL */}
-        <section className="final-cta-section">
-          <div className="cta-box">
-            <h2>Pronto para profissionalizar seus disparos no WhatsApp?</h2>
-            <p>Conecte sua operação à API Oficial da Meta e tenha estabilidade contínua para suas campanhas comerciais.</p>
+        {/* 11. FECHAMENTO & CTA FINAL */}
+        <section className="final-closing-section">
+          <div className="closing-content-box">
+            <h2>
+              Seu WhatsApp já é um canal de vendas. <br />
+              Está na hora de tratá-lo como infraestrutura.
+            </h2>
+            <p>Comece a enviar suas campanhas pela API oficial com previsibilidade total e acompanhamento da nossa equipe.</p>
 
-            <div className="final-cta-actions">
+            <div className="closing-actions">
               <a className="primary-button large" href="#planos">
-                <ZapIcon />
-                <span>Escolher meu Plano de Acesso</span>
+                <span>Começar agora</span>
+                <ArrowRightIcon />
               </a>
-            </div>
-
-            <div className="guarantee-footer-tag">
-              <ShieldCheckIcon />
-              <span>Garantia incondicional de 7 dias • Teste sem risco</span>
             </div>
           </div>
         </section>
 
         {/* RODAPÉ */}
-        <footer className="site-footer simple-footer">
-          <div className="simple-footer-content">
+        <footer className="site-footer">
+          <div className="footer-top-row">
             <Brand />
 
-            <nav className="simple-footer-nav" aria-label="Links do rodapé">
-              <a href="#cenario">Por que Oficial?</a>
+            <nav className="footer-nav" aria-label="Links do rodapé">
               <a href="#como-funciona">Como funciona</a>
-              <a href="#recursos">Engenharia</a>
-              <a href="#integracao">API & n8n</a>
-              <a href="#simulador">Calculadora</a>
+              <a href="#recursos">Recursos</a>
+              <a href="#comparativo">Comparativo</a>
+              <a href="#integracoes">Integrações</a>
               <a href="#planos">Planos</a>
               <Link href="/PoliticaDePrivacidade.html" target="_blank">Privacidade</Link>
               <Link href="/TermosECondicoes.html" target="_blank">Termos</Link>
@@ -802,12 +580,14 @@ Lucas Souza,5531977776666,PED-9404,10%
             </nav>
           </div>
 
-          <div className="simple-footer-bottom">
+          <div className="footer-bottom-row">
             <p>© {new Date().getFullYear()} Send Inteligentte. Todos os direitos reservados.</p>
-            <div className="footer-badges">
-              <span className="footer-pill">🛡️ Processamento Seguro Asaas</span>
-              <span className="footer-pill">⚡ Meta WhatsApp Cloud v19</span>
-              <span className="footer-pill">🔒 Conformidade LGPD</span>
+            <div className="footer-compliance-tags">
+              <span>Infraestrutura WhatsApp Cloud API</span>
+              <span>•</span>
+              <span>Processamento Seguro Asaas</span>
+              <span>•</span>
+              <span>Conformidade LGPD</span>
             </div>
           </div>
         </footer>
