@@ -21,3 +21,5 @@ export function Brand({ href = "/", label }: BrandProps) {
     </Link>
   );
 }
+
+export default Brand;
