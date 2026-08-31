@@ -1,127 +1,125 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../contexts/AuthContext";
+import { useState, useEffect, useRef } from "react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { gsap } from "gsap";
+import { EASE, DUR } from "../utils/motion";
+import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
-import { useTheme } from "../contexts/ThemeContext";
-import { useSSE } from "../hooks/useSSE";
+import AuthPages from "./AuthPages";
+import {
+  BarChart3,
+  MessageSquare,
+  FileText,
+  Users,
+  Send,
+  Image as ImageIcon,
+  Settings2,
+  Wrench,
+  LogOut,
+  Sun,
+  Moon,
+  ShieldOff,
+  Link2,
+  Megaphone,
+  KeyRound,
+  CreditCard
+} from "lucide-react";
 
-interface LayoutProps {
-  children: React.ReactNode;
+const SUPPORT_WHATSAPP = "5583920017106";
+const SUPPORT_WHATSAPP_URL = `https://wa.me/${SUPPORT_WHATSAPP}?text=${encodeURIComponent("Olá! Preciso de suporte com o Send Inteligentte.")}`;
+
+function WhatsAppIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="22" height="22" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+      <path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.554 4.122 1.523 5.855L.057 23.882a.5.5 0 0 0 .613.612l6.101-1.457A11.945 11.945 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.808 9.808 0 0 1-5.034-1.387l-.36-.214-3.733.892.937-3.63-.235-.374A9.818 9.818 0 0 1 2.182 12C2.182 6.57 6.57 2.182 12 2.182S21.818 6.57 21.818 12 17.43 21.818 12 21.818z"/>
+    </svg>
+  );
 }
 
-export default function Layout({ children }: LayoutProps) {
-  const { user, logout, isImpersonating, stopImpersonating, impersonatorName } = useAuth();
+export default function Layout() {
+  const { token, user, isImpersonating, impersonatorName, login, logout, stopImpersonating } = useAuth();
   const { accounts, selectedAccount, selectAccount } = useAccount();
-  const { theme, toggleTheme } = useTheme();
-  const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
-  const [accountDropdownOpen, setAccountDropdownOpen] = useState(false);
+  // Theme state — default dark, persisted in localStorage
+  const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
+    localStorage.getItem("theme") !== "light"
+  );
 
-  // SSE Notifications
-  const [notifications, setNotifications] = useState<Array<{ id: string; message: string; type: string }>>([]);
-
-  useSSE((data: any) => {
-    if (data.type === "STATUS_UPDATE") {
-      const newNotif = {
-        id: Math.random().toString(),
-        message: `Mensagem ${data.messageId?.slice(0, 8)}... mudou para ${data.status}`,
-        type: data.status === "FAILED" ? "error" : "info",
-      };
-      setNotifications((prev) => [newNotif, ...prev.slice(0, 4)]);
-      setTimeout(() => {
-        setNotifications((prev) => prev.filter((n) => n.id !== newNotif.id));
-      }, 5000);
+  useEffect(() => {
+    if (isDarkTheme) {
+      document.body.classList.remove("light-theme");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.body.classList.add("light-theme");
+      localStorage.setItem("theme", "light");
     }
-  });
+  }, [isDarkTheme]);
 
-  // Fechar dropdowns ao clicar fora
+  // Animate page transitions
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest(".user-dropdown-container")) setUserDropdownOpen(false);
-      if (!target.closest(".account-dropdown-container")) setAccountDropdownOpen(false);
-    };
-    document.addEventListener("click", handleClickOutside);
-    return () => document.removeEventListener("click", handleClickOutside);
-  }, []);
-
-  // Fechar menu mobile ao trocar de rota
-  useEffect(() => {
-    setMobileMenuOpen(false);
+    if (mainRef.current) {
+      gsap.fromTo(
+        mainRef.current,
+        { opacity: 0, y: 10 },
+        { opacity: 1, y: 0, duration: DUR.sm, ease: EASE.out }
+      );
+    }
   }, [location.pathname]);
 
-  const navItems = [
-    { label: "Dashboard", path: "/dashboard", icon: "📊" },
-    { label: "Campanhas", path: "/campaigns", icon: "🚀" },
-    { label: "Templates", path: "/templates", icon: "📝" },
-    { label: "Listas & Contatos", path: "/contacts", icon: "👥" },
-    { label: "Mensagens & Logs", path: "/messages", icon: "✉️" },
-    { label: "Live Chat", path: "/chat", icon: "💬" },
-    { label: "Links Rastreáveis", path: "/tracking", icon: "🔗" },
-    { label: "Mídia & Arquivos", path: "/media", icon: "📁" },
-    { label: "Opt-Out (Descadastro)", path: "/optout", icon: "🚫" },
-    { label: "Contas WhatsApp", path: "/accounts", icon: "⚙️" },
-    { label: "Chaves de API", path: "/api-keys", icon: "🔑" },
-    { label: "Assinatura & Planos", path: "/subscription", icon: "💳" },
-  ];
+  // Listen for custom navigation events (dispatched from other components)
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      if (e.detail?.path) navigate(e.detail.path);
+    };
+    window.addEventListener("navigate-to" as any, handler);
+    return () => window.removeEventListener("navigate-to" as any, handler);
+  }, [navigate]);
 
-  if (user?.role === "SUPERUSER") {
-    navItems.push({ label: "Administração", path: "/admin", icon: "🛡️" });
+  const closeSidebar = () => setIsSidebarOpen(false);
+
+  // Unauthenticated -> Render Modern Auth Form
+  if (!token) {
+    return <AuthPages onLoginSuccess={(t, u) => login(t, u)} />;
   }
 
-  // Verificar expiração de trial / plano
-  const plan = user?.plan || "free";
+  // Verificar se o trial de 3 dias expirou (apenas para contas com status TRIAL)
+  // Contas com subscriptionStatus ACTIVE ou sem createdAt estão liberadas
+  const isTrial = user?.subscriptionStatus === "TRIAL";
   const isSuperUser = user?.role === "SUPERUSER";
-  const isPaid = ["starter", "pro", "enterprise"].includes(plan);
-
-  let daysLeft = 0;
   let trialExpired = false;
-  let showBlockedModal = false;
+  let daysLeft = 0;
 
-  if (!isPaid && !isSuperUser) {
-    if (user?.trialExpiresAt) {
-      const now = new Date().getTime();
-      const expires = new Date(user.trialExpiresAt).getTime();
-      const diffMs = expires - now;
-      daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      if (diffMs <= 0) {
-        trialExpired = true;
-        showBlockedModal = true;
-      }
-    } else if (user?.createdAt) {
-      // Fallback para contas legadas sem trialExpiresAt: 3 dias a partir de createdAt
-      const now = new Date().getTime();
-      const created = new Date(user.createdAt).getTime();
-      const diffMs = (created + 3 * 24 * 60 * 60 * 1000) - now;
-      daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-      if (diffMs <= 0) {
-        trialExpired = true;
-        showBlockedModal = true;
-      }
-    }
+  if (isTrial && !isSuperUser && user?.createdAt) {
+    const createdAt = new Date(user.createdAt).getTime();
+    const now = new Date().getTime();
+    const diffDays = (now - createdAt) / (1000 * 60 * 60 * 24);
+    daysLeft = Math.max(0, Math.ceil(3 - diffDays));
+    trialExpired = diffDays >= 3;
   }
 
-  // Permitir acesso às rotas de assinatura/billing mesmo se bloqueado
-  const isBillingRoute = ["/subscription", "/billing"].includes(location.pathname);
-  const blockAccess = showBlockedModal && !isBillingRoute && !isImpersonating;
+  // Rota de assinatura/planos pode ser acessada mesmo com trial expirado
+  const isSubscriptionRoute = location.pathname === "/subscription" || location.pathname === "/billing";
+  const showBlockedModal = trialExpired && !isSubscriptionRoute && !isImpersonating;
 
-  const showTrialBanner = !isPaid && !isSuperUser && !trialExpired;
+  // Banner de aviso nos últimos dias de teste (dia 1, 2 ou 3)
+  const showTrialBanner = isTrial && !trialExpired && !isSuperUser;
 
-  // Montar link direto para o WhatsApp do suporte comercial
+  // Link direto para WhatsApp comercial para pagamento manual
   const PAYMENT_WA = `https://wa.me/5583920017106?text=${encodeURIComponent("Olá! Quero assinar o Send Inteligentte. Meu e-mail é: " + (user?.email || ""))}`;
 
   return (
-    <div className="layout-root" data-theme={theme}>
-      {/* ── Modal de Bloqueio por Trial Expirado ── */}
-      {blockAccess && (
+    <div className="app-shell">
+      {/* Modal de bloqueio quando o trial de 3 dias expira */}
+      {showBlockedModal && (
         <div style={{
           position: "fixed",
           inset: 0,
-          background: "rgba(8,8,10,0.92)",
-          backdropFilter: "blur(12px)",
+          background: "rgba(0,0,0,0.85)",
+          backdropFilter: "blur(8px)",
           zIndex: 9999,
           display: "flex",
           alignItems: "center",
@@ -129,34 +127,34 @@ export default function Layout({ children }: LayoutProps) {
           padding: "20px",
         }}>
           <div style={{
-            background: "rgba(18,18,22,0.98)",
+            background: "#111",
             border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "20px",
-            padding: "40px 36px",
+            borderRadius: "16px",
+            padding: "36px 32px",
             maxWidth: "460px",
             width: "100%",
             textAlign: "center",
-            boxShadow: "0 24px 60px rgba(0,0,0,0.6)",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
           }}>
-            <div style={{ fontSize: "3rem", marginBottom: "16px" }}>⏳</div>
-            <h2 style={{ fontSize: "1.4rem", fontWeight: 700, color: "#fff", marginBottom: "10px" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>⏳</div>
+            <h2 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#fff", marginBottom: "8px" }}>
               Período de Teste Encerrado
             </h2>
-            <p style={{ color: "rgba(255,255,255,0.6)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "28px" }}>
+            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.5, marginBottom: "24px" }}>
               Seus 3 dias de teste gratuito terminaram. Para continuar disparando mensagens com a API Oficial da Meta e gerenciar seus contatos, assine um plano.
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <a
                 href={PAYMENT_WA}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
-                  padding: "13px 20px",
-                  background: "linear-gradient(135deg, #00c26b, #00a85c)",
-                  color: "#fff",
-                  borderRadius: "10px",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
+                  padding: "12px 20px",
+                  background: "#00c26b",
+                  color: "#000",
+                  borderRadius: "8px",
+                  fontWeight: 700,
+                  fontSize: "0.9rem",
                   textDecoration: "none",
                   display: "flex",
                   alignItems: "center",
@@ -166,49 +164,36 @@ export default function Layout({ children }: LayoutProps) {
               >
                 💬 Falar com Suporte & Assinar
               </a>
-              <Link
-                to="/subscription"
+              <button
+                onClick={() => navigate("/subscription")}
                 style={{
-                  padding: "11px 20px",
+                  padding: "10px 20px",
                   background: "rgba(255,255,255,0.06)",
                   border: "1px solid rgba(255,255,255,0.1)",
                   color: "rgba(255,255,255,0.8)",
-                  borderRadius: "10px",
-                  fontSize: "0.88rem",
-                  textDecoration: "none",
+                  borderRadius: "8px",
+                  fontSize: "0.85rem",
+                  cursor: "pointer",
                 }}
               >
                 Ver Planos Disponíveis
-              </Link>
+              </button>
             </div>
-            <p style={{ marginTop: "20px", fontSize: "0.78rem", color: "rgba(255,255,255,0.35)", lineHeight: 1.4 }}>
-              Após a confirmação do pagamento, seu acesso é reativado em até 24h.<br />
-              Dúvidas? Entre em contato pelo WhatsApp acima.
+            <p style={{ marginTop: "16px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              Após o pagamento, seu acesso é liberado em até 24h.
             </p>
+            <button
+              onClick={logout}
+              style={{
+                background: "none", border: "none", cursor: "pointer",
+                color: "var(--text-muted)", fontSize: "0.8rem", textDecoration: "underline",
+              }}
+            >
+              Sair da conta
+            </button>
           </div>
         </div>
       )}
-
-      {/* ── Banner de Notificações Rápidas SSE ── */}
-      <div style={{ position: "fixed", top: "20px", right: "20px", zIndex: 9999, display: "flex", flexDirection: "column", gap: "10px" }}>
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            style={{
-              padding: "12px 20px",
-              background: n.type === "error" ? "rgba(239, 68, 68, 0.9)" : "rgba(0, 194, 107, 0.9)",
-              backdropFilter: "blur(8px)",
-              borderRadius: "var(--radius-md)",
-              color: "#fff",
-              fontSize: "0.88rem",
-              boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
-              animation: "slideIn 0.3s ease",
-            }}
-          >
-            {n.message}
-          </div>
-        ))}
-      </div>
 
       {/* ── Email verification banner ── */}
       {user && !user.emailVerified && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
@@ -285,15 +270,13 @@ export default function Layout({ children }: LayoutProps) {
           zIndex: 1001,
           flexWrap: "wrap",
         }}>
-          <span>
-            👋 <strong>Bem-vindo ao Send Inteligentte!</strong> Conecte sua conta do WhatsApp Oficial da Meta para começar a disparar.
-          </span>
+          <span>🚀 <strong>Bem-vindo!</strong> Conecte seu primeiro número WhatsApp Business para começar a disparar mensagens.</span>
           <button
             onClick={() => navigate("/accounts")}
             style={{
-              background: "#00c26b",
-              color: "#000",
-              border: "none",
+              background: "rgba(0,194,107,0.2)",
+              border: "1px solid rgba(0,194,107,0.4)",
+              color: "#00c26b",
               padding: "5px 14px",
               borderRadius: "6px",
               cursor: "pointer",
@@ -303,293 +286,347 @@ export default function Layout({ children }: LayoutProps) {
               whiteSpace: "nowrap",
             }}
           >
-            Conectar WhatsApp →
+            Conectar agora →
           </button>
         </div>
       )}
 
-      {/* ── Banner de Suporte (Impersonation) ── */}
       {isImpersonating && (
-        <div
-          style={{
-            background: "linear-gradient(90deg, #f59e0b, #d97706)",
-            color: "#000",
-            padding: "8px 24px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            fontSize: "0.85rem",
-            fontWeight: "600",
-            zIndex: 9999,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>⚠️ MODO SUPORTE ATIVO: Visualizando e configurando o painel de <strong>{user?.name || user?.email}</strong> (por {impersonatorName}).</span>
-          </div>
+        <div style={{
+          backgroundColor: "#ffe4e6",
+          color: "#9f1239",
+          padding: "10px 24px",
+          textAlign: "center",
+          fontSize: "0.88rem",
+          fontWeight: "600",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          zIndex: 1001,
+          boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+        }}>
+          <span>
+            ⚠️ MODO SUPORTE ATIVO: Visualizando e configurando o painel de <strong>{user?.name || user?.email}</strong> (por {impersonatorName}).
+          </span>
           <button
-            onClick={stopImpersonating}
+            onClick={() => {
+              stopImpersonating();
+              navigate("/admin");
+            }}
+            className="btn btn-secondary"
             style={{
-              background: "#000",
-              color: "#fff",
+              backgroundColor: "#fff",
+              color: "#1e1b4b",
               border: "none",
-              padding: "4px 12px",
-              borderRadius: "4px",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              fontWeight: "600",
+              padding: "6px 14px",
+              fontSize: "0.85rem",
+              fontWeight: "700",
+              cursor: "pointer"
             }}
           >
-            Encerrar Suporte
+            Voltar para Administrador
           </button>
         </div>
       )}
 
-      {/* ── Top Header Bar ── */}
-      <header className="topbar">
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <button
-            type="button"
-            className="mobile-toggle-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Abrir Menu"
+      {/* Mobile overlay */}
+      {isSidebarOpen && <div className="sidebar-overlay" onClick={closeSidebar} />}
+
+      {/* Mobile header — sits above the flex row, hidden on desktop */}
+      <header className="mobile-header">
+        <button
+          className={`hamburger-btn${isSidebarOpen ? " open" : ""}`}
+          onClick={() => setIsSidebarOpen(v => !v)}
+          aria-label="Menu"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+        <span className="mobile-header-logo">
+          Send<strong>Inteligentte</strong>
+        </span>
+        {accounts.length > 0 && (
+          <select
+            className="account-select mobile-account-select"
+            value={selectedAccount?.id || ""}
+            onChange={(e) => {
+              const acc = accounts.find((a) => a.id === e.target.value);
+              if (acc) selectAccount(acc);
+            }}
           >
-            ☰
-          </button>
+            {accounts.map((acc) => (
+              <option key={acc.id} value={acc.id}>
+                {acc.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </header>
 
-          <Link to="/dashboard" style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: "10px" }}>
-            <span style={{ fontSize: "1.4rem" }}>⚡</span>
-            <span style={{ fontWeight: "700", fontSize: "1.15rem", letterSpacing: "-0.5px", color: "var(--text-primary)" }}>
-              Send <span style={{ color: "var(--primary)" }}>Inteligentte</span>
-            </span>
-          </Link>
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          {/* Seletor de Conta Meta */}
-          {accounts.length > 0 && (
-            <div className="account-dropdown-container" style={{ position: "relative" }}>
-              <button
-                type="button"
-                className="btn btn-secondary account-selector-btn"
-                onClick={() => setAccountDropdownOpen(!accountDropdownOpen)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "7px 14px",
-                  fontSize: "0.85rem",
-                  borderRadius: "var(--radius-md)",
-                }}
-              >
-                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--primary)", display: "inline-block" }}></span>
-                <span style={{ maxWidth: "160px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {selectedAccount?.name || "Selecionar Conta"}
-                </span>
-                <span style={{ fontSize: "0.7rem", opacity: 0.6 }}>▼</span>
-              </button>
-
-              {accountDropdownOpen && (
-                <div
-                  className="glass-dropdown"
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 8px)",
-                    right: 0,
-                    minWidth: "220px",
-                    background: "var(--dropdown-bg)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "var(--radius-lg)",
-                    boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
-                    zIndex: 1000,
-                    overflow: "hidden",
-                  }}
-                >
-                  <div style={{ padding: "8px 12px", fontSize: "0.75rem", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Suas Contas WhatsApp
-                  </div>
-                  {accounts.map((acc) => (
-                    <button
-                      key={acc.id}
-                      type="button"
-                      onClick={() => {
-                        selectAccount(acc);
-                        setAccountDropdownOpen(false);
-                      }}
-                      style={{
-                        width: "100%",
-                        textAlign: "left",
-                        padding: "10px 14px",
-                        background: selectedAccount?.id === acc.id ? "rgba(0, 194, 107, 0.1)" : "transparent",
-                        color: selectedAccount?.id === acc.id ? "var(--primary)" : "var(--text-primary)",
-                        border: "none",
-                        borderBottom: "1px solid rgba(255,255,255,0.03)",
-                        cursor: "pointer",
-                        fontSize: "0.85rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                      }}
-                    >
-                      <span>{acc.name}</span>
-                      {selectedAccount?.id === acc.id && <span>✓</span>}
-                    </button>
-                  ))}
-                  <div style={{ padding: "8px", borderTop: "1px solid var(--border-color)" }}>
-                    <Link
-                      to="/accounts"
-                      onClick={() => setAccountDropdownOpen(false)}
-                      style={{
-                        display: "block",
-                        textAlign: "center",
-                        padding: "6px",
-                        fontSize: "0.8rem",
-                        color: "var(--primary)",
-                        textDecoration: "none",
-                      }}
-                    >
-                      + Gerenciar Contas
-                    </Link>
-                  </div>
-                </div>
-              )}
+      {/* Main layout container */}
+      <div className="app-layout">
+        {/* Sidebar */}
+        <aside className={`app-sidebar${isSidebarOpen ? " open" : ""}`}>
+          {/* Logo & Brand Header */}
+          <div className="sidebar-header">
+            <div className="brand-badge">
+              <span className="brand-dot pulse" />
+              API Oficial Meta
             </div>
-          )}
+            <h1 className="brand-logo">
+              Send<strong>Inteligentte</strong>
+            </h1>
+            <p className="brand-tagline">Disparos em Escala</p>
 
-          {/* Toggle de Tema Claro/Escuro */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="theme-toggle-btn"
-            title={`Alternar para tema ${theme === "dark" ? "claro" : "escuro"}`}
-            aria-label="Alternar Tema"
-          >
-            {theme === "dark" ? "☀️" : "🌙"}
-          </button>
-
-          {/* Menu do Usuário */}
-          {user && (
-            <div className="user-dropdown-container" style={{ position: "relative" }}>
-              <button
-                type="button"
-                className="user-avatar-btn"
-                onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg, var(--primary), #008f4c)",
-                  color: "#000",
-                  fontWeight: "700",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "none",
-                  cursor: "pointer",
-                  fontSize: "0.9rem",
-                }}
-              >
-                {(user.name || user.email).charAt(0).toUpperCase()}
-              </button>
-
-              {userDropdownOpen && (
-                <div
-                  className="glass-dropdown"
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 8px)",
-                    right: 0,
-                    minWidth: "200px",
-                    background: "var(--dropdown-bg)",
-                    border: "1px solid var(--border-color)",
-                    borderRadius: "var(--radius-lg)",
-                    boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
-                    zIndex: 1000,
-                    overflow: "hidden",
+            {/* Account Selector in Sidebar */}
+            {accounts.length > 0 && (
+              <div className="sidebar-account-picker">
+                <label className="sidebar-section-label">Conta Ativa</label>
+                <select
+                  className="account-select"
+                  value={selectedAccount?.id || ""}
+                  onChange={(e) => {
+                    const acc = accounts.find((a) => a.id === e.target.value);
+                    if (acc) selectAccount(acc);
                   }}
                 >
-                  <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border-color)" }}>
-                    <div style={{ fontWeight: "600", fontSize: "0.9rem", color: "var(--text-primary)" }}>
+                  {accounts.map((acc) => (
+                    <option key={acc.id} value={acc.id}>
+                      {acc.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation Items */}
+          <nav className="sidebar-nav">
+            <span className="sidebar-section-label">Comunicação</span>
+
+            <NavLink
+              to="/metrics"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <BarChart3 size={18} className="nav-icon" />
+              <span>Painel de Métricas</span>
+            </NavLink>
+
+            <NavLink
+              to="/campaigns"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <Megaphone size={18} className="nav-icon" />
+              <span>Campanhas</span>
+            </NavLink>
+
+            <NavLink
+              to="/templates"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <FileText size={18} className="nav-icon" />
+              <span>Modelos (Templates)</span>
+            </NavLink>
+
+            <NavLink
+              to="/lists"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <Users size={18} className="nav-icon" />
+              <span>Listas de Contatos</span>
+            </NavLink>
+
+            <NavLink
+              to="/messages"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <Send size={18} className="nav-icon" />
+              <span>Disparos & Logs</span>
+            </NavLink>
+
+            <NavLink
+              to="/chat"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <MessageSquare size={18} className="nav-icon" />
+              <span>Live Chat</span>
+            </NavLink>
+
+            <NavLink
+              to="/link-tracking"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <Link2 size={18} className="nav-icon" />
+              <span>Links Rastreáveis</span>
+            </NavLink>
+
+            <NavLink
+              to="/media"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <ImageIcon size={18} className="nav-icon" />
+              <span>Galeria de Mídia</span>
+            </NavLink>
+
+            <NavLink
+              to="/optouts"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <ShieldOff size={18} className="nav-icon" />
+              <span>Descadastros</span>
+            </NavLink>
+
+            <span className="sidebar-section-label" style={{ marginTop: "12px" }}>Configurações</span>
+
+            <NavLink
+              to="/accounts"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <Settings2 size={18} className="nav-icon" />
+              <span>Contas WhatsApp</span>
+            </NavLink>
+
+            <NavLink
+              to="/api-keys"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <KeyRound size={18} className="nav-icon" />
+              <span>Chaves de API</span>
+            </NavLink>
+
+            <NavLink
+              to="/billing"
+              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+              onClick={closeSidebar}
+            >
+              <CreditCard size={18} className="nav-icon" />
+              <span>Faturamento</span>
+            </NavLink>
+
+            {user?.role === "SUPERUSER" && (
+              <NavLink
+                to="/admin"
+                className={({ isActive }) => `nav-item admin-nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <Wrench size={18} className="nav-icon" />
+                <span>Super Admin</span>
+              </NavLink>
+            )}
+          </nav>
+
+          {/* Sidebar Footer — User & Controls */}
+          <div className="sidebar-footer">
+            {user && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", background: "rgba(255,255,255,0.03)", borderRadius: "8px", border: "1px solid var(--border-color)" }}>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "linear-gradient(135deg, var(--primary), #00c26b)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: "700", fontSize: "0.8rem", color: "#000", flexShrink: 0 }}>
+                    {(user.name || user.email || "U").charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "var(--text-main)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {user.name || user.email}
                     </div>
-                    <div style={{ fontSize: "0.75rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {user.email}
                     </div>
                   </div>
-
-                  <div style={{ padding: "6px 0" }}>
-                    <Link
-                      to="/subscription"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="dropdown-item"
-                    >
-                      💳 Meu Plano & Faturas
-                    </Link>
-                    <Link
-                      to="/api-keys"
-                      onClick={() => setUserDropdownOpen(false)}
-                      className="dropdown-item"
-                    >
-                      🔑 Chaves de Integração
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        logout();
-                      }}
-                      className="dropdown-item"
-                      style={{ width: "100%", textAlign: "left", color: "var(--error)" }}
-                    >
-                      🚪 Sair da Conta
-                    </button>
-                  </div>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      </header>
-
-      {/* ── Main App Shell (Sidebar + Content) ── */}
-      <div className="layout-body">
-        {/* Sidebar Desktop & Mobile */}
-        <aside className={`sidebar ${mobileMenuOpen ? "sidebar-mobile-open" : ""}`}>
-          <nav style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "16px 12px" }}>
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`nav-link ${isActive ? "nav-link-active" : ""}`}
+                <button
+                  onClick={logout}
+                  className="nav-item"
+                  style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
                 >
-                  <span style={{ fontSize: "1.1rem" }}>{item.icon}</span>
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
+                  <LogOut size={18} className="nav-icon" /> Sair da Conta
+                </button>
+              </>
+            )}
+
+            {/* Theme Toggle */}
+            <button
+              id="theme-toggle-btn"
+              onClick={() => setIsDarkTheme(!isDarkTheme)}
+              title={isDarkTheme ? "Mudar para tema claro" : "Mudar para tema escuro"}
+              className="nav-item"
+              style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "0.875rem" }}
+            >
+              {isDarkTheme ? (
+                <>
+                  <Sun size={18} className="nav-icon" /> Tema Claro
+                </>
+              ) : (
+                <>
+                  <Moon size={18} className="nav-icon" /> Tema Escuro
+                </>
+              )}
+            </button>
+
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textAlign: "center" }}>
+              Desenvolvido por Inteligentte Lab | v1.0.0
+            </div>
+          </div>
         </aside>
 
-        {/* Backdrop for mobile */}
-        {mobileMenuOpen && (
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.6)",
-              backdropFilter: "blur(4px)",
-              zIndex: 90,
-            }}
-          />
-        )}
-
-        {/* Main Page Content */}
-        <main className="content-area">
-          {children}
+        {/* Main Content Area */}
+        <main className="app-main" ref={mainRef}>
+          <div className="app-main-inner">
+            <Outlet />
+          </div>
         </main>
       </div>
+
+      {/* Floating Support Button */}
+      <a
+        href={SUPPORT_WHATSAPP_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Falar com Suporte"
+        className="support-fab"
+        style={{
+          position: "fixed",
+          bottom: "24px",
+          right: "24px",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          background: "#25D366",
+          color: "#fff",
+          border: "none",
+          borderRadius: "50px",
+          padding: "12px 20px 12px 16px",
+          fontSize: "0.85rem",
+          fontWeight: 600,
+          fontFamily: "inherit",
+          cursor: "pointer",
+          textDecoration: "none",
+          boxShadow: "0 4px 20px rgba(37,211,102,0.4)",
+          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        }}
+        onMouseEnter={e => {
+          (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1.05)";
+          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 6px 28px rgba(37,211,102,0.55)";
+        }}
+        onMouseLeave={e => {
+          (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1)";
+          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 4px 20px rgba(37,211,102,0.4)";
+        }}
+      >
+        <WhatsAppIcon />
+        <span className="support-fab-text">Suporte</span>
+      </a>
     </div>
   );
 }
