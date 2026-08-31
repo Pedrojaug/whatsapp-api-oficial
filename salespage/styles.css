@@ -148,35 +148,44 @@ body {
   margin: 0 auto;
 }
 
-.brand-wrapper {
-  display: flex;
+.brand-link {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-}
-
-.brand-icon-box {
-  width: 32px;
-  height: 32px;
-  background: var(--green);
-  border-radius: var(--radius-sm);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #000;
-  font-weight: 900;
-  font-size: 1.1rem;
-  box-shadow: 0 0 16px var(--green-glow);
-}
-
-.brand-text {
-  font-size: 1.15rem;
-  font-weight: 700;
+  gap: 12px;
+  text-decoration: none;
   color: var(--heading);
-  letter-spacing: -0.03em;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
 }
 
-.brand-accent {
+.brand-link:hover {
+  opacity: 0.92;
+}
+
+.brand-logotype {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1;
+}
+
+.brand-send {
   color: var(--green);
+  font-weight: 800;
+}
+
+.brand-inteligentte {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.brand-sub-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
 }
 
 .public-nav {
