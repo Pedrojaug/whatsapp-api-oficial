@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useCountup } from "../hooks/useCountup";
 
-// Dados realistas de Showcase B2B para gravação de vídeo e demonstrações
+// Dados específicos de Showcase B2B EXCLUSIVAMENTE para a conta de gravação demo.video@sendinteligente.com.br
 const SHOWCASE_METRICS: Record<string, {
   totals: { sent: number; delivered: number; read: number; failed: number; total: number };
   chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
@@ -85,43 +86,39 @@ const SHOWCASE_METRICS: Record<string, {
 };
 
 export default function DashboardPage() {
+  const { user } = useAuth();
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
   const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  // Verifica com total segurança se é a conta dedicada de gravação/vídeo
+  const isDemoAccount = user?.email === "demo.video@sendinteligente.com.br";
 
   const [metricsPeriod, setMetricsPeriod] = useState<"today" | "yesterday" | "7days" | "30days" | "custom">("7days");
   const [metricsStartDate, setMetricsStartDate] = useState("");
   const [metricsEndDate, setMetricsEndDate] = useState("");
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
-  
-  // Modo Showcase ativado por padrão se a conta for demo ou para vídeo
-  const [showcaseMode, setShowcaseMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem("send_showcase_mode");
-    return saved !== null ? saved === "true" : true;
-  });
 
+  // Inicialização com dados reais vazios (nunca falseia contas de clientes)
   const [metricsData, setMetricsData] = useState<{
     totals: { sent: number; delivered: number; read: number; failed: number; total: number };
     chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
     templateMetrics?: Array<{ templateName: string; sent: number; read: number; failed: number; total: number }>;
-  }>(SHOWCASE_METRICS["7days"]);
-
-  const toggleShowcaseMode = () => {
-    const next = !showcaseMode;
-    setShowcaseMode(next);
-    localStorage.setItem("send_showcase_mode", String(next));
-    if (!next && selectedAccount) {
-      fetchMetrics(selectedAccount.id);
-    }
-  };
+  }>({
+    totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
+    chartData: [],
+    templateMetrics: []
+  });
 
   const fetchMetrics = async (accountId: string, silent = false) => {
-    if (showcaseMode) {
-      const fallback = SHOWCASE_METRICS[metricsPeriod] || SHOWCASE_METRICS["7days"];
-      setMetricsData(fallback);
+    // Se for estritamente o usuário da gravação de vídeo, usa o showcase
+    if (isDemoAccount) {
+      const showcase = SHOWCASE_METRICS[metricsPeriod] || SHOWCASE_METRICS["7days"];
+      setMetricsData(showcase);
       return;
     }
 
+    // Para todas as contas e clientes reais: busca estritamente os dados reais do banco
     if (!silent) setIsLoadingMetrics(true);
     try {
       let url = `${API_BASE_URL}/accounts/${accountId}/metrics?period=${metricsPeriod}`;
@@ -132,38 +129,36 @@ export default function DashboardPage() {
         }
       }
       const res = await axios.get(url, { timeout: 30000 });
-      
-      // Se não houver mensagens reais ainda, exibe o showcase suavemente
-      if (res.data?.totals?.total === 0) {
-        const fallback = SHOWCASE_METRICS[metricsPeriod] || SHOWCASE_METRICS["7days"];
-        setMetricsData(fallback);
-      } else {
-        setMetricsData(res.data);
-      }
+      setMetricsData(res.data);
     } catch (err: any) {
-      console.error("Erro ao buscar métricas:", err);
-      // Fallback para showcase em caso de falha de conexão na gravação
-      const fallback = SHOWCASE_METRICS[metricsPeriod] || SHOWCASE_METRICS["7days"];
-      setMetricsData(fallback);
+      console.error("Erro ao buscar métricas reais:", err);
+      if (!silent) {
+        showAlert(
+          err.code === "ECONNABORTED"
+            ? "O servidor demorou para responder. Clique em Atualizar Dados para tentar novamente."
+            : err.response?.data?.error || "Erro ao carregar as métricas.",
+          "error"
+        );
+      }
     } finally {
       if (!silent) setIsLoadingMetrics(false);
     }
   };
 
   useEffect(() => {
-    if (showcaseMode) {
-      const fallback = SHOWCASE_METRICS[metricsPeriod] || SHOWCASE_METRICS["7days"];
-      setMetricsData(fallback);
+    if (isDemoAccount) {
+      const showcase = SHOWCASE_METRICS[metricsPeriod] || SHOWCASE_METRICS["7days"];
+      setMetricsData(showcase);
       return;
     }
     if (!selectedAccount) return;
     if (metricsPeriod === "custom" && (!metricsStartDate || !metricsEndDate)) return;
     fetchMetrics(selectedAccount.id);
-  }, [selectedAccount, metricsPeriod, metricsStartDate, metricsEndDate, showcaseMode]);
+  }, [selectedAccount, metricsPeriod, metricsStartDate, metricsEndDate, isDemoAccount]);
 
-  // Se inscreve em atualizações SSE para atualizar os dados em tempo real
+  // Se inscreve em atualizações SSE para atualizar os dados reais em tempo real
   useSSE((data: any) => {
-    if (!showcaseMode && selectedAccount && data.accountId === selectedAccount.id) {
+    if (!isDemoAccount && selectedAccount && data.accountId === selectedAccount.id) {
       fetchMetrics(selectedAccount.id, true);
     }
   });
@@ -180,7 +175,7 @@ export default function DashboardPage() {
   const countRead = useCountup(totalRead);
   const countFailed = useCountup(totalFailed);
 
-  const accountDisplay = selectedAccount?.name || "Send Inteligentte — Meta Cloud API Oficial";
+  const accountDisplay = selectedAccount?.name || "Send Inteligentte";
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
@@ -193,33 +188,13 @@ export default function DashboardPage() {
         </div>
         
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {/* Botão sutil de Alternância de Demonstração / Dados Reais */}
-          <button
-            type="button"
-            onClick={toggleShowcaseMode}
-            title="Alternar entre dados demonstrativos de alta performance e dados brutos do banco"
-            className="btn btn-secondary"
-            style={{
-              padding: "8px 14px",
-              fontSize: "0.82rem",
-              borderColor: showcaseMode ? "rgba(0, 194, 107, 0.4)" : undefined,
-              color: showcaseMode ? "var(--primary)" : undefined,
-              display: "flex",
-              alignItems: "center",
-              gap: "6px"
-            }}
-          >
-            <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: showcaseMode ? "var(--primary)" : "#666" }} />
-            {showcaseMode ? "Showcase Ativo" : "Dados Reais"}
-          </button>
-
           <button
             type="button"
             disabled={exportingXlsx}
             onClick={async () => {
               setExportingXlsx(true);
               try {
-                if (selectedAccount && !showcaseMode) {
+                if (selectedAccount && !isDemoAccount) {
                   const res = await axios.get(
                     `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=metrics&period=${metricsPeriod}${metricsPeriod === "custom" && metricsStartDate ? `&startDate=${metricsStartDate}${metricsEndDate ? `&endDate=${metricsEndDate}` : ""}` : ""}`,
                     { responseType: "blob" }
@@ -231,7 +206,6 @@ export default function DashboardPage() {
                   a.click();
                   URL.revokeObjectURL(url);
                 } else {
-                  // Simula download de relatório exportado no modo showcase
                   setTimeout(() => {
                     showAlert("Relatório de métricas exportado com sucesso!", "success");
                     setExportingXlsx(false);
@@ -253,7 +227,7 @@ export default function DashboardPage() {
           <button
             type="button"
             onClick={() => {
-              if (showcaseMode) {
+              if (isDemoAccount) {
                 showAlert("Métricas atualizadas em tempo real!", "success");
               } else if (selectedAccount) {
                 fetchMetrics(selectedAccount.id);
@@ -352,22 +326,22 @@ export default function DashboardPage() {
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
                 <span>Taxa de Leitura (Abertura)</span>
                 <span style={{ fontWeight: "600", color: "var(--success)" }}>
-                  {totalAll > 0 ? Math.round((totalRead / totalAll) * 100) : 79}%
+                  {totalAll > 0 ? Math.round((totalRead / totalAll) * 100) : 0}%
                 </span>
               </div>
               <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 79}%`, background: "var(--success)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 0}%`, background: "var(--success)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
                 <span>Taxa de Entrega (Recebimento)</span>
                 <span style={{ fontWeight: "600", color: "#06b6d4" }}>
-                  {totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 99}%
+                  {totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0}%
                 </span>
               </div>
               <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 99}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
           </div>
