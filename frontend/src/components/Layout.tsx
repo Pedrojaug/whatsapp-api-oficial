@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Outlet, NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { gsap } from "gsap";
 import { EASE, DUR } from "../utils/motion";
 import { useAuth } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
+import Brand, { BrandIcon } from "./Brand";
 import {
   BarChart3,
   MessageSquare,
@@ -343,9 +344,12 @@ export default function Layout() {
           <span />
           <span />
         </button>
-        <span className="mobile-header-logo">
-          Send<strong>Inteligentte</strong>
-        </span>
+        <Link to="/metrics" className="mobile-header-logo" onClick={closeSidebar} style={{ textDecoration: "none" }}>
+          <BrandIcon size={26} />
+          <span>
+            <span>Send</span><strong>Inteligentte</strong>
+          </span>
+        </Link>
         {accounts.length > 0 && (
           <select
             className="account-select mobile-account-select"
@@ -374,10 +378,7 @@ export default function Layout() {
               <span className="brand-dot pulse" />
               API Oficial Meta
             </div>
-            <h1 className="brand-logo">
-              Send<strong>Inteligentte</strong>
-            </h1>
-            <p className="brand-tagline">Disparos em Escala</p>
+            <Brand to="/metrics" tagline="Disparos em Escala" iconSize={36} />
 
             {/* Account Selector in Sidebar */}
             {accounts.length > 0 && (
