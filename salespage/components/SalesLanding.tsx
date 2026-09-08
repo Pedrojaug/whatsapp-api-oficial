@@ -22,6 +22,15 @@ function ArrowRightIcon() {
   );
 }
 
+function ArrowUpRightIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="7" y1="17" x2="17" y2="7" />
+      <polyline points="7 7 17 7 17 17" />
+    </svg>
+  );
+}
+
 function ShieldCheckIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -126,6 +135,7 @@ export const DEFAULT_FAQS = [
 export function SalesLanding({ content }: { content?: any }) {
   const [activeTab, setActiveTab] = useState<"json" | "webhook" | "csv">("json");
   const [promptIndex, setPromptIndex] = useState(0);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
   const plans = (content && Array.isArray(content.plans) && content.plans.length > 0) ? content.plans : DEFAULT_PLANS;
   const faqs = (content && Array.isArray(content.faqs) && content.faqs.length > 0) ? content.faqs : DEFAULT_FAQS;
@@ -196,16 +206,25 @@ Lucas Souza,5531977776666,PED-9404,10%
 
   return (
     <div className="site-canvas-bg">
-      {/* 1. HEADER MINIMALISTA */}
+      {/* 1. HEADER TÉCNICO COM MOLDURA EDITORIAL */}
       <header className="site-header">
-        <Brand />
+        <div className="header-left">
+          <Brand />
+          <div className="header-meta-badge">
+            <span className="pulse-dot">
+              <span className="pulse-ring"></span>
+              <span className="pulse-core"></span>
+            </span>
+            <span className="badge-text">API Oficial Meta</span>
+          </div>
+        </div>
 
         <nav className="public-nav" aria-label="Navegação principal">
+          <a href="#metricas">Métricas</a>
           <a href="#como-funciona">Como funciona</a>
           <a href="#showcase">Demonstração</a>
           <a href="#recursos">Recursos</a>
           <a href="#comparativo">Por que oficial?</a>
-          <a href="#integracoes">Integrações</a>
           <a href="#planos">Planos</a>
         </nav>
 
@@ -225,29 +244,33 @@ Lucas Souza,5531977776666,PED-9404,10%
         </div>
       </header>
 
-      {/* 2. HERO SECTION ESTILO BASE44 (POUCOS ELEMENTOS & IMPACTO MÁXIMO) */}
+      {/* 2. HERO SECTION ESTILO BASE44 — EDITORIAL TECH COM MARCADORES EM CRUZ (+) */}
       <section className="hero-base44-section" id="hero">
-        {/* Elementos Periféricos Decorativos (Como no print Base44) */}
-        <div className="hero-corner-deco corner-top-left" aria-hidden="true" />
-        <div className="hero-corner-deco corner-top-right" aria-hidden="true" />
-        <div className="hero-corner-deco corner-bottom-left" aria-hidden="true" />
-        <div className="hero-corner-deco corner-bottom-right" aria-hidden="true" />
+        {/* Marcadores decorativos em cruz (+) nos cantos do container */}
+        <div className="tech-cross tech-cross-tl" aria-hidden="true">+</div>
+        <div className="tech-cross tech-cross-tr" aria-hidden="true">+</div>
+        <div className="tech-cross tech-cross-bl" aria-hidden="true">+</div>
+        <div className="tech-cross tech-cross-br" aria-hidden="true">+</div>
 
         <div className="hero-content-wrapper">
-          {/* Badge de Marca Central */}
+          {/* Badge Editorial de Marca / Infraestrutura */}
           <div className="hero-brand-pill">
-            <span className="hero-pill-icon" />
-            <span>Send Inteligentte • WhatsApp Meta Cloud API</span>
+            <span className="hero-pill-icon">
+              <span className="pulse-core"></span>
+            </span>
+            <span className="hero-pill-title">Send Inteligentte</span>
+            <span className="hero-pill-divider">/</span>
+            <span className="hero-pill-meta">WhatsApp Meta Cloud API</span>
           </div>
 
-          {/* Título Massivo e Imponente */}
+          {/* Título Editorial Massivo com Tracking Fechado (-0.03em) */}
           <h1 className="hero-main-title">
             Dispare milhares de mensagens no WhatsApp sem depender de celular ou QR Code.
           </h1>
 
           {/* Subtítulo Editorial */}
           <p className="hero-sub-title">
-            Infraestrutura em nuvem 24/7 para disparos em massa, recuperação de clientes e integrações via API com estabilidade oficial da Meta.
+            Infraestrutura em nuvem 24/7 para disparos em massa, recuperação de clientes e integrações via API com a estabilidade e conformidade oficial da Meta.
           </p>
 
           {/* Prompt Interativo de Início Rápido (Estilo Base44) */}
@@ -265,28 +288,104 @@ Lucas Souza,5531977776666,PED-9404,10%
           </div>
 
           {/* Indicador Suave de Scroll */}
-          <a href="#showcase" className="scroll-indicator-wrapper" aria-label="Rolar para ver o produto">
+          <a href="#metricas" className="scroll-indicator-wrapper" aria-label="Rolar para ver métricas e painel">
             <div className="scroll-mouse-icon">
               <div className="scroll-mouse-dot" />
             </div>
-            <span>Role para ver o painel</span>
+            <span>Métricas &amp; Painel</span>
           </a>
         </div>
       </section>
 
-      {/* 3. SHOWCASE REVELADO NO SCROLL (VÍDEO DO PAINEL NA MOLDURA MACOS) */}
-      <section className="showcase-section showcase-perspective-wrapper" id="showcase">
-        <div className="product-window showcase-reveal">
-          <div className="window-bar">
-            <div className="window-dots">
-              <span className="dot" />
-              <span className="dot" />
-              <span className="dot" />
+      {/* 3. BENTO GRID DE MÉTRICAS (NOVO BLOCO DE PROVA MODULAR BASE44) */}
+      <section className="metrics-bento-section reveal-block" id="metricas">
+        <div className="metrics-bento-container">
+          <div className="metrics-cross metrics-cross-tl" aria-hidden="true">+</div>
+          <div className="metrics-cross metrics-cross-tr" aria-hidden="true">+</div>
+          <div className="metrics-cross metrics-cross-bl" aria-hidden="true">+</div>
+          <div className="metrics-cross metrics-cross-br" aria-hidden="true">+</div>
+
+          <div className="metrics-bento-grid">
+            {/* Card 1: 99.8% */}
+            <div className="metric-bento-card">
+              <div className="metric-card-top">
+                <span className="metric-tag">METRIC.01 // DELIVERY</span>
+                <span className="metric-status-dot"></span>
+              </div>
+              <div className="metric-giant-number">99.8%</div>
+              <div className="metric-card-bottom">
+                <h3 className="metric-label">Entregabilidade garantida</h3>
+                <p className="metric-subtext">Envios diretos aos servidores da Meta sem filtros intermediários ou perda de pacotes.</p>
+              </div>
             </div>
-            <div className="window-title">app.sendinteligente.com.br/dashboard</div>
-            <div className="window-status-pill">
-              <span className="live-dot" />
-              <span>Painel Oficial Conectado</span>
+
+            {/* Card 2: 0 */}
+            <div className="metric-bento-card">
+              <div className="metric-card-top">
+                <span className="metric-tag">METRIC.02 // HARDWARE</span>
+                <span className="metric-status-dot"></span>
+              </div>
+              <div className="metric-giant-number text-green">0</div>
+              <div className="metric-card-bottom">
+                <h3 className="metric-label">Celulares conectados ou risco de queda</h3>
+                <p className="metric-subtext">Sua operação roda 100% em nuvem com alta disponibilidade sem depender de aparelhos físicos.</p>
+              </div>
+            </div>
+
+            {/* Card 3: < 2s */}
+            <div className="metric-bento-card">
+              <div className="metric-card-top">
+                <span className="metric-tag">METRIC.03 // LATENCY</span>
+                <span className="metric-status-dot"></span>
+              </div>
+              <div className="metric-giant-number">&lt; 2s</div>
+              <div className="metric-card-bottom">
+                <h3 className="metric-label">Latência média por disparo</h3>
+                <p className="metric-subtext">Processamento de fila de alta vazão com confirmação de entrega e leitura em tempo real.</p>
+              </div>
+            </div>
+
+            {/* Card 4: 100% */}
+            <div className="metric-bento-card">
+              <div className="metric-card-top">
+                <span className="metric-tag">METRIC.04 // COMPLIANCE</span>
+                <span className="metric-status-dot"></span>
+              </div>
+              <div className="metric-giant-number">100%</div>
+              <div className="metric-card-bottom">
+                <h3 className="metric-label">Cloud API Oficial Meta</h3>
+                <p className="metric-subtext">Templates homologados pela Meta, opt-out automático e total conformidade com a LGPD.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. SHOWCASE REVELADO NO SCROLL (MOLDURA TÉCNICA BENTO) */}
+      <section className="showcase-section showcase-perspective-wrapper" id="showcase">
+        <div className="product-window showcase-reveal bento-showcase-frame">
+          <div className="window-bar technical-window-bar">
+            <div className="window-left-col">
+              <div className="window-dots">
+                <span className="dot dot-close" />
+                <span className="dot dot-minimize" />
+                <span className="dot dot-maximize" />
+              </div>
+              <div className="window-endpoint">
+                <span className="endpoint-method">POST</span>
+                <span className="endpoint-path">api.sendinteligente.com.br/v1/messages</span>
+              </div>
+            </div>
+
+            <div className="window-center-col">
+              <span className="window-console-title">CONSOLE // PRODUCTION_VIEW</span>
+            </div>
+
+            <div className="window-right-col">
+              <div className="window-status-pill technical-status-pill">
+                <span className="live-dot" />
+                <span className="status-label">Meta Cloud API v19 • Operacional</span>
+              </div>
             </div>
           </div>
 
@@ -309,6 +408,21 @@ Lucas Souza,5531977776666,PED-9404,10%
                 className="product-screenshot"
               />
             </video>
+          </div>
+
+          <div className="window-footer-bar">
+            <div className="window-footer-item">
+              <span className="footer-meta-key">ENGINE:</span>
+              <span className="footer-meta-val">Meta Cloud API v19.0</span>
+            </div>
+            <div className="window-footer-item">
+              <span className="footer-meta-key">ROUTING:</span>
+              <span className="footer-meta-val">Direct BSP Cloud</span>
+            </div>
+            <div className="window-footer-item">
+              <span className="footer-meta-key">SECURITY:</span>
+              <span className="footer-meta-val">LGPD Opt-out Suppressed</span>
+            </div>
           </div>
         </div>
       </section>
@@ -381,56 +495,157 @@ Lucas Souza,5531977776666,PED-9404,10%
           </div>
         </section>
 
-        {/* 6. ARQUITETURA DO PRODUTO (4 BLOCOS PRINCIPAIS) */}
+        {/* 6. ARQUITETURA DO PRODUTO (BENTO GRID MODULAR COM LISTAS INTERATIVAS) */}
         <section className="product-architecture-section reveal-block" id="recursos">
           <div className="editorial-header">
-            <h2>O que você encontra na plataforma.</h2>
-            <p>Criado com uma interface enxuta e direta, priorizando velocidade de disparo, facilidade de uso e clareza nas métricas.</p>
+            <div className="section-kicker">INFRAESTRUTURA &amp; RECURSOS</div>
+            <h2>Engenharia de precisão para sua esteira de WhatsApp.</h2>
+            <p>Criado para máxima velocidade de disparo, homologação instantânea de templates e rastreamento avançado.</p>
           </div>
 
-          <div className="product-features-grid">
-            <div className="feature-block reveal-block delay-1">
-              <div className="feature-kicker">Disparos</div>
-              <h3>Campanhas & Segmentação</h3>
-              <p>Suba planilhas CSV ou crie listas por tags. Programe disparos imediatos ou agendados, com controle automático de cadência.</p>
-              <ul className="feature-bullet-list">
-                <li><CheckCircleIcon /> Importação rápida com mapeamento inteligente</li>
-                <li><CheckCircleIcon /> Variáveis dinâmicas no corpo e nos botões</li>
-                <li><CheckCircleIcon /> Envio cadenciado contra sobrecarga</li>
-              </ul>
+          <div className="bento-resources-container">
+            {/* Card 1: Campanhas e Segmentação (Asymmetric Span 7) */}
+            <div className="bento-resource-card span-7">
+              <div className="bento-card-header">
+                <span className="bento-kicker">RECURSO.01 // CAMPAIGNS &amp; DISPATCH</span>
+                <h3>Disparos em massa com cadência inteligente</h3>
+                <p>Importe planilhas massivas com auto-mapping e controle a vazão de envio por segundo para máxima entregabilidade.</p>
+              </div>
+
+              <div className="interactive-resource-list">
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Importação instantânea CSV / XLSX com auto-mapping</span>
+                    <span className="resource-item-desc">Mapeamento automático de variáveis customizadas como nome, cupom e pedido</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Controle de cadência e vazão por segundo</span>
+                    <span className="resource-item-desc">Fila distribuída com intervalos controlados para assegurar alta reputação junto à Meta</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Variáveis dinâmicas no corpo e nos botões</span>
+                    <span className="resource-item-desc">Personalize o texto, links individuais e botões de resposta rápida</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="feature-block reveal-block delay-2">
-              <div className="feature-kicker">Homologação</div>
-              <h3>Gestão de Templates</h3>
-              <p>Crie, edite e acompanhe o status de aprovação dos seus modelos de mensagem junto à Meta diretamente pelo painel.</p>
-              <ul className="feature-bullet-list">
-                <li><CheckCircleIcon /> Sincronização automática com a conta Meta</li>
-                <li><CheckCircleIcon /> Pré-visualização idêntica ao aplicativo</li>
-                <li><CheckCircleIcon /> Categorias de Marketing, Utilidade e Autenticação</li>
-              </ul>
+            {/* Card 2: Homologação de Templates (Asymmetric Span 5) */}
+            <div className="bento-resource-card span-5">
+              <div className="bento-card-header">
+                <span className="bento-kicker">RECURSO.02 // META TEMPLATES</span>
+                <h3>Homologação oficial de templates</h3>
+                <p>Crie, edite e sincronize modelos diretamente com os servidores da Meta sem sair do painel.</p>
+              </div>
+
+              <div className="interactive-resource-list">
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Sincronização bidirecional em tempo real</span>
+                    <span className="resource-item-desc">Acompanhe status Aprovado, Pendente ou Rejeitado pela Meta</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Pré-visualização fiel ao smartphone</span>
+                    <span className="resource-item-desc">Valide o visual da mensagem em telas iOS e Android antes do disparo</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="feature-block reveal-block delay-3">
-              <div className="feature-kicker">Inteligência</div>
-              <h3>Links & Descadastro</h3>
-              <p>Rastreie exatamente quais contatos clicaram nas suas ofertas e garanta descadastros automáticos sem intervenção manual.</p>
-              <ul className="feature-bullet-list">
-                <li><CheckCircleIcon /> Encurtador de links com contagem de cliques</li>
-                <li><CheckCircleIcon /> Lista de supressão imediata por palavra-chave</li>
-                <li><CheckCircleIcon /> Conformidade com LGPD e diretrizes Meta</li>
-              </ul>
+            {/* Card 3: Links & Opt-out LGPD (Asymmetric Span 5) */}
+            <div className="bento-resource-card span-5">
+              <div className="bento-card-header">
+                <span className="bento-kicker">RECURSO.03 // TRACKING &amp; LGPD</span>
+                <h3>Links rastreáveis e proteção LGPD</h3>
+                <p>Monitore quem clica em cada campanha e garanta conformidade legal imediata com descadastro automático.</p>
+              </div>
+
+              <div className="interactive-resource-list">
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Encurtador próprio com métricas por contato</span>
+                    <span className="resource-item-desc">Identifique exatamente quais leads clicaram nos seus links de oferta</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Supressão automática por palavra-chave (Opt-out)</span>
+                    <span className="resource-item-desc">Blacklist instantânea ao receber &quot;PARAR&quot; ou &quot;SAIR&quot;, blindando sua operação</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div className="feature-block reveal-block delay-4">
-              <div className="feature-kicker">Conectividade</div>
-              <h3>API Pública & n8n</h3>
-              <p>Automações de ponta a ponta. Dispare mensagens a partir do seu CRM, checkout de e-commerce ou esteira de vendas.</p>
-              <ul className="feature-bullet-list">
-                <li><CheckCircleIcon /> Chaves de API com permissões granulares</li>
-                <li><CheckCircleIcon /> Webhooks para eventos de envio, entrega e leitura</li>
-                <li><CheckCircleIcon /> Compatível com n8n, Make, Typebot e Zapier</li>
-              </ul>
+            {/* Card 4: Conectividade & n8n (Asymmetric Span 7) */}
+            <div className="bento-resource-card span-7">
+              <div className="bento-card-header">
+                <span className="bento-kicker">RECURSO.04 // INTEGRATIONS &amp; API</span>
+                <h3>API REST dedicada e ecossistema n8n</h3>
+                <p>Integre seu CRM, plataformas de e-commerce e esteiras de automação sem depender de soluções amadoras.</p>
+              </div>
+
+              <div className="interactive-resource-list">
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Webhooks em tempo real com eventos de telemetria</span>
+                    <span className="resource-item-desc">Notificações imediatas para mensagens entregues, lidas e links clicados</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Templates pré-configurados para n8n &amp; Make</span>
+                    <span className="resource-item-desc">Fluxos prontos para recuperação de boletos, pix e avisos de entrega</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+
+                <div className="interactive-resource-item">
+                  <div className="resource-item-info">
+                    <span className="resource-item-title">Chaves de API seguras com autenticação Bearer</span>
+                    <span className="resource-item-desc">Controle granular de acesso para múltiplos desenvolvedores e ambientes</span>
+                  </div>
+                  <span className="action-circle-btn" aria-hidden="true">
+                    <ArrowUpRightIcon />
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -565,72 +780,109 @@ Lucas Souza,5531977776666,PED-9404,10%
           </div>
         </section>
 
-        {/* 10. PLANOS E PREÇOS */}
+        {/* 10. PLANOS E PREÇOS (TABELA ASSIMÉTRICA) */}
         <section className="pricing-section reveal-block" id="planos">
           <div className="editorial-header center-align">
-            <h2>Planos transparentes para sua operação.</h2>
-            <p>Escolha o volume ideal para o tamanho da sua base de clientes.</p>
+            <div className="section-kicker">PLANOS &amp; INVESTIMENTO</div>
+            <h2>Preços transparentes para escalar sua operação.</h2>
+            <p>Infraestrutura em nuvem pronta para disparar. Sem contratos de fidelidade ou taxas ocultas.</p>
           </div>
 
-          <div className="pricing-grid">
-            {plans.map((plan: any) => (
-              <div
-                key={plan.id}
-                className={`pricing-card ${plan.isPopular ? "featured" : ""}`}
-              >
-                {plan.badge && <span className="pricing-badge">{plan.badge}</span>}
+          <div className="pricing-grid asymmetric-pricing-grid">
+            {plans.map((plan: any) => {
+              const planSlug = plan.id === "starter" ? "mensal" : plan.id === "scale" ? "anual" : "trimestral";
+              const isMain = plan.isPopular;
 
-                <div className="pricing-card-header">
-                  <h3>{plan.name}</h3>
-                  <p className="pricing-desc">{plan.description}</p>
-                </div>
-
-                <div className="pricing-price-box">
-                  <span className="price-currency">R$</span>
-                  <span className="price-amount">{plan.price}</span>
-                  <span className="price-period">{plan.period}</span>
-                </div>
-
-                <ul className="pricing-features">
-                  {plan.features.map((feature: string, idx: number) => (
-                    <li key={idx}>
-                      <CheckCircleIcon />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <a
-                  href={`/checkout?plan=${plan.id}`}
-                  className={`pricing-cta-button ${plan.isPopular ? "primary" : "secondary"}`}
+              return (
+                <div
+                  key={plan.id}
+                  className={`pricing-card ${isMain ? "featured-asymmetric" : "secondary-card"}`}
                 >
-                  {plan.cta}
-                </a>
-              </div>
-            ))}
+                  {isMain && (
+                    <div className="asymmetric-badge">
+                      <span>RECOMENDADO // MAIS ESCOLHIDO</span>
+                    </div>
+                  )}
+
+                  <div className="pricing-card-header">
+                    <span className="pricing-plan-id">PLANO // {plan.id.toUpperCase()}</span>
+                    <h3>{plan.name}</h3>
+                    <p className="pricing-desc">{plan.description}</p>
+                  </div>
+
+                  <div className="pricing-price-box">
+                    <span className="price-currency">R$</span>
+                    <span className="price-amount">{plan.price}</span>
+                    <span className="price-period">{plan.period}</span>
+                  </div>
+
+                  <ul className="pricing-features">
+                    {plan.features.map((feature: string, idx: number) => (
+                      <li key={idx}>
+                        <CheckCircleIcon />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <a
+                    href={`/checkout?plano=${planSlug}&plan=${plan.id}`}
+                    className={`pricing-cta-button ${isMain ? "primary" : "secondary"}`}
+                  >
+                    {plan.cta}
+                    {isMain && <ArrowRightIcon />}
+                  </a>
+                </div>
+              );
+            })}
           </div>
 
           <div className="pricing-meta-disclaimer">
             <p>
-              * Os custos de mensagens da API Oficial são tarifados diretamente pela Meta de acordo com o tipo de conversa (Marketing, Utilidade ou Serviço).
+              * As mensagens pela API Oficial da Meta são tarifadas pelo seu consumo direto no Meta Business Manager conforme as categorias de Marketing, Utilidade e Serviço.
             </p>
           </div>
         </section>
 
-        {/* 11. FAQ */}
+        {/* 11. FAQ EM ACORDEÃO EDITORIAL */}
         <section className="faq-section reveal-block" id="faq">
           <div className="editorial-header">
+            <div className="section-kicker">TIRE SUAS DÚVIDAS</div>
             <h2>Perguntas Frequentes</h2>
-            <p>Tudo o que você precisa saber antes de começar.</p>
+            <p>Tudo o que você precisa saber sobre a Cloud API Oficial da Meta e o funcionamento da plataforma.</p>
           </div>
 
-          <div className="faq-list">
-            {faqs.map((faq: any, idx: number) => (
-              <div key={idx} className="faq-item reveal-block">
-                <h3>{faq.question}</h3>
-                <p>{faq.answer}</p>
-              </div>
-            ))}
+          <div className="faq-accordion-container">
+            {faqs.map((faq: any, idx: number) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div
+                  key={idx}
+                  className={`faq-accordion-item ${isOpen ? "is-expanded" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="faq-accordion-trigger"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                    aria-expanded={isOpen}
+                  >
+                    <div className="faq-trigger-left">
+                      <span className="faq-item-index">0{idx + 1}</span>
+                      <span className="faq-item-question">{faq.question}</span>
+                    </div>
+                    <span className="faq-toggle-circle" aria-hidden="true">
+                      {isOpen ? "−" : "+"}
+                    </span>
+                  </button>
+
+                  <div className={`faq-accordion-body ${isOpen ? "open" : ""}`}>
+                    <div className="faq-accordion-inner">
+                      <p>{faq.answer}</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           <div className="faq-contact-box">
