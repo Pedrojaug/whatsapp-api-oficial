@@ -104,29 +104,62 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
     }
   };
 
-  const handleEmbeddedSignupExchange = async (code: string, wabaId: string, phoneNumberId: string) => {
+  // Ref compartilhado para correlacionar os dados do FB.login (code) e do postMessage (waba_id, phone_number_id)
+  const handshakeRef = React.useRef<{
+    code?: string;
+    wabaId?: string;
+    phoneNumberId?: string;
+    isExchanging?: boolean;
+  }>({});
+
+  const handleEmbeddedSignupExchange = async (code: string, wabaId: string, phoneNumberId?: string) => {
     try {
       setOnboardLoading(true);
       const res = await axios.post(`${API_BASE_URL}/accounts/facebook-onboard/exchange`, {
         code,
         wabaId,
-        phoneNumberId,
-        redirectUri: window.location.origin,
+        phoneNumberId: phoneNumberId || undefined,
+        redirectUri: "", // String vazia para codes do JS SDK (evita erro 100/191 da Meta)
       }, { headers: getAuthHeaders() });
 
-      const { longLivedToken: llt, wabaName, phoneDisplay } = res.data;
+      const { longLivedToken: llt, wabaName, phoneDisplay, phoneNumbers } = res.data;
       setLongLivedToken(llt);
+
+      const fetchedPhones = Array.isArray(phoneNumbers) && phoneNumbers.length > 0
+        ? phoneNumbers
+        : phoneNumberId ? [{ id: phoneNumberId, displayPhoneNumber: phoneDisplay || phoneNumberId }] : [];
+
       // Pré-preencher e ir direto para seleção/confirmação
-      setWabas([{ id: wabaId, name: wabaName || `WABA ${wabaId}`, phoneNumbers: [{ id: phoneNumberId, displayPhoneNumber: phoneDisplay || phoneNumberId }] }]);
+      setWabas([{
+        id: wabaId,
+        name: wabaName || `WABA ${wabaId}`,
+        phoneNumbers: fetchedPhones
+      }]);
       setSelectedWabaIndex(0);
-      setSelectedPhoneId(phoneNumberId);
+      if (fetchedPhones.length > 0) {
+        setSelectedPhoneId(fetchedPhones[0].id);
+      } else {
+        setSelectedPhoneId("");
+      }
       setStep(5);
     } catch (err: any) {
       const errMsg = err.response?.data?.details || err.response?.data?.error || err.message;
       setOnboardError(`Falha ao processar conexão com a Meta: ${errMsg}`);
     } finally {
       setOnboardLoading(false);
+      if (handshakeRef.current) {
+        handshakeRef.current.isExchanging = false;
+      }
     }
+  };
+
+  // Função de convergência: dispara o backend assim que code e wabaId estiverem disponíveis
+  const tryCompleteHandshake = () => {
+    const { code, wabaId, phoneNumberId, isExchanging } = handshakeRef.current;
+    if (isExchanging || !code || !wabaId) return;
+
+    handshakeRef.current.isExchanging = true;
+    handleEmbeddedSignupExchange(code, wabaId, phoneNumberId);
   };
 
   // Embedded Signup: escutar mensagens do SDK do Facebook
@@ -135,28 +168,37 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
       // A Meta envia mensagens de origem facebook.com
       if (!event.origin.includes("facebook.com") && event.origin !== window.location.origin) return;
 
-      const data = event.data;
+      // Parser preventivo para dados recebidos como string JSON
+      let data = event.data;
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
       if (typeof data !== "object" || !data) return;
 
-      // Mensagem de sucesso do Embedded Signup: contém code + waba_id + phone_number_id
+      // Mensagem de sucesso do Embedded Signup: contém waba_id + phone_number_id (e opcionalmente code)
       if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "FINISH") {
         const { code, waba_id, phone_number_id } = data.data || {};
-        if (code && waba_id && phone_number_id) {
-          await handleEmbeddedSignupExchange(code, waba_id, phone_number_id);
-        } else {
-          setOnboardError("Dados incompletos retornados pelo Facebook. Tente novamente.");
-          setOnboardLoading(false);
-        }
+        if (code) handshakeRef.current.code = code;
+        if (waba_id) handshakeRef.current.wabaId = waba_id;
+        if (phone_number_id) handshakeRef.current.phoneNumberId = phone_number_id;
+
+        tryCompleteHandshake();
       }
 
       if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "CANCEL") {
-        setOnboardError("Conexão cancelada pelo usuário.");
+        setOnboardError("Conexão cancelada pelo usuário no Facebook.");
         setOnboardLoading(false);
+        handshakeRef.current = {};
       }
 
       if (data.type === "WA_EMBEDDED_SIGNUP" && data.event === "ERROR") {
-        setOnboardError(`Erro no Embedded Signup: ${data.data?.error_message || "desconhecido"}`);
+        setOnboardError(`Erro no Embedded Signup: ${data.data?.error_message || "Erro retornado pela Meta"}`);
         setOnboardLoading(false);
+        handshakeRef.current = {};
       }
     };
 
@@ -175,17 +217,23 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
 
     setOnboardLoading(true);
     setOnboardError(null);
+    handshakeRef.current = {};
 
     // Carregar o SDK do Facebook dinamicamente se ainda não estiver carregado
     const launchEmbeddedSignup = () => {
       (window as any).FB.login(
         (response: any) => {
           if (response.authResponse?.code) {
-            // O code será processado via postMessage (evento WA_EMBEDDED_SIGNUP FINISH)
-            // mas caso o SDK retorne direto, tratamos aqui também
+            handshakeRef.current.code = response.authResponse.code;
+            tryCompleteHandshake();
           } else if (!response.authResponse) {
-            setOnboardError("Login cancelado ou não autorizado.");
+            setOnboardError("Login cancelado ou não autorizado no Facebook.");
             setOnboardLoading(false);
+            handshakeRef.current = {};
+          } else if (response.status !== "connected") {
+            setOnboardError("Falha na autorização com a Meta.");
+            setOnboardLoading(false);
+            handshakeRef.current = {};
           }
         },
         {
@@ -550,6 +598,12 @@ export default function SetupWizard({ onSave }: SetupWizardProps) {
               ))}
             </select>
           </div>
+
+          {selectedWabaIndex !== -1 && availablePhones.length === 0 && (
+            <div style={{ background: "rgba(245, 158, 11, 0.12)", color: "#f59e0b", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid rgba(245, 158, 11, 0.3)", fontSize: "0.82rem", lineHeight: "1.4" }}>
+              ⚠️ <strong>Atenção:</strong> Não encontramos nenhum número de telefone cadastrado nesta conta WABA. Para poder concluir a conexão, cadastre um número no painel Meta Developers / WhatsApp Manager ou tente novamente selecionando um número no fluxo da Meta.
+            </div>
+          )}
 
           {onboardError && (
             <div style={{ background: "var(--error-glow)", color: "var(--error)", padding: "12px", borderRadius: "var(--radius-md)", border: "1px solid rgba(239, 68, 68, 0.3)", fontSize: "0.85rem" }}>

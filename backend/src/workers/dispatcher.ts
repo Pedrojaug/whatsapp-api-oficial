@@ -54,7 +54,8 @@ async function checkAndDispatch() {
           { scheduledAt: { lte: now } }
         ],
         AND: [
-          {\n            OR: [
+          {
+            OR: [
               { nextRetryAt: null },
               { nextRetryAt: { lte: now } }
             ]

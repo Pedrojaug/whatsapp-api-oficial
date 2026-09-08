@@ -13,20 +13,22 @@ router.use(authMiddleware);
 // O waba_id e phone_number_id já vêm diretamente do callback do SDK
 router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Response) => {
   const { code, wabaId, phoneNumberId, redirectUri } = req.body;
-  if (!code || !wabaId || !phoneNumberId) {
-    return res.status(400).json({ error: "code, wabaId e phoneNumberId são obrigatórios." });
+  if (!code || !wabaId) {
+    return res.status(400).json({ error: "code e wabaId são obrigatórios." });
   }
 
-  const appId = process.env.FACEBOOK_APP_ID || "1395411182414690";
-  const appSecret = process.env.FACEBOOK_APP_SECRET;
+  const appId = process.env.META_APP_ID || process.env.FACEBOOK_APP_ID || "1395411182414690";
+  const appSecret = process.env.META_APP_SECRET || process.env.FACEBOOK_APP_SECRET;
 
   if (!appSecret) {
-    return res.status(500).json({ error: "Segredo do aplicativo do Facebook (FACEBOOK_APP_SECRET) não configurado no servidor." });
+    return res.status(500).json({ error: "Segredo do aplicativo Meta/Facebook (META_APP_SECRET ou FACEBOOK_APP_SECRET) não configurado no servidor." });
   }
 
   try {
     // 1. Trocar code por token de acesso curto
-    const tokenResponse = await metaService.exchangeOAuthToken(code, appId, appSecret, redirectUri || "");
+    // No fluxo Embedded Signup do JS SDK, redirect_uri deve ser string vazia ("") para prevenir erro OAuth 100/191 da Meta
+    const cleanRedirectUri = (redirectUri && redirectUri.startsWith("http") && !redirectUri.includes("localhost")) ? redirectUri : "";
+    const tokenResponse = await metaService.exchangeOAuthToken(code, appId, appSecret, cleanRedirectUri);
     const shortToken = tokenResponse.data.access_token;
 
     // 2. Trocar por token de longa duração (60 dias)
@@ -43,21 +45,57 @@ router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Res
       console.warn(`[Tech Provider] Aviso ao inscrever webhook para WABA ${wabaId}:`, subErr.response?.data || subErr.message);
     }
 
-    // 4. Buscar nome da WABA e número de telefone para exibição
-    let wabaName = `WABA ${wabaId}`;
-    let phoneDisplay = phoneNumberId;
+    // 4. Registrar o número de telefone na Meta Cloud API para ativação operacional imediata (se houver phoneNumberId)
+    let phoneRegistered = false;
+    const defaultPin = process.env.META_DEFAULT_PIN || "000000";
+    if (phoneNumberId) {
+      try {
+        await metaService.registerPhoneNumber(phoneNumberId, longLivedToken, defaultPin);
+        phoneRegistered = true;
+        console.log(`[Tech Provider] Número ${phoneNumberId} registrado com sucesso na Cloud API`);
+      } catch (regErr: any) {
+        console.warn(`[Tech Provider] Aviso ao registrar número ${phoneNumberId} na Cloud API:`, regErr.response?.data || regErr.message);
+      }
+    }
 
+    // 5. Buscar nome da WABA
+    let wabaName = `WABA ${wabaId}`;
     try {
       const wabaRes = await metaService.getWabaInfo(wabaId, longLivedToken);
       if (wabaRes.data.name) wabaName = wabaRes.data.name;
     } catch (_) {}
 
-    try {
-      const phoneRes = await metaService.getPhoneInfo(phoneNumberId, longLivedToken);
-      if (phoneRes.data.display_phone_number) phoneDisplay = phoneRes.data.display_phone_number;
-    } catch (_) {}
+    // 6. Buscar números de telefone associados
+    let phoneNumbers: Array<{ id: string; displayPhoneNumber: string; verifiedName?: string }> = [];
+    let phoneDisplay = phoneNumberId || "";
 
-    res.json({ longLivedToken, wabaName, phoneDisplay, webhookSubscribed });
+    if (phoneNumberId) {
+      try {
+        const phoneRes = await metaService.getPhoneInfo(phoneNumberId, longLivedToken);
+        if (phoneRes.data.display_phone_number) phoneDisplay = phoneRes.data.display_phone_number;
+        phoneNumbers = [{ id: phoneNumberId, displayPhoneNumber: phoneDisplay, verifiedName: phoneRes.data.verified_name || "" }];
+      } catch (_) {
+        phoneNumbers = [{ id: phoneNumberId, displayPhoneNumber: phoneNumberId }];
+      }
+    } else {
+      // Caso o usuário não tenha selecionado um telefone no popup da Meta, busca todos os telefones da WABA
+      try {
+        const phonesRes = await metaService.getWabaPhoneNumbers(wabaId, longLivedToken);
+        const list = phonesRes.data?.data || [];
+        phoneNumbers = list.map((p: any) => ({
+          id: p.id,
+          displayPhoneNumber: p.display_phone_number || p.id,
+          verifiedName: p.verified_name || "",
+        }));
+        if (phoneNumbers.length > 0) {
+          phoneDisplay = phoneNumbers[0].displayPhoneNumber;
+        }
+      } catch (phoneErr: any) {
+        console.warn(`[Tech Provider] Aviso ao buscar números de telefone da WABA ${wabaId}:`, phoneErr.response?.data || phoneErr.message);
+      }
+    }
+
+    res.json({ longLivedToken, wabaName, phoneDisplay, phoneNumbers, webhookSubscribed, phoneRegistered });
   } catch (error: any) {
     console.error("Erro no Embedded Signup exchange:", error.response?.data || error.message);
     const details = error.response?.data?.error?.message || error.message;
@@ -85,6 +123,15 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
       console.warn(`[Tech Provider] Aviso ao confirmar webhook para WABA ${wabaId}:`, subErr.response?.data || subErr.message);
     }
 
+    // Garantia secundária de ativação/registro do número na Cloud API
+    try {
+      const defaultPin = process.env.META_DEFAULT_PIN || "000000";
+      await metaService.registerPhoneNumber(phoneNumberId, accessToken.trim(), defaultPin);
+      console.log(`[Tech Provider] Número ${phoneNumberId} confirmado/registrado na Cloud API`);
+    } catch (regErr: any) {
+      console.warn(`[Tech Provider] Aviso ao registrar número ${phoneNumberId} ao salvar:`, regErr.response?.data || regErr.message);
+    }
+
     const account = await prisma.account.upsert({
       where: {
         userId_name: {
@@ -108,3 +155,4 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
 });
 
 export default router;
+

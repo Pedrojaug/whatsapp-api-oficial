@@ -155,17 +155,19 @@ export const metaService = {
   },
 
   /**
-   * Troca o code temporário do OAuth pelo token de acesso curto
+   * Troca o code temporário do OAuth pelo token de acesso curto.
+   * Quando originado do JS SDK (Embedded Signup), redirect_uri deve ser string vazia ("") ou omitido.
    */
-  async exchangeOAuthToken(code: string, clientId: string, clientSecret: string, redirectUri: string) {
-    return axios.get(`https://graph.facebook.com/v21.0/oauth/access_token`, {
-      params: {
-        client_id: clientId,
-        client_secret: clientSecret,
-        code,
-        redirect_uri: redirectUri
-      }
-    });
+  async exchangeOAuthToken(code: string, clientId: string, clientSecret: string, redirectUri: string = "") {
+    const params: Record<string, string> = {
+      client_id: clientId,
+      client_secret: clientSecret,
+      code,
+    };
+    if (redirectUri !== undefined) {
+      params.redirect_uri = redirectUri;
+    }
+    return axios.get(`https://graph.facebook.com/v21.0/oauth/access_token`, { params });
   },
 
   /**
@@ -211,6 +213,32 @@ export const metaService = {
         headers: { Authorization: `Bearer ${accessToken}` }
       }
     );
+  },
+
+  /**
+   * Obtém a lista de números de telefone associados a uma WABA
+   */
+  async getWabaPhoneNumbers(wabaId: string, accessToken: string) {
+    return axios.get(`https://graph.facebook.com/v21.0/${wabaId}/phone_numbers`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+  },
+
+  /**
+   * Registra o número de telefone na Meta Cloud API para ativar envio e recebimento de mensagens
+   */
+  async registerPhoneNumber(phoneNumberId: string, accessToken: string, pin: string = "000000") {
+    return axios.post(
+      `https://graph.facebook.com/v21.0/${phoneNumberId}/register`,
+      {
+        messaging_product: "whatsapp",
+        pin: pin || "000000",
+      },
+      {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
   }
 };
+
 
