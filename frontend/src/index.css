@@ -425,6 +425,11 @@ body.light-theme .badge-delivered {
 
 /* Corrigir legibilidade dos options em selects escuros no Windows/Chrome */
 select option {
+  color: #f3f4f6 !important;
+  background-color: #111827 !important;
+}
+
+body.light-theme select option {
   color: #111827 !important;
   background-color: #ffffff !important;
 }
@@ -892,18 +897,97 @@ body.light-theme input:focus, body.light-theme textarea:focus, body.light-theme 
   box-shadow: 0 0 0 3px rgba(0,150,82,0.08) !important;
 }
 
-/* ─── ACCOUNT SELECT IN SIDEBAR ─── */
+/* ─── ACCOUNT SELECT IN SIDEBAR & MOBILE ─── */
 .account-select-wrapper {
   position: relative;
+  width: 100%;
 }
-.account-select-wrapper::after {
-  content: '▾';
-  position: absolute;
-  right: 12px; top: 50%;
-  transform: translateY(-50%);
+
+.account-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  padding: 8px 34px 8px 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  background: rgba(16, 24, 39, 0.82);
+  border: 1px solid rgba(0, 194, 107, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2300c26b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 12px) center;
+  background-size: 14px;
+}
+
+.account-select:hover {
+  border-color: rgba(0, 194, 107, 0.5);
+  background-color: rgba(22, 32, 50, 0.95);
+  box-shadow: 0 0 14px rgba(0, 194, 107, 0.15);
+}
+
+.account-select:focus {
+  border-color: #00c26b !important;
+  box-shadow: 0 0 0 3px rgba(0, 194, 107, 0.2) !important;
+  background-color: rgba(22, 32, 50, 0.98);
+}
+
+.account-select option {
+  background-color: #111827 !important;
+  color: #f3f4f6 !important;
+  padding: 8px 12px;
+}
+
+/* Tema claro para o select de conta */
+body.light-theme .account-select {
+  background: rgba(255, 255, 255, 0.95);
+  color: #111827;
+  border-color: rgba(0, 0, 0, 0.15);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23128c5f' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+body.light-theme .account-select:hover {
+  border-color: rgba(18, 140, 95, 0.5);
+  background: #ffffff;
+  box-shadow: 0 0 12px rgba(18, 140, 95, 0.12);
+}
+
+body.light-theme .account-select:focus {
+  border-color: #128c5f !important;
+  box-shadow: 0 0 0 3px rgba(18, 140, 95, 0.2) !important;
+}
+
+body.light-theme .account-select option {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+.mobile-account-select-wrapper {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.mobile-account-select {
+  max-width: 175px;
+  padding: 6px 28px 6px 10px;
+  font-size: 0.8rem;
+  background-position: calc(100% - 8px) center;
+}
+
+.sidebar-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  pointer-events: none;
-  font-size: 0.7rem;
+  padding: 4px 2px 2px;
 }
 
 /* ─── TOOLTIP ─── */

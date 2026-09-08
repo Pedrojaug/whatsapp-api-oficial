@@ -351,20 +351,23 @@ export default function Layout() {
           </span>
         </Link>
         {accounts.length > 0 && (
-          <select
-            className="account-select mobile-account-select"
-            value={selectedAccount?.id || ""}
-            onChange={(e) => {
-              const acc = accounts.find((a) => a.id === e.target.value);
-              if (acc) selectAccount(acc);
-            }}
-          >
-            {accounts.map((acc) => (
-              <option key={acc.id} value={acc.id}>
-                {acc.name}
-              </option>
-            ))}
-          </select>
+          <div className="account-select-wrapper mobile-account-select-wrapper">
+            <select
+              className="account-select mobile-account-select"
+              value={selectedAccount?.id || ""}
+              onChange={(e) => {
+                const acc = accounts.find((a) => a.id === e.target.value);
+                if (acc) selectAccount(acc);
+              }}
+              title="Selecionar conta do WhatsApp"
+            >
+              {accounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.name}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </header>
 
@@ -384,20 +387,23 @@ export default function Layout() {
             {accounts.length > 0 && (
               <div className="sidebar-account-picker">
                 <label className="sidebar-section-label">Conta Ativa</label>
-                <select
-                  className="account-select"
-                  value={selectedAccount?.id || ""}
-                  onChange={(e) => {
-                    const acc = accounts.find((a) => a.id === e.target.value);
-                    if (acc) selectAccount(acc);
-                  }}
-                >
-                  {accounts.map((acc) => (
-                    <option key={acc.id} value={acc.id}>
-                      {acc.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="account-select-wrapper">
+                  <select
+                    className="account-select"
+                    value={selectedAccount?.id || ""}
+                    onChange={(e) => {
+                      const acc = accounts.find((a) => a.id === e.target.value);
+                      if (acc) selectAccount(acc);
+                    }}
+                    title="Selecionar conta ativa"
+                  >
+                    {accounts.map((acc) => (
+                      <option key={acc.id} value={acc.id}>
+                        {acc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             )}
           </div>
