@@ -17,18 +17,24 @@ router.post("/accounts/facebook-onboard/exchange", async (req: Request, res: Res
     return res.status(400).json({ error: "code e wabaId são obrigatórios." });
   }
 
-  const appId = process.env.META_APP_ID || process.env.FACEBOOK_APP_ID || "1395411182414690";
-  const appSecret = process.env.META_APP_SECRET || process.env.FACEBOOK_APP_SECRET;
+  const rawAppId = process.env.META_APP_ID || process.env.FACEBOOK_APP_ID || "1395411182414690";
+  const rawSecret = process.env.META_APP_SECRET || process.env.FACEBOOK_APP_SECRET;
 
-  if (!appSecret) {
+  if (!rawSecret) {
     return res.status(500).json({ error: "Segredo do aplicativo Meta/Facebook (META_APP_SECRET ou FACEBOOK_APP_SECRET) não configurado no servidor." });
   }
+
+  const appId = rawAppId.trim().replace(/^["']|["']$/g, "");
+  const appSecret = rawSecret.trim().replace(/^["']|["']$/g, "");
+  const cleanCode = code.trim();
+
+  console.log(`[OAuth Exchange] Using App ID: ${appId} | Secret length: ${appSecret.length} | Secret prefix: ${appSecret.substring(0, 4)}...`);
 
   try {
     // 1. Trocar code por token de acesso curto
     // No fluxo Embedded Signup do JS SDK, redirect_uri deve ser string vazia ("") para prevenir erro OAuth 100/191 da Meta
-    const cleanRedirectUri = (redirectUri && redirectUri.startsWith("http") && !redirectUri.includes("localhost")) ? redirectUri : "";
-    const tokenResponse = await metaService.exchangeOAuthToken(code, appId, appSecret, cleanRedirectUri);
+    const cleanRedirectUri = (redirectUri && redirectUri.startsWith("http") && !redirectUri.includes("localhost")) ? redirectUri.trim() : "";
+    const tokenResponse = await metaService.exchangeOAuthToken(cleanCode, appId, appSecret, cleanRedirectUri);
     const shortToken = tokenResponse.data.access_token;
 
     // 2. Trocar por token de longa duração (60 dias)
