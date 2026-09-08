@@ -320,12 +320,12 @@ Lucas Souza,5531977776666,PED-9404,10%
             </div>
 
             {/* Card 2: 0 */}
-            <div className="metric-bento-card">
+            <div className="metric-bento-card solid-dark">
               <div className="metric-card-top">
                 <span className="metric-tag">METRIC.02 // HARDWARE</span>
                 <span className="metric-status-dot"></span>
               </div>
-              <div className="metric-giant-number text-green">0</div>
+              <div className="metric-giant-number">0</div>
               <div className="metric-card-bottom">
                 <h3 className="metric-label">Celulares conectados ou risco de queda</h3>
                 <p className="metric-subtext">Sua operação roda 100% em nuvem com alta disponibilidade sem depender de aparelhos físicos.</p>
@@ -608,7 +608,7 @@ Lucas Souza,5531977776666,PED-9404,10%
             </div>
 
             {/* Card 4: Conectividade & n8n (Asymmetric Span 7) */}
-            <div className="bento-resource-card span-7">
+            <div className="bento-resource-card span-7 solid-dark">
               <div className="bento-card-header">
                 <span className="bento-kicker">RECURSO.04 // INTEGRATIONS &amp; API</span>
                 <h3>API REST dedicada e ecossistema n8n</h3>

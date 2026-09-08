@@ -1,56 +1,56 @@
 /* ==========================================================================
-   DESIGN SYSTEM B2B — SEND INTELIGENTTE (ESTILO BASE44 & SCROLL REVEAL)
+   DESIGN SYSTEM B2B — SEND INTELIGENTTE (BRUTALISMO EDITORIAL BASE44)
+   Canvas Claro Sofisticado, Tipografia Suíça, Grids Sólidos e Contrastes Reais
    ========================================================================== */
 
 :root {
-  /* Cores Base da Interface */
-  --bg: #070a11;
-  --bg-canvas: #090e17;
-  --bg-subtle: #0d1422;
-  --surface: #111a2c;
-  --surface-hover: #162238;
-  --surface-card: #0f1726;
+  /* Cores Base da Interface — Canvas Papel Claro e Arquitetura Brutalista */
+  --bg: #f5f5f3;
+  --bg-canvas: #f7f7f8;
+  --bg-subtle: #eaeae7;
+  --surface: #ffffff;
+  --surface-hover: #fafaf9;
+  --surface-card: #ffffff;
 
-  /* Bordas e Divisores */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-subtle: rgba(255, 255, 255, 0.04);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  /* Bordas e Divisores Físicos Nítidos */
+  --border: #e4e4e7;
+  --border-subtle: #ebebef;
+  --border-strong: #09090b;
 
-  /* Tipografia */
-  --heading: #ffffff;
-  --body: #cbd5e1;
-  --muted-light: #94a3b8;
-  --muted: #64748b;
-  --muted-dark: #334155;
+  /* Tipografia Suíça / Editorial em Preto Sólido */
+  --heading: #09090b;
+  --body: #18181b;
+  --muted-light: #52525b;
+  --muted: #71717a;
+  --muted-dark: #a1a1aa;
 
-  /* Acentos de Marca (Verde Oficial WhatsApp / Meta) */
-  --green: #00c26b;
-  --green-hover: #00df7b;
-  --green-active: #00a85c;
-  --green-subtle: rgba(0, 194, 107, 0.1);
-  --green-border: rgba(0, 194, 107, 0.3);
-  --green-glow: rgba(0, 194, 107, 0.25);
+  /* Cores de Destaque Brutalista (Superfícies Sólidas em vez de Glows de IA) */
+  --green: #00874a;           /* Verde esmeralda profundo editorial */
+  --green-vibrant: #00c26b;   /* Verde oficial Meta / WhatsApp */
+  --green-hover: #00703d;
+  --green-active: #005a31;
+  --green-subtle: #e6f7ef;
+  --green-border: #00874a;
+  --green-glow: transparent;
 
-  /* Acentos de Destaque */
-  --orange: #f97316;
-  --orange-hover: #ea580c;
-  --cyan: #06b6d4;
-  --danger: #f87171;
-  --danger-subtle: rgba(248, 113, 113, 0.1);
-  --danger-border: rgba(248, 113, 113, 0.3);
+  /* Acentos de Alerta & Estrutura */
+  --danger: #dc2626;
+  --danger-subtle: #fee2e2;
+  --danger-border: #ef4444;
 
-  /* Raios e Sombras */
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 26px;
+  /* Raios Precisos de Engenharia (Cantos Nítidos / Chanfrados Sutis) */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.7);
-  --shadow-window: 0 25px 60px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  /* Sombras Físicas Brutalistas (Hard-edge Offsets, Sem Blur Artificial de IA) */
+  --shadow-sm: 2px 2px 0px #09090b;
+  --shadow-md: 4px 4px 0px #09090b;
+  --shadow-lg: 6px 6px 0px #09090b;
+  --shadow-window: 8px 8px 0px #09090b;
 }
 
 /* Reset Básico */
@@ -62,7 +62,7 @@
 
 html {
   scroll-behavior: smooth;
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -76,16 +76,13 @@ body {
   overflow-x: hidden;
 }
 
-/* Padrão de Fundo Pontilhado Estilo Studio/Base44 */
+/* Padrão de Fundo Pontilhado Estilo Studio Blueprint / Base44 */
 .site-canvas-bg {
   position: relative;
   background-color: var(--bg);
-  background-image: 
-    radial-gradient(rgba(255, 255, 255, 0.07) 1.2px, transparent 1.2px),
-    radial-gradient(ellipse 60% 50% at 50% 0%, rgba(0, 194, 107, 0.06), transparent 100%),
-    radial-gradient(ellipse 40% 40% at 85% 20%, rgba(6, 182, 212, 0.04), transparent 100%);
-  background-size: 28px 28px, 100% 100%, 100% 100%;
-  background-position: 0 0, 0 0, 0 0;
+  background-image: radial-gradient(rgba(9, 9, 11, 0.08) 1.2px, transparent 1.2px);
+  background-size: 24px 24px;
+  background-position: 0 0;
 }
 
 /* ==========================================================================
@@ -94,8 +91,8 @@ body {
 
 .reveal-block {
   opacity: 0;
-  transform: translateY(32px);
-  transition: opacity 0.85s cubic-bezier(0.16, 1, 0.3, 1), transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(28px);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1), transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, transform;
 }
 
@@ -111,8 +108,8 @@ body {
 
 .showcase-reveal {
   opacity: 0;
-  transform: rotateX(12deg) translateY(50px) scale(0.96);
-  transition: opacity 1.1s cubic-bezier(0.16, 1, 0.3, 1), transform 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: rotateX(8deg) translateY(40px) scale(0.97);
+  transition: opacity 0.95s cubic-bezier(0.16, 1, 0.3, 1), transform 0.95s cubic-bezier(0.16, 1, 0.3, 1);
   transform-origin: center top;
   will-change: opacity, transform;
 }
@@ -122,19 +119,19 @@ body {
   transform: rotateX(0deg) translateY(0) scale(1);
 }
 
-.delay-1 { transition-delay: 100ms; }
-.delay-2 { transition-delay: 200ms; }
-.delay-3 { transition-delay: 300ms; }
-.delay-4 { transition-delay: 400ms; }
+.delay-1 { transition-delay: 80ms; }
+.delay-2 { transition-delay: 160ms; }
+.delay-3 { transition-delay: 240ms; }
+.delay-4 { transition-delay: 320ms; }
 
 /* ==========================================================================
-   HEADER MINIMALISTA / MOLDURA TÉCNICA
+   HEADER MINIMALISTA / MOLDURA TÉCNICA BRUTALISTA
    ========================================================================== */
 
 .site-header {
   height: 72px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(7, 10, 17, 0.85);
+  border-bottom: 1.5px solid var(--border-strong);
+  background: rgba(245, 245, 243, 0.92);
   backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
@@ -158,14 +155,15 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 12px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border);
+  padding: 5px 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-full);
   font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--muted-light);
+  font-weight: 700;
+  color: var(--heading);
   letter-spacing: 0.02em;
+  box-shadow: 1px 1px 0px #09090b;
 }
 
 .pulse-dot {
@@ -182,8 +180,8 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--green);
-  opacity: 0.6;
+  background: var(--green-vibrant);
+  opacity: 0.5;
   animation: pulseRingAnimation 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
@@ -192,7 +190,6 @@ body {
   height: 6px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 8px var(--green);
   position: relative;
   z-index: 1;
 }
@@ -223,7 +220,7 @@ body {
 }
 
 .brand-link:hover {
-  opacity: 0.92;
+  opacity: 0.88;
 }
 
 .brand-logotype {
@@ -238,12 +235,12 @@ body {
 
 .brand-send {
   color: var(--green);
-  font-weight: 800;
+  font-weight: 900;
 }
 
 .brand-inteligentte {
-  color: #ffffff;
-  font-weight: 800;
+  color: var(--heading);
+  font-weight: 900;
 }
 
 .brand-sub-label {
@@ -260,8 +257,9 @@ body {
 
 .public-nav a {
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--muted-light);
+  text-decoration: none;
   transition: color 0.15s ease;
 }
 
@@ -277,23 +275,24 @@ body {
 
 .login-link {
   font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--muted-light);
+  font-weight: 700;
+  color: var(--heading);
+  text-decoration: none;
   transition: color 0.15s ease;
 }
 
 .login-link:hover {
-  color: var(--heading);
+  color: var(--green);
 }
 
 /* ==========================================================================
-   BOTÕES DO DESIGN SYSTEM
+   BOTÕES DE AÇÃO BRUTALISTAS (BORDAS NÍTIAS E CANTOS PRECISOS)
    ========================================================================== */
 
 .primary-button {
-  background: var(--green);
-  color: #000000;
-  font-weight: 700;
+  background: var(--green-vibrant);
+  color: #09090b;
+  font-weight: 800;
   border-radius: var(--radius-sm);
   padding: 11px 22px;
   font-size: 0.94rem;
@@ -301,27 +300,29 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-  border: 1px solid transparent;
+  border: 1.5px solid #09090b;
+  box-shadow: 3px 3px 0px #09090b;
   cursor: pointer;
-  box-shadow: 0 4px 14px rgba(0, 194, 107, 0.25);
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .primary-button:hover {
-  background: var(--green-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(0, 194, 107, 0.35);
+  background: #00df7b;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #09090b;
 }
 
 .primary-button:active {
-  background: var(--green-active);
-  transform: translateY(1px);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #09090b;
 }
 
 .primary-button.large {
   padding: 15px 30px;
   font-size: 1.02rem;
   border-radius: var(--radius-md);
+  box-shadow: 4px 4px 0px #09090b;
 }
 
 .primary-button.compact {
@@ -330,9 +331,9 @@ body {
 }
 
 .secondary-button {
-  background: rgba(255, 255, 255, 0.04);
+  background: #ffffff;
   color: var(--heading);
-  font-weight: 600;
+  font-weight: 700;
   border-radius: var(--radius-sm);
   padding: 11px 22px;
   font-size: 0.94rem;
@@ -340,21 +341,29 @@ body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--border);
-  transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  border: 1.5px solid #09090b;
+  box-shadow: 3px 3px 0px #09090b;
   cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .secondary-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
+  background: #f4f4f5;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #09090b;
+}
+
+.secondary-button:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #09090b;
 }
 
 .secondary-button.large {
   padding: 15px 30px;
   font-size: 1.02rem;
   border-radius: var(--radius-md);
+  box-shadow: 4px 4px 0px #09090b;
 }
 
 /* ==========================================================================
@@ -363,7 +372,7 @@ body {
 
 .hero-base44-section {
   position: relative;
-  min-height: calc(88vh - 72px);
+  min-height: calc(86vh - 72px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -373,17 +382,18 @@ body {
   overflow: hidden;
 }
 
-/* Marcadores Decorativos em Cruz (+) nos Cantos (Estilo Base44 / Technical Blueprint) */
+/* Marcadores Decorativos em Cruz (+) nos Cantos (Estilo Blueprint Impresso) */
 .tech-cross {
   position: absolute;
   font-family: monospace, var(--font-inter);
-  font-size: 16px;
+  font-size: 18px;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.22);
+  color: #09090b;
+  opacity: 0.35;
   pointer-events: none;
   user-select: none;
   z-index: 2;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .tech-cross-tl { top: 24px; left: 28px; }
@@ -395,11 +405,11 @@ body {
 .hero-content-wrapper {
   position: relative;
   z-index: 10;
-  max-width: 960px;
+  max-width: 980px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 26px;
+  gap: 24px;
   margin: 0 auto;
 }
 
@@ -408,13 +418,13 @@ body {
   align-items: center;
   gap: 8px;
   padding: 6px 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-strong);
+  background: #ffffff;
+  border: 1.5px solid #09090b;
   border-radius: var(--radius-full);
   font-size: 0.82rem;
-  font-weight: 500;
-  color: var(--muted-light);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  font-weight: 600;
+  color: var(--heading);
+  box-shadow: 2px 2px 0px #09090b;
 }
 
 .hero-pill-icon {
@@ -424,8 +434,8 @@ body {
 }
 
 .hero-pill-title {
-  color: #ffffff;
-  font-weight: 700;
+  color: #09090b;
+  font-weight: 800;
 }
 
 .hero-pill-divider {
@@ -438,45 +448,44 @@ body {
 }
 
 .hero-main-title {
-  font-size: clamp(2.8rem, 6.2vw, 4.8rem);
-  line-height: 1.04;
-  font-weight: 800;
-  letter-spacing: -0.035em;
+  font-size: clamp(2.8rem, 6.2vw, 4.9rem);
+  line-height: 1.03;
+  font-weight: 900;
+  letter-spacing: -0.04em;
   color: var(--heading);
   text-wrap: balance;
-  max-width: 960px;
+  max-width: 980px;
 }
 
 .hero-sub-title {
-  font-size: clamp(1.05rem, 2vw, 1.22rem);
+  font-size: clamp(1.05rem, 2vw, 1.24rem);
   line-height: 1.6;
   color: var(--muted-light);
-  max-width: 680px;
+  max-width: 700px;
   margin: 0 auto;
 }
 
-/* Card Interativo Flutuante de Prompt / Início Rápido (Estilo Base44) */
+/* Card Interativo Flutuante de Prompt / Blueprint Físico */
 .hero-prompt-box {
   width: 100%;
-  max-width: 620px;
-  background: rgba(17, 26, 44, 0.85);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  max-width: 640px;
+  background: #ffffff;
+  border: 1.5px solid #09090b;
+  border-radius: var(--radius-md);
   padding: 8px 8px 8px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 4px 4px 0px #09090b;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
   margin-top: 10px;
 }
 
 .hero-prompt-box:hover,
 .hero-prompt-box:focus-within {
-  border-color: var(--green-border);
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--green-border);
+  transform: translate(-1px, -1px);
+  box-shadow: 6px 6px 0px #09090b;
 }
 
 .hero-prompt-input-wrapper {
@@ -502,24 +511,26 @@ body {
 }
 
 .hero-prompt-action-btn {
-  background: var(--green);
-  color: #000;
-  font-weight: 700;
+  background: var(--green-vibrant);
+  color: #09090b;
+  font-weight: 800;
   font-size: 0.92rem;
-  padding: 12px 22px;
-  border-radius: var(--radius-sm);
+  padding: 11px 20px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   gap: 6px;
-  border: none;
+  border: 1.5px solid #09090b;
+  box-shadow: 2px 2px 0px #09090b;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.15s ease;
 }
 
 .hero-prompt-action-btn:hover {
-  background: var(--green-hover);
-  transform: scale(1.02);
+  background: #00df7b;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0px #09090b;
 }
 
 /* Indicador Discreto de Scroll */
@@ -544,7 +555,7 @@ body {
 .scroll-mouse-icon {
   width: 18px;
   height: 28px;
-  border: 1.5px solid var(--border-strong);
+  border: 1.5px solid #09090b;
   border-radius: 12px;
   position: relative;
 }
@@ -552,7 +563,7 @@ body {
 .scroll-mouse-dot {
   width: 3px;
   height: 6px;
-  background: var(--green);
+  background: #09090b;
   border-radius: 2px;
   position: absolute;
   top: 5px;
@@ -569,22 +580,23 @@ body {
 
 /* ==========================================================================
    2. BENTO GRID DE MÉTRICAS (PROVA MODULAR BASE44)
+   Fundo Branco Puro, Linhas Físicas e Módulo Sólido de Alto Contraste
    ========================================================================== */
 
 .metrics-bento-section {
   max-width: 1200px;
-  margin: 0 auto 72px;
+  margin: 0 auto 80px;
   padding: 0 24px;
   position: relative;
 }
 
 .metrics-bento-container {
   position: relative;
-  border: 1px solid var(--border);
+  border: 2px solid #09090b;
   border-radius: var(--radius-lg);
-  background: var(--bg-canvas);
+  background: #09090b;
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 6px 6px 0px #09090b;
 }
 
 .metrics-cross {
@@ -592,11 +604,12 @@ body {
   font-family: monospace, var(--font-inter);
   font-size: 14px;
   line-height: 1;
-  color: rgba(255, 255, 255, 0.2);
+  color: #09090b;
+  opacity: 0.45;
   pointer-events: none;
   user-select: none;
   z-index: 5;
-  font-weight: 300;
+  font-weight: 400;
 }
 
 .metrics-cross-tl { top: 12px; left: 14px; }
@@ -607,23 +620,24 @@ body {
 .metrics-bento-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
-  background-color: var(--border);
+  gap: 2px;
+  background-color: #09090b;
 }
 
+/* Cards Padrão em Branco Puro Blueprint */
 .metric-bento-card {
-  background-color: var(--surface-card);
-  padding: 32px 26px;
+  background-color: #ffffff;
+  padding: 34px 26px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 220px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  min-height: 230px;
+  transition: background-color 0.15s ease;
   position: relative;
 }
 
 .metric-bento-card:hover {
-  background-color: var(--surface-hover);
+  background-color: #fafaf9;
 }
 
 .metric-card-top {
@@ -636,33 +650,32 @@ body {
 .metric-tag {
   font-family: monospace, var(--font-inter);
   font-size: 0.72rem;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
   color: var(--muted);
   text-transform: uppercase;
 }
 
 .metric-status-dot {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 8px var(--green);
 }
 
+/* Números das Métricas em Preto Puro e Peso Pesado (Sem Glow de IA) */
 .metric-giant-number {
   font-size: clamp(2.8rem, 4.2vw, 4rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 900;
+  letter-spacing: -0.045em;
   line-height: 1;
-  color: var(--heading);
+  color: #09090b;
   margin: 12px 0 16px;
   font-variant-numeric: tabular-nums;
 }
 
 .metric-giant-number.text-green {
   color: var(--green);
-  text-shadow: 0 0 24px rgba(0, 194, 107, 0.3);
 }
 
 .metric-card-bottom {
@@ -673,16 +686,46 @@ body {
 
 .metric-label {
   font-size: 1.02rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--heading);
   line-height: 1.3;
   letter-spacing: -0.015em;
 }
 
 .metric-subtext {
-  font-size: 0.84rem;
+  font-size: 0.85rem;
   color: var(--muted-light);
   line-height: 1.5;
+}
+
+/* MÓDULO SÓLIDO CONTRASTANTE NO BENTO (CARD 2: SÓLIDO PRETO PROFUNDO COM TEXTO BRANCO) */
+.metric-bento-card.solid-dark {
+  background-color: #09090b;
+  color: #ffffff;
+}
+
+.metric-bento-card.solid-dark:hover {
+  background-color: #18181b;
+}
+
+.metric-bento-card.solid-dark .metric-tag {
+  color: #a1a1aa;
+}
+
+.metric-bento-card.solid-dark .metric-status-dot {
+  background: var(--green-vibrant);
+}
+
+.metric-bento-card.solid-dark .metric-giant-number {
+  color: #ffffff;
+}
+
+.metric-bento-card.solid-dark .metric-label {
+  color: #ffffff;
+}
+
+.metric-bento-card.solid-dark .metric-subtext {
+  color: #d4d4d8;
 }
 
 @media (max-width: 1024px) {
@@ -703,35 +746,30 @@ body {
 
 /* ==========================================================================
    3. SHOWCASE REVELADO NO SCROLL — MOLDURA TÉCNICA BENTO
+   Moldura Física, Ficha Técnica Blueprint
    ========================================================================== */
 
 .showcase-section {
   max-width: 1180px;
-  margin: 0 auto 90px;
+  margin: 0 auto 96px;
   padding: 0 24px;
   width: 100%;
 }
 
-.product-window {
+.product-window.bento-showcase-frame {
   width: 100%;
-  background: var(--surface-card);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 2px solid #09090b;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-window);
+  box-shadow: 8px 8px 0px #09090b;
   overflow: hidden;
 }
 
-.product-window.bento-showcase-frame {
-  border: 1px solid var(--border-strong);
-  box-shadow: 0 30px 80px -15px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  background: #080d16;
-}
-
 .window-bar.technical-window-bar {
-  height: 46px;
+  height: 48px;
   padding: 0 20px;
-  background: #080d16;
-  border-bottom: 1px solid var(--border);
+  background: #f4f4f5;
+  border-bottom: 1.5px solid #09090b;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -754,20 +792,12 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #253347;
+  border: 1px solid #09090b;
 }
 
-.window-dots .dot-close {
-  background: rgba(248, 113, 113, 0.6);
-}
-
-.window-dots .dot-minimize {
-  background: rgba(249, 115, 22, 0.6);
-}
-
-.window-dots .dot-maximize {
-  background: rgba(0, 194, 107, 0.6);
-}
+.window-dots .dot-close { background: #ef4444; }
+.window-dots .dot-minimize { background: #f59e0b; }
+.window-dots .dot-maximize { background: #10b981; }
 
 .window-endpoint {
   display: inline-flex;
@@ -775,19 +805,20 @@ body {
   gap: 8px;
   font-family: monospace;
   font-size: 0.78rem;
-  background: rgba(255, 255, 255, 0.03);
+  background: #ffffff;
   padding: 4px 10px;
   border-radius: var(--radius-xs);
-  border: 1px solid var(--border-subtle);
+  border: 1px solid #09090b;
 }
 
 .endpoint-method {
   color: var(--green);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 .endpoint-path {
-  color: var(--muted-light);
+  color: var(--heading);
+  font-weight: 600;
 }
 
 .window-center-col {
@@ -801,6 +832,7 @@ body {
   letter-spacing: 0.12em;
   color: var(--muted);
   text-transform: uppercase;
+  font-weight: 700;
 }
 
 .window-right-col {
@@ -813,10 +845,10 @@ body {
   align-items: center;
   gap: 8px;
   font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--muted-light);
-  background: rgba(0, 194, 107, 0.06);
-  border: 1px solid var(--green-border);
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-subtle);
+  border: 1.5px solid var(--green);
   padding: 4px 12px;
   border-radius: var(--radius-full);
 }
@@ -826,13 +858,12 @@ body {
   height: 6px;
   border-radius: 50%;
   background: var(--green);
-  box-shadow: 0 0 8px var(--green);
 }
 
 .window-body {
   position: relative;
-  background: #05080e;
-  padding: 10px;
+  background: #09090b;
+  padding: 12px;
 }
 
 .product-screenshot,
@@ -840,8 +871,8 @@ body {
   width: 100%;
   height: auto;
   display: block;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  border: 1.5px solid #27272a;
   background: #000;
 }
 
@@ -858,8 +889,8 @@ body {
   flex-wrap: wrap;
   gap: 16px;
   padding: 12px 20px;
-  background: #080d16;
-  border-top: 1px solid var(--border);
+  background: #f4f4f5;
+  border-top: 1.5px solid #09090b;
   font-family: monospace;
   font-size: 0.75rem;
 }
@@ -871,8 +902,8 @@ body {
 }
 
 .footer-meta-key {
-  color: var(--muted);
-  font-weight: 600;
+  color: #09090b;
+  font-weight: 700;
 }
 
 .footer-meta-val {
@@ -900,7 +931,7 @@ body {
 .sales-page {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 24px 90px;
+  padding: 0 24px 100px;
   display: flex;
   flex-direction: column;
   gap: 110px;
@@ -911,20 +942,20 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 760px;
+  max-width: 780px;
   margin-bottom: 44px;
 }
 
 .editorial-header h2 {
-  font-size: 2.2rem;
-  font-weight: 800;
-  line-height: 1.22;
-  letter-spacing: -0.03em;
+  font-size: 2.3rem;
+  font-weight: 900;
+  line-height: 1.2;
+  letter-spacing: -0.035em;
   color: var(--heading);
 }
 
 .editorial-header p {
-  font-size: 1.06rem;
+  font-size: 1.08rem;
   line-height: 1.6;
   color: var(--muted-light);
 }
@@ -935,7 +966,10 @@ body {
   margin-right: auto;
 }
 
-/* 3. O PROBLEMA DO IMPROVISO */
+/* ==========================================================================
+   4. O PROBLEMA DO IMPROVISO (CARDS BRUTALISTAS)
+   ========================================================================== */
+
 .problem-comparison-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -943,30 +977,32 @@ body {
 }
 
 .problem-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 1.5px solid var(--border);
   border-radius: var(--radius-md);
   padding: 34px 28px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  box-shadow: 3px 3px 0px rgba(9, 9, 11, 0.05);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .problem-card:hover {
-  transform: translateY(-3px);
-  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  border-color: #09090b;
+  box-shadow: 4px 4px 0px #09090b;
 }
 
 .problem-card.highlighted {
-  background: var(--surface-card);
-  border-color: var(--green-border);
-  box-shadow: 0 0 24px rgba(0, 194, 107, 0.08);
+  background: #ffffff;
+  border: 2px solid #09090b;
+  box-shadow: 5px 5px 0px #09090b;
 }
 
 .card-kicker {
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 4px;
@@ -975,63 +1011,96 @@ body {
 .card-kicker.danger { color: var(--danger); }
 .card-kicker.green { color: var(--green); }
 
-.problem-card h3 { font-size: 1.25rem; color: var(--heading); }
-.problem-card p { font-size: 0.95rem; color: var(--muted-light); line-height: 1.6; }
+.problem-card h3 {
+  font-size: 1.28rem;
+  font-weight: 800;
+  color: var(--heading);
+  letter-spacing: -0.015em;
+}
 
-/* 4. PILARES DE VALOR */
+.problem-card p {
+  font-size: 0.95rem;
+  color: var(--muted-light);
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   5. PILARES DE VALOR (FICHA TÉCNICA BLUEPRINT)
+   ========================================================================== */
+
 .value-pillars-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  gap: 20px;
 }
 
 .pillar-item {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 24px;
-  border-left: 1px solid var(--border);
-  transition: border-color 0.2s ease;
+  padding: 26px 22px;
+  background: #ffffff;
+  border: 1.5px solid #09090b;
+  border-left: 5px solid var(--green);
+  border-radius: var(--radius-sm);
+  box-shadow: 3px 3px 0px #09090b;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .pillar-item:hover {
-  border-color: var(--green);
+  transform: translateY(-2px);
+  box-shadow: 5px 5px 0px #09090b;
 }
 
 .pillar-number {
-  font-size: 1.4rem;
-  font-weight: 800;
+  font-size: 1.45rem;
+  font-weight: 900;
   font-family: monospace;
   color: var(--green);
 }
 
-.pillar-item h3 { font-size: 1.15rem; color: var(--heading); }
-.pillar-item p { font-size: 0.92rem; color: var(--muted-light); line-height: 1.6; }
+.pillar-item h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--heading);
+  letter-spacing: -0.015em;
+}
 
-/* 5. ARQUITETURA DO PRODUTO (BENTO GRID MODULAR COM LISTAS INTERATIVAS) */
+.pillar-item p {
+  font-size: 0.92rem;
+  color: var(--muted-light);
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   6. ARQUITETURA DO PRODUTO (BENTO GRID MODULAR COM LISTAS INTERATIVAS)
+   Divisórias em 1px solid #09090b e Módulo Sólido de Alto Contraste
+   ========================================================================== */
+
 .bento-resources-container {
   display: grid;
   grid-template-columns: repeat(12, 1fr);
-  gap: 1px;
-  background-color: var(--border);
-  border: 1px solid var(--border);
+  gap: 2px;
+  background-color: #09090b;
+  border: 2px solid #09090b;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 6px 6px 0px #09090b;
 }
 
+/* Cards Regulares em Branco Puro */
 .bento-resource-card {
-  background-color: var(--surface-card);
+  background-color: #ffffff;
   padding: 38px 32px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: background-color 0.2s ease;
+  transition: background-color 0.15s ease;
   position: relative;
 }
 
 .bento-resource-card:hover {
-  background-color: #111a2c;
+  background-color: #fafaf9;
 }
 
 .bento-resource-card.span-7 {
@@ -1049,7 +1118,7 @@ body {
 .bento-kicker {
   font-family: monospace, var(--font-inter);
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--green);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1058,16 +1127,16 @@ body {
 }
 
 .bento-card-header h3 {
-  font-size: 1.32rem;
-  font-weight: 800;
+  font-size: 1.36rem;
+  font-weight: 900;
   color: var(--heading);
   line-height: 1.3;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   margin-bottom: 8px;
 }
 
 .bento-card-header p {
-  font-size: 0.92rem;
+  font-size: 0.93rem;
   color: var(--muted-light);
   line-height: 1.55;
 }
@@ -1075,7 +1144,7 @@ body {
 .interactive-resource-list {
   display: flex;
   flex-direction: column;
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1.5px solid var(--border);
   margin-top: auto;
 }
 
@@ -1085,9 +1154,9 @@ body {
   justify-content: space-between;
   gap: 20px;
   padding: 16px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease;
 }
 
 .interactive-resource-item:last-child {
@@ -1103,48 +1172,112 @@ body {
 
 .resource-item-title {
   font-size: 0.94rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--heading);
   transition: color 0.15s ease;
 }
 
 .resource-item-desc {
-  font-size: 0.81rem;
+  font-size: 0.82rem;
   color: var(--muted);
   line-height: 1.45;
 }
 
 .action-circle-btn {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--muted-light);
+  border: 1.5px solid #09090b;
+  background: #ffffff;
+  color: #09090b;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .interactive-resource-item:hover .resource-item-title {
-  color: #ffffff;
+  color: var(--green);
 }
 
 .interactive-resource-item:hover .action-circle-btn {
-  background: var(--green);
-  color: #000000;
-  border-color: var(--green);
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
   transform: translate(2px, -2px);
-  box-shadow: 0 0 14px rgba(0, 194, 107, 0.4);
+  box-shadow: 2px 2px 0px var(--green-vibrant);
 }
 
-/* 6. TABELA COMPARATIVA */
+/* MÓDULO SÓLIDO CONTRASTANTE NO BENTO DE RECURSOS (CARD 4: SÓLIDO PRETO PROFUNDO COM TEXTO BRANCO) */
+.bento-resource-card.solid-dark {
+  background-color: #09090b;
+  color: #ffffff;
+}
+
+.bento-resource-card.solid-dark:hover {
+  background-color: #18181b;
+}
+
+.bento-resource-card.solid-dark .bento-kicker {
+  color: var(--green-vibrant);
+}
+
+.bento-resource-card.solid-dark .bento-card-header h3 {
+  color: #ffffff;
+}
+
+.bento-resource-card.solid-dark .bento-card-header p {
+  color: #d4d4d8;
+}
+
+.bento-resource-card.solid-dark .interactive-resource-list {
+  border-top: 1.5px solid #27272a;
+}
+
+.bento-resource-card.solid-dark .interactive-resource-item {
+  border-bottom: 1px solid #27272a;
+}
+
+.bento-resource-card.solid-dark .interactive-resource-item:hover {
+  background-color: #1a1a1e;
+}
+
+.bento-resource-card.solid-dark .resource-item-title {
+  color: #ffffff;
+}
+
+.bento-resource-card.solid-dark .interactive-resource-item:hover .resource-item-title {
+  color: var(--green-vibrant);
+}
+
+.bento-resource-card.solid-dark .resource-item-desc {
+  color: #a1a1aa;
+}
+
+.bento-resource-card.solid-dark .action-circle-btn {
+  border: 1.5px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
+}
+
+.bento-resource-card.solid-dark .interactive-resource-item:hover .action-circle-btn {
+  background: var(--green-vibrant);
+  color: #09090b;
+  border-color: var(--green-vibrant);
+  transform: translate(2px, -2px);
+  box-shadow: 2px 2px 0px #ffffff;
+}
+
+/* ==========================================================================
+   7. TABELA COMPARATIVA
+   ========================================================================== */
+
 .table-wrapper {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 2px solid #09090b;
   border-radius: var(--radius-lg);
+  box-shadow: 6px 6px 0px #09090b;
   overflow-x: auto;
 }
 
@@ -1157,26 +1290,30 @@ body {
 .comparison-table th,
 .comparison-table td {
   padding: 18px 24px;
-  border-bottom: 1px solid var(--border-subtle);
-  font-size: 0.92rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.93rem;
 }
 
 .comparison-table th {
-  background: var(--bg-subtle);
-  color: var(--muted-light);
-  font-weight: 600;
+  background: #f4f4f5;
+  color: var(--heading);
+  font-weight: 800;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  border-bottom: 2px solid #09090b;
 }
 
 .comparison-table tr:last-child td { border-bottom: none; }
-.comparison-table .criteria-name { font-weight: 600; color: var(--heading); }
-.comparison-table .highlight-col { background: rgba(0, 194, 107, 0.03); font-weight: 600; }
-.text-green { color: var(--green); }
+.comparison-table .criteria-name { font-weight: 700; color: var(--heading); }
+.comparison-table .highlight-col { background: var(--green-subtle); font-weight: 700; color: var(--green); }
+.text-green { color: var(--green); font-weight: 700; }
 .text-muted { color: var(--muted); }
 
-/* 7. INTEGRAÇÕES & TERMINAL */
+/* ==========================================================================
+   8. INTEGRAÇÕES & TERMINAL (CONSOLE BRUTALISTA)
+   ========================================================================== */
+
 .integrations-container {
   display: grid;
   grid-template-columns: 1fr 1.2fr;
@@ -1192,14 +1329,25 @@ body {
 
 .section-kicker {
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--green);
 }
 
-.integrations-copy h2 { font-size: 2.1rem; line-height: 1.25; }
-.integrations-copy p { font-size: 1.05rem; line-height: 1.6; color: var(--muted-light); }
+.integrations-copy h2 {
+  font-size: 2.2rem;
+  line-height: 1.25;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  color: var(--heading);
+}
+
+.integrations-copy p {
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--muted-light);
+}
 
 .integration-chips-list {
   display: flex;
@@ -1209,28 +1357,29 @@ body {
 }
 
 .chip {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 1.5px solid #09090b;
   border-radius: var(--radius-full);
   padding: 6px 14px;
   font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--body);
+  font-weight: 700;
+  color: var(--heading);
+  box-shadow: 2px 2px 0px #09090b;
 }
 
 .terminal-box {
-  background: #080c14;
-  border: 1px solid var(--border);
+  background: #09090b;
+  border: 2px solid #09090b;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 6px 6px 0px #09090b;
 }
 
 .terminal-header {
-  background: var(--bg-subtle);
-  border-bottom: 1px solid var(--border);
+  background: #18181b;
+  border-bottom: 1.5px solid #27272a;
   padding: 0 16px;
-  height: 44px;
+  height: 46px;
   display: flex;
   align-items: center;
 }
@@ -1240,28 +1389,37 @@ body {
 .terminal-tab {
   background: none;
   border: none;
-  color: var(--muted);
+  color: #a1a1aa;
   font-size: 0.82rem;
-  font-weight: 600;
-  padding: 8px 12px;
+  font-weight: 700;
+  padding: 7px 14px;
   cursor: pointer;
   border-radius: var(--radius-xs);
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.terminal-tab:hover { color: var(--heading); }
-.terminal-tab.active { color: var(--green); background: var(--green-subtle); }
+.terminal-tab:hover { color: #ffffff; }
+
+.terminal-tab.active {
+  color: #09090b;
+  background: var(--green-vibrant);
+  font-weight: 800;
+  border: 1px solid #09090b;
+}
 
 .terminal-body {
-  padding: 20px 24px;
+  padding: 22px 24px;
   overflow-x: auto;
   font-family: "JetBrains Mono", Consolas, monospace;
   font-size: 0.85rem;
   line-height: 1.6;
-  color: var(--muted-light);
+  color: #d4d4d8;
 }
 
-/* 8. PROVA OPERACIONAL */
+/* ==========================================================================
+   9. PROVA OPERACIONAL
+   ========================================================================== */
+
 .proof-deliverables-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1269,23 +1427,43 @@ body {
 }
 
 .proof-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 2px solid #09090b;
   border-radius: var(--radius-md);
-  padding: 32px 28px;
+  padding: 34px 28px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+  box-shadow: 4px 4px 0px #09090b;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.proof-card h4 { font-size: 1.15rem; color: var(--heading); }
-.proof-card p { font-size: 0.92rem; color: var(--muted-light); line-height: 1.6; }
+.proof-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0px #09090b;
+}
 
-/* 9. PLANOS E PREÇOS (TABELA ASSIMÉTRICA EDITORIAL) */
+.proof-card h4 {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.proof-card p {
+  font-size: 0.92rem;
+  color: var(--muted-light);
+  line-height: 1.6;
+}
+
+/* ==========================================================================
+   10. PLANOS E PREÇOS (TABELA ASSIMÉTRICA EDITORIAL)
+   Cards Brancos Puros vs. Card Pro Brutalista em Preto Sólido
+   ========================================================================== */
+
 .pricing-grid.asymmetric-pricing-grid {
   display: grid;
   grid-template-columns: 1fr 1.08fr 1fr;
-  gap: 20px;
+  gap: 24px;
   align-items: center;
 }
 
@@ -1295,26 +1473,30 @@ body {
   flex-direction: column;
   gap: 22px;
   position: relative;
-  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Cards Secundários em Branco Puro Blueprint */
 .pricing-card.secondary-card {
-  background: var(--surface-card);
-  border: 1px solid var(--border);
-  padding: 38px 30px;
+  background: #ffffff;
+  border: 2px solid #09090b;
+  padding: 42px 30px;
+  box-shadow: 5px 5px 0px #09090b;
 }
 
 .pricing-card.secondary-card:hover {
-  border-color: var(--border-strong);
   transform: translateY(-4px);
+  box-shadow: 7px 7px 0px #09090b;
 }
 
+/* CARD PRO DE DESTAQUE: FUNDO PRETO SÓLIDO BRUTALISTA */
 .pricing-card.featured-asymmetric {
-  background: linear-gradient(180deg, rgba(0, 194, 107, 0.09) 0%, #0c1626 100%);
-  border: 1.5px solid var(--green);
+  background: #09090b;
+  color: #ffffff;
+  border: 2.5px solid #09090b;
   border-radius: var(--radius-xl);
-  padding: 48px 34px;
-  box-shadow: 0 25px 60px -12px rgba(0, 194, 107, 0.22), 0 0 0 1px rgba(0, 194, 107, 0.4);
+  padding: 52px 36px;
+  box-shadow: 10px 10px 0px var(--green);
   transform: translateY(-8px);
   position: relative;
   z-index: 2;
@@ -1322,7 +1504,7 @@ body {
 
 .pricing-card.featured-asymmetric:hover {
   transform: translateY(-12px);
-  box-shadow: 0 32px 70px -12px rgba(0, 194, 107, 0.3), 0 0 0 1.5px var(--green);
+  box-shadow: 14px 14px 0px var(--green-vibrant);
 }
 
 .asymmetric-badge {
@@ -1330,35 +1512,44 @@ body {
   top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--green);
-  color: #000000;
+  background: var(--green-vibrant);
+  color: #09090b;
   font-family: monospace, var(--font-inter);
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 5px 16px;
+  padding: 6px 18px;
   border-radius: var(--radius-full);
-  box-shadow: 0 0 18px rgba(0, 194, 107, 0.45);
+  border: 1.5px solid #09090b;
+  box-shadow: 2px 2px 0px #09090b;
   white-space: nowrap;
 }
 
 .pricing-plan-id {
   font-family: monospace, var(--font-inter);
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 800;
   color: var(--muted);
   letter-spacing: 0.08em;
   display: block;
   margin-bottom: 4px;
 }
 
+.pricing-card.featured-asymmetric .pricing-plan-id {
+  color: var(--green-vibrant);
+}
+
 .pricing-card-header h3 {
-  font-size: 1.45rem;
-  font-weight: 800;
+  font-size: 1.5rem;
+  font-weight: 900;
   margin-bottom: 6px;
   color: var(--heading);
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
+}
+
+.pricing-card.featured-asymmetric .pricing-card-header h3 {
+  color: #ffffff;
 }
 
 .pricing-desc {
@@ -1367,31 +1558,52 @@ body {
   line-height: 1.45;
 }
 
+.pricing-card.featured-asymmetric .pricing-desc {
+  color: #a1a1aa;
+}
+
 .pricing-price-box {
   display: flex;
   align-items: baseline;
   gap: 4px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1.5px solid var(--border);
+}
+
+.pricing-card.featured-asymmetric .pricing-price-box {
+  border-bottom: 1.5px solid #27272a;
 }
 
 .price-currency {
   font-size: 1.25rem;
-  font-weight: 700;
-  color: var(--muted-light);
+  font-weight: 800;
+  color: var(--heading);
+}
+
+.pricing-card.featured-asymmetric .price-currency {
+  color: var(--green-vibrant);
 }
 
 .price-amount {
   font-size: 2.8rem;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.04em;
   color: var(--heading);
   font-variant-numeric: tabular-nums;
 }
 
+.pricing-card.featured-asymmetric .price-amount {
+  color: #ffffff;
+}
+
 .price-period {
   font-size: 0.9rem;
   color: var(--muted);
+  font-weight: 600;
+}
+
+.pricing-card.featured-asymmetric .price-period {
+  color: #a1a1aa;
 }
 
 .pricing-features {
@@ -1406,47 +1618,56 @@ body {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 0.9rem;
+  font-size: 0.91rem;
   color: var(--body);
+  font-weight: 500;
 }
 
+.pricing-card.featured-asymmetric .pricing-features li {
+  color: #e4e4e7;
+}
+
+/* Botões de Preço Brutalistas */
 .pricing-cta-button {
   width: 100%;
   text-align: center;
   padding: 13px 20px;
   border-radius: var(--radius-sm);
-  font-weight: 700;
-  font-size: 0.92rem;
-  transition: all 0.2s ease;
+  font-weight: 800;
+  font-size: 0.93rem;
+  transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .pricing-cta-button.primary {
-  background: var(--green);
-  color: #000000;
-  box-shadow: 0 4px 16px rgba(0, 194, 107, 0.35);
+  background: var(--green-vibrant);
+  color: #09090b;
+  border: 2px solid #09090b;
+  box-shadow: 4px 4px 0px #ffffff;
 }
 
 .pricing-cta-button.primary:hover {
-  background: var(--green-hover);
-  box-shadow: 0 6px 24px rgba(0, 194, 107, 0.5);
-  transform: translateY(-1px);
+  background: #00df7b;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #ffffff;
 }
 
 .pricing-cta-button.secondary {
-  background: rgba(255, 255, 255, 0.04);
+  background: #ffffff;
   color: var(--heading);
-  border: 1px solid var(--border);
+  border: 2px solid #09090b;
+  box-shadow: 3px 3px 0px #09090b;
 }
 
 .pricing-cta-button.secondary:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--border-strong);
-  transform: translateY(-1px);
+  background: #f4f4f5;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #09090b;
 }
 
 .pricing-meta-disclaimer {
@@ -1461,19 +1682,24 @@ body {
   margin: 0 auto;
 }
 
-/* 10. FAQ EM ACORDEÃO EDITORIAL */
+/* ==========================================================================
+   11. FAQ EM ACORDEÃO EDITORIAL
+   Linhas Estruturais Nítidas, Tipografia Editorial e Ícones de Ação
+   ========================================================================== */
+
 .faq-accordion-container {
-  border-top: 1px solid var(--border);
+  border-top: 2px solid #09090b;
   margin-bottom: 44px;
 }
 
 .faq-accordion-item {
-  border-bottom: 1px solid var(--border);
-  transition: background-color 0.2s ease;
+  border-bottom: 1.5px solid #09090b;
+  background: #ffffff;
+  transition: background-color 0.15s ease;
 }
 
 .faq-accordion-item.is-expanded {
-  background: rgba(255, 255, 255, 0.015);
+  background: #fafaf9;
 }
 
 .faq-accordion-trigger {
@@ -1482,7 +1708,7 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 24px 8px;
+  padding: 24px 12px;
   background: none;
   border: none;
   text-align: left;
@@ -1493,7 +1719,7 @@ body {
 }
 
 .faq-accordion-trigger:hover .faq-item-question {
-  color: #ffffff;
+  color: var(--green);
 }
 
 .faq-trigger-left {
@@ -1505,13 +1731,13 @@ body {
 .faq-item-index {
   font-family: monospace, var(--font-inter);
   font-size: 0.85rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--green);
 }
 
 .faq-item-question {
   font-size: 1.15rem;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--heading);
   line-height: 1.35;
   letter-spacing: -0.015em;
@@ -1519,33 +1745,33 @@ body {
 }
 
 .faq-toggle-circle {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--muted-light);
+  border: 1.5px solid #09090b;
+  background: #ffffff;
+  color: #09090b;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.1rem;
   font-family: monospace;
-  font-weight: 400;
+  font-weight: 700;
   flex-shrink: 0;
-  transition: all 0.22s ease;
+  transition: all 0.2s ease;
 }
 
 .faq-accordion-item.is-expanded .faq-toggle-circle {
-  background: var(--green);
-  color: #000000;
-  border-color: var(--green);
-  box-shadow: 0 0 12px rgba(0, 194, 107, 0.35);
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+  box-shadow: 2px 2px 0px var(--green);
 }
 
 .faq-accordion-body {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: grid-template-rows 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .faq-accordion-body.open {
@@ -1557,38 +1783,53 @@ body {
 }
 
 .faq-accordion-inner p {
-  padding: 0 12px 24px 44px;
-  font-size: 0.96rem;
+  padding: 0 16px 26px 48px;
+  font-size: 0.98rem;
   color: var(--muted-light);
   line-height: 1.65;
-  max-width: 820px;
+  max-width: 840px;
 }
 
 .faq-contact-box {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
+  background: #ffffff;
+  border: 2px solid #09090b;
   border-radius: var(--radius-lg);
-  padding: 28px 32px;
+  padding: 30px 34px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 24px;
+  box-shadow: 5px 5px 0px #09090b;
 }
 
-.faq-contact-box h4 { font-size: 1.15rem; margin-bottom: 4px; }
-.faq-contact-box p { font-size: 0.9rem; color: var(--muted-light); }
+.faq-contact-box h4 {
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: var(--heading);
+  margin-bottom: 4px;
+}
 
-/* 11. CTA FINAL & FOOTER */
+.faq-contact-box p {
+  font-size: 0.92rem;
+  color: var(--muted-light);
+}
+
+/* ==========================================================================
+   12. CTA FINAL BRUTALISTA (SUPERFÍCIE SÓLIDA EM VERDE ESMERALDA) & FOOTER
+   ========================================================================== */
+
 .final-closing-section {
-  background: linear-gradient(180deg, var(--surface-card) 0%, #0a0f19 100%);
-  border: 1px solid var(--border);
+  background: var(--green);
+  color: #ffffff;
+  border: 2.5px solid #09090b;
   border-radius: var(--radius-xl);
-  padding: 64px 48px;
+  box-shadow: 8px 8px 0px #09090b;
+  padding: 72px 48px;
   text-align: center;
 }
 
 .closing-content-box {
-  max-width: 680px;
+  max-width: 720px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -1596,8 +1837,19 @@ body {
   align-items: center;
 }
 
-.closing-content-box h2 { font-size: 2.3rem; line-height: 1.2; }
-.closing-content-box p { font-size: 1.05rem; color: var(--muted-light); line-height: 1.6; }
+.closing-content-box h2 {
+  font-size: clamp(2rem, 3.8vw, 2.7rem);
+  line-height: 1.15;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+  color: #ffffff;
+}
+
+.closing-content-box p {
+  font-size: 1.12rem;
+  color: #e6f7ef;
+  line-height: 1.6;
+}
 
 .closing-actions {
   display: flex;
@@ -1605,12 +1857,41 @@ body {
   gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 8px;
+  margin-top: 10px;
+}
+
+.closing-actions .primary-button.large {
+  background: #09090b;
+  color: #ffffff;
+  font-weight: 900;
+  border: 2px solid #09090b;
+  box-shadow: 4px 4px 0px #ffffff;
+}
+
+.closing-actions .primary-button.large:hover {
+  background: #18181b;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #ffffff;
+}
+
+.closing-actions .secondary-button.large {
+  background: #ffffff;
+  color: #09090b;
+  font-weight: 800;
+  border: 2px solid #09090b;
+  box-shadow: 4px 4px 0px #09090b;
+}
+
+.closing-actions .secondary-button.large:hover {
+  background: #f4f4f5;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px #09090b;
 }
 
 .site-footer {
-  border-top: 1px solid var(--border-subtle);
-  padding: 48px 32px 32px;
+  background: var(--bg);
+  border-top: 2px solid #09090b;
+  padding: 52px 32px 36px;
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
@@ -1619,30 +1900,54 @@ body {
   gap: 32px;
 }
 
-.footer-top { display: flex; flex-direction: column; gap: 12px; max-width: 480px; }
-.footer-description { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+.footer-top {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 500px;
+}
+
+.footer-description {
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
 
 .footer-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-top: 24px;
-  border-top: 1px solid var(--border-subtle);
-  font-size: 0.82rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.84rem;
   color: var(--muted);
   flex-wrap: wrap;
   gap: 16px;
 }
 
-.footer-links { display: flex; align-items: center; gap: 20px; }
-.footer-links a:hover { color: var(--heading); }
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.footer-links a {
+  color: var(--heading);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-links a:hover {
+  color: var(--green);
+}
 
 /* ==========================================================================
    RESPONSIVIDADE
    ========================================================================== */
 
 @media (max-width: 1024px) {
-  .hero-corner-deco { display: none; }
+  .tech-cross { display: none; }
   
   .problem-comparison-grid,
   .value-pillars-grid,
@@ -1677,16 +1982,16 @@ body {
   .sales-page { padding: 0 16px 60px; gap: 72px; }
   .hero-base44-section { padding: 40px 16px 60px; min-height: auto; }
   .hero-main-title { font-size: 2.2rem; }
-  .editorial-header h2 { font-size: 1.7rem; }
-  .final-closing-section { padding: 40px 20px; }
-  .closing-content-box h2 { font-size: 1.75rem; }
+  .editorial-header h2 { font-size: 1.75rem; }
+  .final-closing-section { padding: 44px 20px; }
+  .closing-content-box h2 { font-size: 1.8rem; }
   .bento-resource-card { padding: 26px 20px; }
   .pricing-card.featured-asymmetric,
   .pricing-card.secondary-card { padding: 32px 22px; }
   .faq-accordion-trigger { padding: 20px 4px; gap: 16px; }
-  .faq-item-question { font-size: 1rem; }
+  .faq-item-question { font-size: 1.02rem; }
   .faq-trigger-left { gap: 12px; }
-  .faq-accordion-inner p { padding-left: 8px; font-size: 0.9rem; }
+  .faq-accordion-inner p { padding-left: 8px; font-size: 0.92rem; }
   .faq-contact-box { flex-direction: column; align-items: flex-start; gap: 16px; }
   .hero-prompt-box { flex-direction: column; padding: 16px; }
   .hero-prompt-action-btn { width: 100%; justify-content: center; }
