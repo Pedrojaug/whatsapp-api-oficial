@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { gsap } from "gsap";
 import { EASE, DUR } from "../utils/motion";
-import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
+import { useAuth } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
 import {
@@ -65,7 +65,7 @@ export default function Layout() {
       gsap.fromTo(
         mainRef.current,
         { opacity: 0, y: 10 },
-        { opacity: 1, y: 0, duration: DUR.sm, ease: EASE.out }
+        { opacity: 1, y: 0, duration: DUR.fast, ease: EASE }
       );
     }
   }, [location.pathname]);

@@ -48,6 +48,7 @@ export interface AuthUser {
   planTier: string;
   avatarUrl: string | null;
   createdAt?: string;
+  subscriptionStatus?: string;
 }
 
 interface AuthContextType {

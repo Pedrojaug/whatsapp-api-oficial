@@ -42,6 +42,7 @@ function safeUser(user: any) {
     planTier: user.planTier,
     avatarUrl: user.avatarUrl ?? null,
     createdAt: user.createdAt,
+    subscriptionStatus: user.subscriptionStatus ?? "ACTIVE",
   };
 }
 
