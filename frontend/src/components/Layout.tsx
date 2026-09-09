@@ -21,8 +21,7 @@ import {
   ShieldOff,
   Link2,
   Megaphone,
-  KeyRound,
-  CreditCard
+  KeyRound
 } from "lucide-react";
 
 const SUPPORT_WHATSAPP = "5583920017106";
@@ -87,114 +86,8 @@ export default function Layout() {
     return <AuthPages onLoginSuccess={(t, u) => login(t, u)} />;
   }
 
-  // Verificar se o trial de 3 dias expirou (apenas para contas com status TRIAL)
-  // Contas com subscriptionStatus ACTIVE ou sem createdAt estão liberadas
-  const isTrial = user?.subscriptionStatus === "TRIAL";
-  const isSuperUser = user?.role === "SUPERUSER";
-  let trialExpired = false;
-  let daysLeft = 0;
-
-  if (isTrial && !isSuperUser && user?.createdAt) {
-    const createdAt = new Date(user.createdAt).getTime();
-    const now = new Date().getTime();
-    const diffDays = (now - createdAt) / (1000 * 60 * 60 * 24);
-    daysLeft = Math.max(0, Math.ceil(3 - diffDays));
-    trialExpired = diffDays >= 3;
-  }
-
-  // Rota de assinatura/planos pode ser acessada mesmo com trial expirado
-  const isSubscriptionRoute = location.pathname === "/subscription" || location.pathname === "/billing";
-  const showBlockedModal = trialExpired && !isSubscriptionRoute && !isImpersonating;
-
-  // Banner de aviso nos últimos dias de teste (dia 1, 2 ou 3)
-  const showTrialBanner = isTrial && !trialExpired && !isSuperUser;
-
-  // Link direto para WhatsApp comercial para pagamento manual
-  const PAYMENT_WA = `https://wa.me/5583920017106?text=${encodeURIComponent("Olá! Quero assinar o Send Inteligentte. Meu e-mail é: " + (user?.email || ""))}`;
-
   return (
     <div className="app-shell">
-      {/* Modal de bloqueio quando o trial de 3 dias expira */}
-      {showBlockedModal && (
-        <div style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0,0,0,0.85)",
-          backdropFilter: "blur(8px)",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "20px",
-        }}>
-          <div style={{
-            background: "#111",
-            border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: "16px",
-            padding: "36px 32px",
-            maxWidth: "460px",
-            width: "100%",
-            textAlign: "center",
-            boxShadow: "0 20px 50px rgba(0,0,0,0.5)",
-          }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>⏳</div>
-            <h2 style={{ fontSize: "1.3rem", fontWeight: 700, color: "#fff", marginBottom: "8px" }}>
-              Período de Teste Encerrado
-            </h2>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.5, marginBottom: "24px" }}>
-              Seus 3 dias de teste gratuito terminaram. Para continuar disparando mensagens com a API Oficial da Meta e gerenciar seus contatos, assine um plano.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <a
-                href={PAYMENT_WA}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  padding: "12px 20px",
-                  background: "#00c26b",
-                  color: "#000",
-                  borderRadius: "8px",
-                  fontWeight: 700,
-                  fontSize: "0.9rem",
-                  textDecoration: "none",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "8px",
-                }}
-              >
-                💬 Falar com Suporte & Assinar
-              </a>
-              <button
-                onClick={() => navigate("/subscription")}
-                style={{
-                  padding: "10px 20px",
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                  color: "rgba(255,255,255,0.8)",
-                  borderRadius: "8px",
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                }}
-              >
-                Ver Planos Disponíveis
-              </button>
-            </div>
-            <p style={{ marginTop: "16px", fontSize: "0.75rem", color: "var(--text-muted)" }}>
-              Após o pagamento, seu acesso é liberado em até 24h.
-            </p>
-            <button
-              onClick={logout}
-              style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: "var(--text-muted)", fontSize: "0.8rem", textDecoration: "underline",
-              }}
-            >
-              Sair da conta
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Email verification banner ── */}
       {user && !user.emailVerified && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
@@ -215,46 +108,6 @@ export default function Layout() {
         </div>
       )}
 
-      {/* ── Trial countdown banner ── */}
-      {showTrialBanner && user?.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && (
-        <div style={{
-          background: "linear-gradient(90deg, rgba(251,191,36,0.1), rgba(251,191,36,0.04))",
-          borderBottom: "1px solid rgba(251,191,36,0.22)",
-          padding: "9px 24px",
-          fontSize: "0.83rem",
-          color: "#fbbf24",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          zIndex: 1001,
-          flexWrap: "wrap",
-        }}>
-          <span>
-            ⏳ <strong>{daysLeft} dia{daysLeft !== 1 ? "s" : ""} restante{daysLeft !== 1 ? "s" : ""}</strong> no seu período de teste gratuito.
-          </span>
-          <a
-            href={PAYMENT_WA}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              background: "rgba(251,191,36,0.15)",
-              border: "1px solid rgba(251,191,36,0.35)",
-              color: "#fbbf24",
-              padding: "5px 14px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.8rem",
-              fontWeight: 600,
-              fontFamily: "inherit",
-              whiteSpace: "nowrap",
-              textDecoration: "none",
-            }}
-          >
-            Assinar agora →
-          </a>
-        </div>
-      )}
 
       {/* ── Onboarding banner (new user, no accounts yet) ── */}
       {user && accounts.length === 0 && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && (
@@ -513,14 +366,6 @@ export default function Layout() {
               <span>Chaves de API</span>
             </NavLink>
 
-            <NavLink
-              to="/billing"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <CreditCard size={18} className="nav-icon" />
-              <span>Faturamento</span>
-            </NavLink>
 
             {user?.role === "SUPERUSER" && (
               <NavLink

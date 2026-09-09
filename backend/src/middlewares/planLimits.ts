@@ -3,64 +3,15 @@ import { prisma } from "../db";
 import { AuthenticatedRequest } from "./auth";
 
 /**
- * Middleware que verifica se a assinatura do usuário está ativa e dentro do prazo de validade.
+ * Middleware de validação de assinatura.
+ * O faturamento e ciclo de planos são gerenciados externamente; acesso liberado sem travas internas.
  */
 export async function checkSubscriptionActive(
-  req: AuthenticatedRequest,
-  res: Response,
+  _req: AuthenticatedRequest,
+  _res: Response,
   next: NextFunction
 ) {
-  try {
-    const userId = req.userId;
-    if (!userId) return res.status(401).json({ error: "Não autorizado." });
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        role: true,
-        subscriptionStatus: true,
-        subscriptionExpiresAt: true,
-        planTier: true,
-      },
-    });
-
-    if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
-
-    // Superusuario tem acesso ilimitado
-    if (user.role === "SUPERUSER") {
-      return next();
-    }
-
-    // Verificar se expirou
-    if (user.subscriptionExpiresAt && new Date(user.subscriptionExpiresAt) < new Date()) {
-      // Atualizar status para PAST_DUE caso estivesse ACTIVE ou TRIAL
-      if (user.subscriptionStatus === "ACTIVE" || user.subscriptionStatus === "TRIAL") {
-        await prisma.user.update({
-          where: { id: userId },
-          data: { subscriptionStatus: "PAST_DUE" },
-        });
-      }
-      return res.status(402).json({
-        error: "Sua assinatura está vencida.",
-        code: "SUBSCRIPTION_EXPIRED",
-        details: "Por favor, acesse a aba 'Assinatura & Plano' para efetuar a renovação ou entre em contato com o suporte.",
-      });
-    }
-
-    if (user.subscriptionStatus === "PAST_DUE" || user.subscriptionStatus === "CANCELED" || user.subscriptionStatus === "SUSPENDED") {
-      return res.status(402).json({
-        error: "Sua assinatura está inativa ou suspensa.",
-        code: "SUBSCRIPTION_INACTIVE",
-        details: "Acesse a aba 'Assinatura & Plano' para regularizar seu pagamento.",
-      });
-    }
-
-    next();
-  } catch (error: any) {
-    console.error("[planLimits] Erro ao verificar assinatura:", error);
-    return res.status(500).json({ error: "Erro ao verificar status da assinatura." });
-  }
+  return next();
 }
 
 /**
