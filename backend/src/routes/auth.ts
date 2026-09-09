@@ -69,9 +69,33 @@ const loginSchema = z.object({
   password: z.string().min(1, "A senha é obrigatória."),
 });
 
-// ── REGISTRO ─────────────────────────────────────────────────────────────────
+// ── REGISTRO (Restrito a Super Admin) ─────────────────────────────────────────
 
 router.post("/register", authLimiter, async (req: Request, res: Response) => {
+  // Apenas requisições autenticadas de Super Admin devem poder criar novos tenants.
+  // Requisições anônimas recebem 403 Forbidden.
+  const authHeader = req.headers.authorization;
+  let isSuperUser = false;
+
+  if (authHeader?.startsWith("Bearer ")) {
+    try {
+      const decoded = jwt.verify(authHeader.slice(7), JWT_SECRET) as { userId: string };
+      const caller = await prisma.user.findUnique({ where: { id: decoded.userId } });
+      if (caller && caller.role === "SUPERUSER") {
+        isSuperUser = true;
+      }
+    } catch {
+      // Token inválido ou expirado
+    }
+  }
+
+  const userCount = await prisma.user.count();
+  if (userCount > 0 && !isSuperUser) {
+    return res.status(403).json({
+      error: "O registro público está desativado. Apenas administradores podem criar novas contas.",
+    });
+  }
+
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ error: parsed.error.issues[0]?.message || "Dados inválidos." });
@@ -86,8 +110,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userCount = await prisma.user.count();
-    const role = userCount === 0 ? "SUPERUSER" : "USER";
+    const role = userCount === 0 ? "SUPERUSER" : (req.body.role === "SUPERUSER" ? "SUPERUSER" : "USER");
 
     const verificationToken = crypto.randomBytes(32).toString("hex");
     const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
@@ -98,6 +121,7 @@ router.post("/register", authLimiter, async (req: Request, res: Response) => {
         password: hashedPassword,
         name: name || null,
         role,
+        emailVerified: isSuperUser ? true : false,
         verificationToken,
         verificationTokenExpiry,
       },
@@ -349,16 +373,20 @@ router.get("/google/callback", async (req: Request, res: Response) => {
       });
     } else {
       const userCount = await prisma.user.count();
-      user = await prisma.user.create({
-        data: {
-          email: email.toLowerCase(),
-          name,
-          googleId,
-          avatarUrl: picture,
-          emailVerified: verified_email,
-          role: userCount === 0 ? "SUPERUSER" : "USER",
-        },
-      });
+      if (userCount === 0) {
+        user = await prisma.user.create({
+          data: {
+            email: email.toLowerCase(),
+            name,
+            googleId,
+            avatarUrl: picture,
+            emailVerified: verified_email,
+            role: "SUPERUSER",
+          },
+        });
+      } else {
+        return res.redirect(`${FRONTEND_URL}/?oauth_error=registration_disabled`);
+      }
     }
 
     const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: "30d" });

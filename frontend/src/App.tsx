@@ -54,6 +54,9 @@ export default function App() {
         <AlertProvider>
           <BrowserRouter>
             <Routes>
+              {/* ── Public redirects ── */}
+              <Route path="/register" element={<Navigate to="/login" replace />} />
+
               {/* ── Public pages (no Layout, no auth required) ── */}
               <Route path="/landing" element={<LandingPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
@@ -63,6 +66,8 @@ export default function App() {
               {/* ── Main app (Layout with sidebar) ── */}
               <Route path="/" element={<Layout />}>
                 <Route index element={<Navigate to="/metrics" replace />} />
+                <Route path="login" element={<Navigate to="/metrics" replace />} />
+                <Route path="register" element={<Navigate to="/login" replace />} />
                 <Route path="metrics" element={<DashboardPage />} />
                 <Route path="chat" element={<ChatPage />} />
                 <Route path="templates" element={<TemplatesPage />} />

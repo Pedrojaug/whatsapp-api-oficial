@@ -183,13 +183,12 @@ function GoogleIcon() {
 }
 
 // ─── Auth Component ────────────────────────────────────────────────────────────
-type AuthMode = "login" | "register" | "forgot";
+type AuthMode = "login" | "forgot";
 
 export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [forgotSent, setForgotSent] = useState(false);
@@ -197,7 +196,6 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [cardTilt, setCardTilt] = useState({ x: 0, y: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
-  const isLogin = mode === "login";
 
   // Card 3D tilt on mouse move
   const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -223,6 +221,7 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
         invalid_state: "Sessão expirada. Tente o login novamente.",
         not_configured: "Login com Google não está disponível no momento.",
         failed: "Erro ao autenticar com o Google. Tente novamente.",
+        registration_disabled: "O registro público está desativado. Contate o administrador.",
       };
       setError(msgs[oauthError] || "Erro no login com Google.");
       window.history.replaceState({}, "", window.location.pathname);
@@ -248,9 +247,7 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
     }
 
     try {
-      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-      const payload = isLogin ? { email, password } : { email, password, name };
-      const response = await axios.post(`${BASE_API_URL}${endpoint}`, payload);
+      const response = await axios.post(`${BASE_API_URL}/api/auth/login`, { email, password });
 
       if (response.data && typeof response.data === "object" && "token" in response.data) {
         const { token, user } = response.data;
@@ -370,7 +367,7 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
             </div>
 
             <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.85rem", fontWeight: "400", letterSpacing: "0.01em" }}>
-              {mode === "login" ? "Acesse seu painel de disparos" : mode === "register" ? "Crie sua conta para começar" : "Redefina sua senha"}
+              {mode === "login" ? "Acesse seu painel de disparos" : "Redefina sua senha"}
             </p>
           </div>
 
@@ -408,22 +405,6 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
           ) : (
             <>
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                {mode === "register" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                    <label style={labelStyle}>Nome Completo</label>
-                    <input
-                      type="text"
-                      placeholder="Seu nome"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      onFocus={() => setFocusedField("name")}
-                      onBlur={() => setFocusedField(null)}
-                      style={getInputStyle("name")}
-                      required
-                    />
-                  </div>
-                )}
-
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={labelStyle}>E-mail</label>
                   <input
@@ -545,12 +526,12 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
                       Processando...
                     </>
                   ) : (
-                    mode === "login" ? "Entrar" : mode === "register" ? "Criar Conta" : "Enviar link de redefinição"
+                    mode === "login" ? "Entrar" : "Enviar link de redefinição"
                   )}
                 </button>
               </form>
 
-              {/* ── Google OAuth button (login & register only) ── */}
+              {/* ── Google OAuth button ── */}
               {mode !== "forgot" && (
                 <>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px", margin: "16px 0 4px" }}>
@@ -588,15 +569,16 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
                     }}
                   >
                     <GoogleIcon />
-                    {mode === "login" ? "Entrar com Google" : "Cadastrar com Google"}
+                    Entrar com Google
                   </button>
                 </>
               )}
 
-              {/* ── Toggle between modes ── */}
-              <div style={{ marginTop: "16px", textAlign: "center" }}>
-                {mode === "forgot" ? (
+              {/* ── Voltar ao login quando estiver em 'forgot' ── */}
+              {mode === "forgot" && (
+                <div style={{ marginTop: "16px", textAlign: "center" }}>
                   <button
+                    type="button"
                     onClick={() => { setMode("login"); setError(""); }}
                     style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "0.85rem", fontFamily: "var(--font-sans)", transition: "color 0.2s" }}
                     onMouseEnter={e => (e.currentTarget.style.color = "var(--primary, #00c26b)")}
@@ -604,17 +586,8 @@ export default function AuthPages({ onLoginSuccess }: AuthPagesProps) {
                   >
                     ← Voltar ao login
                   </button>
-                ) : (
-                  <button
-                    onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(""); }}
-                    style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: "0.85rem", fontFamily: "var(--font-sans)", transition: "color 0.2s" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "var(--primary, #00c26b)")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "rgba(255,255,255,0.3)")}
-                  >
-                    {mode === "login" ? "Não tem uma conta? Cadastre-se" : "Já tem uma conta? Faça login"}
-                  </button>
-                )}
-              </div>
+                </div>
+              )}
             </>
           )}
         </div>
