@@ -412,6 +412,7 @@ export default function ChatPage() {
   const [isExporting, setIsExporting] = useState(false);
   const dateFilterRef = useRef({ startDate: "", endDate: "" });
   const [replyBody, setReplyBody] = useState("");
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isSendingReply, setIsSendingReply] = useState(false);
@@ -581,7 +582,10 @@ export default function ChatPage() {
     if (!selectedAccount || !selectedPhone || !replyBody.trim()) return;
 
     setIsSendingReply(true);
-    const bodyText = replyBody.trim();
+    // Preservar quebras de linha e converter negrito de Markdown (**texto**) para padrão WhatsApp (*texto*)
+    let bodyText = replyBody.trim();
+    bodyText = bodyText.replace(/\*\*([^*\n]+)\*\*/g, "*$1*");
+
     try {
       const res = await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/reply`, {
         to: selectedPhone,
@@ -590,6 +594,9 @@ export default function ChatPage() {
 
       setChatMessages((prev) => [...prev, res.data]);
       setReplyBody("");
+      if (replyTextareaRef.current) {
+        replyTextareaRef.current.style.height = "auto";
+      }
       
       setConversations((prevConv) => {
         const index = prevConv.findIndex((c) => c.phone === selectedPhone);
@@ -1258,24 +1265,45 @@ export default function ChatPage() {
                       )}
 
                       {/* Campo de digitação de mensagem e botões */}
-                      <form onSubmit={sendReply} style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                        <input
-                          type="text"
+                      <form onSubmit={sendReply} style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                        <textarea
+                          ref={replyTextareaRef}
                           placeholder={
                             !lastInc || isWindowActive 
-                              ? "Digite a sua resposta..." 
+                              ? "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)" 
                               : "Janela expirada — envie um template para reabrir..."
                           }
                           value={replyBody}
-                          onChange={(e) => setReplyBody(e.target.value)}
+                          onChange={(e) => {
+                            setReplyBody(e.target.value);
+                            e.target.style.height = "auto";
+                            e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                              e.preventDefault();
+                              sendReply();
+                            }
+                          }}
                           disabled={lastInc ? !isWindowActive : true}
                           className="form-control"
-                          style={{ flex: 1, padding: "12px 16px", borderRadius: "var(--radius-lg)" }}
+                          rows={1}
+                          style={{
+                            flex: 1,
+                            padding: "10px 14px",
+                            borderRadius: "var(--radius-lg)",
+                            resize: "none",
+                            minHeight: "44px",
+                            maxHeight: "140px",
+                            lineHeight: "1.4",
+                            overflowY: "auto",
+                            fontFamily: "inherit"
+                          }}
                         />
                         <button
                           type="submit"
                           className="btn btn-primary"
-                          style={{ padding: "12px 20px", borderRadius: "var(--radius-lg)" }}
+                          style={{ padding: "10px 20px", borderRadius: "var(--radius-lg)", height: "44px", flexShrink: 0 }}
                           disabled={isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
                         >
                           {isSendingReply ? "Enviando..." : "Enviar ✈️"}
@@ -1285,7 +1313,7 @@ export default function ChatPage() {
                           type="button"
                           onClick={() => setShowChatTemplateModal(true)}
                           className="btn btn-secondary"
-                          style={{ padding: "12px 16px", borderRadius: "var(--radius-lg)", whiteSpace: "nowrap" }}
+                          style={{ padding: "10px 16px", borderRadius: "var(--radius-lg)", whiteSpace: "nowrap", height: "44px", flexShrink: 0 }}
                           title="Enviar Template de Mensagem"
                         >
                           📝 Reabrir
