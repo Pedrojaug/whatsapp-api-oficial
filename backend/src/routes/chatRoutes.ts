@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
@@ -256,24 +256,63 @@ router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Resp
   try {
     const userId = (req as AuthenticatedRequest).userId!;
     const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     const token = decryptToken(account.accessToken);
 
-    // 1. Buscar URL temporária da mídia
+    // 1. Buscar URL temporária da mídia na Meta
     const metaRes = await metaService.getMediaUrl(mediaId, token);
-    const mediaUrl: string = metaRes.data.url;
-    const mimeType: string = metaRes.data.mime_type || "application/octet-stream";
+    const mediaUrl: string = metaRes.data?.url;
+    let mimeType: string = metaRes.data?.mime_type || "application/octet-stream";
 
-    // 2. Baixar o conteúdo binário e repassar ao cliente (evita CORS)
-    const mediaContent = await metaService.getMediaContentStream(mediaUrl, token);
+    if (!mediaUrl) {
+      return res.status(404).json({ error: "URL de mídia não encontrada na Meta." });
+    }
+
+    // Normalizar MIME type para áudio: WhatsApp envia "audio/ogg; codecs=opus".
+    // Alguns navegadores (ex: Safari/iOS) falham ao renderizar a tag <audio> com o parâmetro de codec no Content-Type.
+    if (mimeType.toLowerCase().includes("audio/ogg") || mimeType.toLowerCase().includes("opus")) {
+      mimeType = "audio/ogg";
+    }
+
+    // 2. Baixar o conteúdo binário e repassar ao cliente (evita CORS e restrições de token no browser)
+    const mediaResData = await metaService.getMediaBuffer(mediaUrl, token);
+    const buffer = Buffer.from(mediaResData.data);
 
     res.setHeader("Content-Type", mimeType);
-    res.setHeader("Cache-Control", "private, max-age=300");
-    mediaContent.data.pipe(res);
+    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Accept-Ranges", "bytes");
+
+    // Suporte completo a HTTP Range Requests (indispensável para players de áudio no Chrome, Edge e Safari)
+    const range = req.headers.range;
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : buffer.length - 1;
+
+      if (isNaN(start) || start >= buffer.length || end >= buffer.length || start > end) {
+        res.setHeader("Content-Range", `bytes */${buffer.length}`);
+        return res.status(416).end();
+      }
+
+      const chunkSize = end - start + 1;
+      res.status(206);
+      res.setHeader("Content-Range", `bytes ${start}-${end}/${buffer.length}`);
+      res.setHeader("Content-Length", chunkSize);
+      return res.end(buffer.subarray(start, end + 1));
+    }
+
+    res.setHeader("Content-Length", buffer.length);
+    return res.end(buffer);
   } catch (error: any) {
-    console.error("[Media Proxy] Erro ao buscar mídia:", error.response?.data || error.message);
-    res.status(500).json({ error: "Não foi possível carregar a mídia." });
+    const status = error.response?.status || 500;
+    const details = error.response?.data?.error?.message || error.message;
+    console.error(`[Media Proxy] Erro ao buscar mídia ${mediaId} (${status}):`, details);
+    res.status(status === 404 || status === 400 ? 404 : 500).json({
+      error: status === 404 || status === 400
+        ? "Mídia não encontrada ou expirada nos servidores da Meta (mídias de WhatsApp expiram em até 30 dias)."
+        : "Não foi possível carregar a mídia."
+    });
   }
 });
 

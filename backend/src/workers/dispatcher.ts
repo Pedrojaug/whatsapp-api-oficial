@@ -252,6 +252,13 @@ async function checkAndDispatch() {
           errorMessage: updatedMsg.errorMessage,
           updatedAt: updatedMsg.updatedAt,
         });
+
+        // Pacing preventivo de segurança: cadencia o envio para respeitar os limites de burst da Meta
+        // e evitar que o algoritmo acione bloqueios de ecossistema (Erro 131049)
+        const pacingMs = parseInt(process.env.DISPATCH_PACING_MS || "70", 10);
+        if (pacingMs > 0) {
+          await new Promise((resolve) => setTimeout(resolve, pacingMs));
+        }
       } catch (error: any) {
         console.error(`[Worker] Erro ao enviar mensagem ${msg.id}:`, error.response?.data || error.message);
         

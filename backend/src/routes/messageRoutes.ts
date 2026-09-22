@@ -9,6 +9,7 @@ import { metaService } from "../services/metaService";
 import { resolveMetaMediaId } from "../utils/mediaUpload";
 import { normalizePhone } from "../services/phoneService";
 import { triggerDispatcher } from "../workers/dispatcher";
+import { findAccountForUser } from "../utils/accountAccess";
 
 const router = Router();
 
@@ -312,10 +313,8 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
   const { period, startDate: queryStart, endDate: queryEnd } = req.query;
 
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
 
     const start = new Date();
@@ -356,30 +355,61 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       end.setHours(23, 59, 59, 999);
     }
 
-    const messages = await prisma.message.findMany({
-      where: {
-        accountId,
-        direction: "OUTGOING",
-        // Painel de metricas mede DISPAROS (templates); mensagens de chat (TEXT)
-        // enviadas pela caixa de entrada ou pelo bot SDR nao entram no funil.
-        messageType: "TEMPLATE",
-        createdAt: {
-          gte: start,
-          lte: end
+    const [messages, incomingMsgs, optOutsCount] = await Promise.all([
+      prisma.message.findMany({
+        where: {
+          accountId,
+          direction: "OUTGOING",
+          messageType: "TEMPLATE",
+          createdAt: {
+            gte: start,
+            lte: end
+          }
+        },
+        select: {
+          status: true,
+          createdAt: true,
+          templateName: true,
+          errorMessage: true,
+          to: true,
         }
-      },
-      select: {
-        status: true,
-        createdAt: true,
-        templateName: true
-      }
-    });
+      }),
+      prisma.message.findMany({
+        where: {
+          accountId,
+          direction: "INCOMING",
+          createdAt: {
+            gte: start,
+            lte: end
+          }
+        },
+        select: {
+          to: true,
+          createdAt: true
+        }
+      }),
+      prisma.optOut.count({
+        where: {
+          accountId,
+          createdAt: {
+            gte: start,
+            lte: end
+          }
+        }
+      })
+    ]);
 
     // Calculate totals (cumulative funnel logic)
     let sent = 0;
     let delivered = 0;
     let read = 0;
     let failed = 0;
+
+    // Diagnóstico categorizado de falhas
+    let invalidNumbers = 0; // 131026 ou undeliverable
+    let frequencyCapped = 0; // 131049 ou limite de frequência Meta
+    let metaExperiment = 0; // 130472 ou grupo de controle/experimento
+    let otherFailures = 0;
 
     messages.forEach(msg => {
       if (msg.status === "READ") {
@@ -393,9 +423,30 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
         sent++;
       } else if (msg.status === "FAILED") {
         failed++;
+        const err = (msg.errorMessage || "").toLowerCase();
+        if (err.includes("131026") || err.includes("undeliverable") || err.includes("inválido") || err.includes("sem whatsapp")) {
+          invalidNumbers++;
+        } else if (err.includes("131049") || err.includes("frequência") || err.includes("healthy ecosystem") || err.includes("frequencia")) {
+          frequencyCapped++;
+        } else if (err.includes("130472") || err.includes("experiment") || err.includes("experimento")) {
+          metaExperiment++;
+        } else {
+          otherFailures++;
+        }
       }
     });
+
     const total = messages.length;
+    const validBase = Math.max(0, total - invalidNumbers);
+    const validDeliveryRate = validBase > 0 ? Math.round((delivered / validBase) * 100) : 0;
+    const deliveryRate = total > 0 ? Math.round((delivered / total) * 100) : 0;
+    const readRate = total > 0 ? Math.round((read / total) * 100) : 0;
+
+    // Respostas recebidas e taxa de conversão/engajamento
+    const totalReplies = incomingMsgs.length;
+    const uniqueRepliedPhones = new Set(incomingMsgs.map(m => m.to)).size;
+    const responseRate = delivered > 0 ? Math.round((uniqueRepliedPhones / delivered) * 100) : 0;
+    const optOutRate = delivered > 0 ? Number(((optOutsCount / delivered) * 100).toFixed(2)) : 0;
 
     // Helper to format Date local to YYYY-MM-DD
     const formatDateLocal = (date: Date) => {
@@ -406,13 +457,13 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
     };
 
     // Group by day for the chart
-    const dailyMap = new Map<string, { date: string; sent: number; read: number; failed: number }>();
+    const dailyMap = new Map<string, { date: string; sent: number; read: number; failed: number; replies: number }>();
     
     // Initialize chart dates so that dates with 0 messages are shown!
     const current = new Date(start);
     while (current.getTime() <= end.getTime()) {
       const dateStr = formatDateLocal(current);
-      dailyMap.set(dateStr, { date: dateStr, sent: 0, read: 0, failed: 0 });
+      dailyMap.set(dateStr, { date: dateStr, sent: 0, read: 0, failed: 0, replies: 0 });
       current.setDate(current.getDate() + 1);
     }
 
@@ -431,32 +482,70 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       }
     });
 
+    incomingMsgs.forEach(msg => {
+      const dateStr = formatDateLocal(msg.createdAt);
+      const dayData = dailyMap.get(dateStr);
+      if (dayData) {
+        dayData.replies++;
+      }
+    });
+
     const chartData = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
     // Agrupar por nome do template para tabela de performance
-    const templateMap = new Map<string, { templateName: string; sent: number; read: number; failed: number; total: number }>();
+    const templateMap = new Map<string, { templateName: string; sent: number; delivered: number; read: number; failed: number; total: number; readRate: number }>();
 
     messages.forEach(msg => {
       const tName = msg.templateName || "Envio Direto";
       if (!templateMap.has(tName)) {
-        templateMap.set(tName, { templateName: tName, sent: 0, read: 0, failed: 0, total: 0 });
+        templateMap.set(tName, { templateName: tName, sent: 0, delivered: 0, read: 0, failed: 0, total: 0, readRate: 0 });
       }
       const tData = templateMap.get(tName)!;
       tData.total++;
       if (msg.status === "READ") {
         tData.read++;
+        tData.delivered++;
         tData.sent++;
-      } else if (msg.status === "DELIVERED" || msg.status === "SENT") {
+      } else if (msg.status === "DELIVERED") {
+        tData.delivered++;
+        tData.sent++;
+      } else if (msg.status === "SENT") {
         tData.sent++;
       } else if (msg.status === "FAILED") {
         tData.failed++;
       }
     });
 
-    const templateMetrics = Array.from(templateMap.values()).sort((a, b) => b.total - a.total);
+    const templateMetrics = Array.from(templateMap.values())
+      .map(t => ({
+        ...t,
+        readRate: t.delivered > 0 ? Math.round((t.read / t.delivered) * 100) : 0
+      }))
+      .sort((a, b) => b.total - a.total);
 
     res.json({
-      totals: { sent, delivered, read, failed, total },
+      totals: {
+        sent,
+        delivered,
+        read,
+        failed,
+        total,
+        replies: totalReplies,
+        uniqueReplies: uniqueRepliedPhones,
+        responseRate,
+        validBase,
+        validDeliveryRate,
+        deliveryRate,
+        readRate,
+        optOuts: optOutsCount,
+        optOutRate,
+      },
+      failureDiagnosis: {
+        invalidNumbers,
+        frequencyCapped,
+        metaExperiment,
+        other: otherFailures,
+      },
       chartData,
       templateMetrics
     });

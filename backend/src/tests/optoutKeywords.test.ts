@@ -37,4 +37,12 @@ describe("isOptOutMessage", () => {
   it("ignora mensagem com keyword embutida no meio", () => {
     expect(isOptOutMessage("quero parar de fumar")).toBe(false);
   });
+
+  it("reconhece frases de recusa e número errado dos logs reais", () => {
+    expect(isOptOutMessage("Não me inscrevi")).toBe(true);
+    expect(isOptOutMessage("Não sei que curso é esse")).toBe(true);
+    expect(isOptOutMessage("Número errado, foi engano")).toBe(true);
+    expect(isOptOutMessage("Favor apagar meu número")).toBe(true);
+    expect(isOptOutMessage("Não tenho interesse")).toBe(true);
+  });
 });

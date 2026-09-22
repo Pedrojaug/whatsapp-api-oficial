@@ -3,7 +3,146 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
-import { API_BASE_URL } from "../contexts/AuthContext";
+import { API_BASE_URL, useAuth } from "../contexts/AuthContext";
+
+function AudioMessagePlayer({ src }: { src: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setHasError(false);
+
+    if (!src) {
+      setLoading(false);
+      setHasError(true);
+      return;
+    }
+
+    if (src.startsWith("blob:") || src.startsWith("data:")) {
+      setBlobUrl(src);
+      setLoading(false);
+      return;
+    }
+
+    // Carregar via fetch com token para obter Blob local e evitar travamentos de Range Requests
+    const token = localStorage.getItem("token") || "";
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    fetch(src, { headers })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const blob = await response.blob();
+        if (!active) return;
+        const objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn("[AudioMessagePlayer] Erro ao carregar blob, usando link direto:", err?.message);
+        if (!active) return;
+        // Fallback: carregar diretamente na tag de áudio
+        setBlobUrl(src);
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [src, retryCount]);
+
+  if (loading) {
+    return (
+      <div style={{
+        padding: "8px 12px",
+        borderRadius: "8px",
+        background: "rgba(255, 255, 255, 0.05)",
+        fontSize: "0.8rem",
+        color: "var(--text-muted)",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        marginBottom: "6px"
+      }}>
+        <div style={{
+          width: "12px",
+          height: "12px",
+          border: "2px solid rgba(255,255,255,0.2)",
+          borderTopColor: "var(--primary, #10b981)",
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite"
+        }} />
+        <span>Carregando áudio...</span>
+      </div>
+    );
+  }
+
+  if (hasError) {
+    return (
+      <div style={{
+        padding: "8px 12px",
+        borderRadius: "8px",
+        background: "rgba(239, 68, 68, 0.1)",
+        border: "1px solid rgba(239, 68, 68, 0.2)",
+        color: "#f87171",
+        fontSize: "0.82rem",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        marginBottom: "6px"
+      }}>
+        <span>⚠️</span>
+        <div style={{ flex: 1 }}>
+          <div>Não foi possível reproduzir o áudio (mídia expirada ou inacessível).</div>
+          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+            <button
+              onClick={() => setRetryCount(c => c + 1)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--primary, #3b82f6)",
+                fontSize: "0.75rem",
+                cursor: "pointer",
+                padding: 0,
+                textDecoration: "underline"
+              }}
+            >
+              🔄 Tentar novamente
+            </button>
+            <a
+              href={src}
+              target="_blank"
+              rel="noreferrer"
+              style={{ color: "var(--text-muted)", fontSize: "0.75rem", textDecoration: "underline" }}
+            >
+              Abrir link direto
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: "6px", width: "100%", minWidth: "260px" }}>
+      <audio
+        src={blobUrl || src}
+        controls
+        preload="auto"
+        onError={() => setHasError(true)}
+        style={{ width: "100%", height: "38px", borderRadius: "8px", display: "block" }}
+      >
+        Seu navegador não suporta reprodução de áudio.
+      </audio>
+    </div>
+  );
+}
 
 function normalizePhone(phone: string): string {
   const digits = (phone || "").replace(/\D/g, "");
@@ -26,6 +165,7 @@ interface Template {
 export default function ChatPage() {
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
+  const { token: authToken } = useAuth();
 
   const [conversations, setConversations] = useState<any[]>([]);
   const [selectedPhone, setSelectedPhone] = useState<string>("");
@@ -309,6 +449,7 @@ export default function ChatPage() {
               ...updated[idx],
               status: data.status,
               wamid: data.wamid || updated[idx].wamid,
+              mediaUrl: data.mediaUrl !== undefined ? data.mediaUrl : updated[idx].mediaUrl,
               errorMessage: data.errorMessage !== undefined ? data.errorMessage : updated[idx].errorMessage,
             };
             return updated;
@@ -323,6 +464,7 @@ export default function ChatPage() {
             direction: data.direction,
             messageType: data.messageType,
             body: data.body,
+            mediaUrl: data.mediaUrl,
             createdAt: data.updatedAt || new Date().toISOString(),
           }];
         });
@@ -705,34 +847,46 @@ export default function ChatPage() {
                                 const headerComp = tmpl && Array.isArray(tmpl.components)
                                   ? tmpl.components.find((c: any) => c.type === "HEADER")
                                   : null;
-                                const fmt = headerComp?.format || msg.messageType;
+                                const fmt = (headerComp?.format || msg.messageType || "").toUpperCase();
 
-                                if (mediaUrl && fmt === "IMAGE") return (
-                                  <img src={mediaUrl} alt="Imagem" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
-                                );
-                                if (mediaUrl && fmt === "VIDEO") return (
-                                  <video src={mediaUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
-                                );
-                                if (mediaUrl && fmt === "DOCUMENT") return (
-                                  <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
-                                    📄 {mediaUrl.split("/").pop() || "Documento"}
-                                  </a>
-                                );
+                                // Mídia OUTGOING direta ou de template
+                                if (mediaUrl && msg.direction !== "INCOMING") {
+                                  if (fmt === "IMAGE") return (
+                                    <img src={mediaUrl} alt="Imagem" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                  );
+                                  if (fmt === "VIDEO") return (
+                                    <video src={mediaUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                  );
+                                  if (fmt === "AUDIO" || fmt === "VOICE") return (
+                                    <AudioMessagePlayer src={mediaUrl} />
+                                  );
+                                  if (fmt === "DOCUMENT") return (
+                                    <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
+                                      📄 {mediaUrl.split("/").pop() || "Documento"}
+                                    </a>
+                                  );
+                                }
 
-                                // Mídia recebida (INCOMING) - mediaUrl é o ID, buscar via proxy
+                                // Mídia recebida (INCOMING) - se for ID da Meta, buscar via proxy autenticado com token na query
                                 if (mediaUrl && msg.direction === "INCOMING" && selectedAccount) {
-                                  const proxyUrl = `${API_BASE_URL}/accounts/${selectedAccount.id}/media/${mediaUrl}`;
-                                  if (msg.messageType === "IMAGE") return (
+                                  const isExternal = mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://") || mediaUrl.startsWith("data:") || mediaUrl.startsWith("blob:");
+                                  const currentToken = authToken || localStorage.getItem("token") || "";
+                                  const tokenParam = currentToken ? `?token=${encodeURIComponent(currentToken)}` : "";
+                                  const proxyUrl = isExternal
+                                    ? mediaUrl
+                                    : `${API_BASE_URL}/accounts/${selectedAccount.id}/media/${mediaUrl}${tokenParam}`;
+
+                                  if (fmt === "IMAGE") return (
                                     <img src={proxyUrl} alt="Imagem recebida" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
                                   );
-                                  if (msg.messageType === "VIDEO") return (
+                                  if (fmt === "VIDEO") return (
                                     <video src={proxyUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
                                   );
-                                  if (msg.messageType === "AUDIO") return (
-                                    <audio src={proxyUrl} controls style={{ width: "100%", marginBottom: "6px" }} />
+                                  if (fmt === "AUDIO" || fmt === "VOICE") return (
+                                    <AudioMessagePlayer src={proxyUrl} />
                                   );
-                                  if (msg.messageType === "DOCUMENT") return (
-                                    <a href={proxyUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
+                                  if (fmt === "DOCUMENT") return (
+                                    <a href={proxyUrl} target="_blank" rel="noreferrer" download style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
                                       📄 Documento recebido
                                     </a>
                                   );

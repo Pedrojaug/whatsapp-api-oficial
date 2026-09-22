@@ -114,14 +114,26 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                 const wamid = statusObj.id;
                 const status = statusObj.status?.toUpperCase(); // DELIVERED, READ, SENT, FAILED
                 const errors = statusObj.errors;
-
                 let errorMessage = null;
+                let isUndeliverable = false;
+
                 if (errors && errors.length > 0) {
                   const err = errors[0];
-                  const code = err.code ? `[Erro ${err.code}] ` : "";
+                  const code = err.code ? Number(err.code) : null;
                   const title = err.title || err.message || "Erro desconhecido";
                   const details = err.error_data?.details ? ` - ${err.error_data.details}` : "";
-                  errorMessage = `${code}${title}${details}`;
+
+                  // Mapeamento enriquecido para proteção e transparência do cliente
+                  if (code === 131026 || title.toLowerCase().includes("undeliverable")) {
+                    isUndeliverable = true;
+                    errorMessage = `[Erro 131026] Número inválido ou sem WhatsApp ativo (Contato auto-bloqueado para proteger qualidade de envio)`;
+                  } else if (code === 131049 || title.toLowerCase().includes("healthy ecosystem")) {
+                    errorMessage = `[Erro 131049 - Alerta Meta] Limite de frequência de marketing atingido para o destinatário (sem cobrança)`;
+                  } else if (code === 130472 || title.toLowerCase().includes("experiment")) {
+                    errorMessage = `[Erro 130472] Destinatário em grupo de teste/experimento da Meta (sem cobrança)`;
+                  } else {
+                    errorMessage = `${code ? `[Erro ${code}] ` : ""}${title}${details}`;
+                  }
                 }
 
                 // Procurar mensagem por wamid e atualizar status
@@ -143,6 +155,22 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                     },
                   });
                   console.log(`Mensagem ${wamid} atualizada para o status: ${status}`);
+
+                  // Se o número for inválido/inexistente, registra automaticamente no OptOut
+                  // para impedir que futuras campanhas tentem reenviar para esse contato morto
+                  if (isUndeliverable && status === "FAILED") {
+                    try {
+                      const normalizedRecipient = normalizePhone(msg.to);
+                      await prisma.optOut.upsert({
+                        where: { phone_accountId: { phone: normalizedRecipient, accountId: msg.accountId } },
+                        update: { reason: "UNDELIVERABLE" },
+                        create: { phone: normalizedRecipient, accountId: msg.accountId, reason: "UNDELIVERABLE" },
+                      });
+                      console.log(`[Webhook] Número inválido ${normalizedRecipient} adicionado automaticamente ao OptOut (UNDELIVERABLE).`);
+                    } catch (optErr) {
+                      console.error("[Webhook] Erro ao registrar opt-out para número inválido:", optErr);
+                    }
+                  }
 
                   // Emitir evento em tempo real para SSE
                   messageEventEmitter.emit("messageUpdated", {
@@ -182,22 +210,6 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                 
                 if (type === "text") {
                   bodyText = messageObj.text?.body;
-
-                  // Detecção de opt-out: registrar automaticamente se o contato enviar STOP
-                  if (bodyText && isOptOutMessage(bodyText)) {
-                    const phoneIdForOptOut = value.metadata?.phone_number_id;
-                    if (phoneIdForOptOut) {
-                      const accForOptOut = await prisma.account.findFirst({ where: { phoneNumberId: phoneIdForOptOut } });
-                      if (accForOptOut) {
-                        await prisma.optOut.upsert({
-                          where: { phone_accountId: { phone: from, accountId: accForOptOut.id } },
-                          update: { reason: "KEYWORD" },
-                          create: { phone: from, accountId: accForOptOut.id, reason: "KEYWORD" },
-                        });
-                        console.log(`[Webhook] Opt-out registrado automaticamente para ${from} (conta ${accForOptOut.id}) — keyword detectada: "${bodyText}"`);
-                      }
-                    }
-                  }
                 } else if (type === "image") {
                   bodyText = messageObj.image?.caption || "📷 Imagem";
                   mediaUrl = messageObj.image?.id;
@@ -218,11 +230,14 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                   bodyText = messageObj.button?.text || messageObj.button?.payload || "Resposta de botão";
                 } else if (type === "interactive") {
                   // Cliente respondeu a uma mensagem interativa (botões ou lista)
-                  const interactive = messageObj.interactive;
-                  bodyText =
-                    interactive?.button_reply?.title ||
-                    interactive?.list_reply?.title ||
-                    "Resposta interativa";
+                  const inter = messageObj.interactive;
+                  if (inter?.button_reply) {
+                    bodyText = inter.button_reply.title || inter.button_reply.id;
+                  } else if (inter?.list_reply) {
+                    bodyText = inter.list_reply.title || inter.list_reply.id;
+                  } else {
+                    bodyText = "Resposta interativa";
+                  }
                 } else if (type === "location") {
                   const loc = messageObj.location;
                   const label = loc?.name || loc?.address;
@@ -255,6 +270,20 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
                   if (account) {
                     console.log(`[Webhook] Conta encontrada no banco: ${account.name} (ID: ${account.id})`);
+
+                    // Detecção inteligente de opt-out (Texto, Botão ou Interativo)
+                    if (bodyText && isOptOutMessage(bodyText)) {
+                      try {
+                        await prisma.optOut.upsert({
+                          where: { phone_accountId: { phone: from, accountId: account.id } },
+                          update: { reason: "KEYWORD" },
+                          create: { phone: from, accountId: account.id, reason: "KEYWORD" },
+                        });
+                        console.log(`[Webhook] Opt-out registrado automaticamente para ${from} (conta ${account.id}) — recusa/keyword detectada: "${bodyText}"`);
+                      } catch (optErr) {
+                        console.error("[Webhook] Erro ao registrar opt-out:", optErr);
+                      }
+                    }
 
                     // Salvar/atualizar nome de perfil do contato
                     if (profileName) {
@@ -293,6 +322,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         body: savedMsg.body,
                         to: savedMsg.to,
                         messageType: savedMsg.messageType,
+                        mediaUrl: savedMsg.mediaUrl,
                         wamid: savedMsg.wamid,
                         errorMessage: savedMsg.errorMessage,
                         updatedAt: savedMsg.updatedAt,

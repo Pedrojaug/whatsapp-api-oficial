@@ -23,6 +23,7 @@ describe("normalizePhone", () => {
     expect(normalizePhone("+55 (83) 9 8624-1167")).toBe("5583986241167");
     expect(normalizePhone("(83) 98624-1167")).toBe("5583986241167");
     expect(normalizePhone("(83) 8624-1167")).toBe("5583986241167");
+    expect(normalizePhone("083993875369")).toBe("5583993875369");
   });
 
   it("não altera número internacional sem prefixo 55", () => {

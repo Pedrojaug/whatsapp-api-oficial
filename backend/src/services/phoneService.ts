@@ -9,7 +9,12 @@
  */
 export function normalizePhone(phone: string): string {
   if (!phone) return "";
-  const digits = phone.replace(/\D/g, "");
+  let digits = phone.replace(/\D/g, "");
+
+  // Remove zero à esquerda caso o DDD tenha vindo com prefixo 0 (ex: 083993875369 -> 83993875369)
+  if (digits.startsWith("0") && digits.length >= 11 && !digits.startsWith("00")) {
+    digits = digits.slice(1);
+  }
 
   // Já começa com 55 (Brasil)
   if (digits.startsWith("55")) {

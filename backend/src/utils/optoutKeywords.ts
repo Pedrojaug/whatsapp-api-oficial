@@ -6,6 +6,30 @@ const OPT_OUT_KEYWORDS = new Set([
   "nao me mande", "nao mande mais", "nao envie mais",
 ]);
 
+/** Expressões ou frases indicativas de recusa, engano ou falta de consentimento */
+const OPT_OUT_PHRASES = [
+  "nao me inscrevi",
+  "nunca me inscrevi",
+  "nao sei que curso",
+  "numero errado",
+  "numero trocado",
+  "engano",
+  "foi engano",
+  "e engano",
+  "tire meu numero",
+  "apague meu numero",
+  "apagar meu numero",
+  "me tire",
+  "me remova",
+  "me descadastre",
+  "favor nao enviar",
+  "favor nao mandar",
+  "nao tenho interesse",
+  "sem interesse",
+  "nao autorizei",
+  "nao solicitei",
+];
+
 /** Remove acentos e normaliza para minúsculas para comparação. */
 function normalize(text: string): string {
   return text
@@ -16,11 +40,21 @@ function normalize(text: string): string {
 }
 
 /**
- * Retorna true se o texto da mensagem é um pedido de opt-out.
- * Compara a mensagem normalizada (sem acentos, minúsculas) com a lista de keywords.
+ * Retorna true se o texto da mensagem é um pedido de opt-out ou recusa clara.
  */
 export function isOptOutMessage(text: string): boolean {
   if (!text) return false;
   const normalized = normalize(text);
-  return OPT_OUT_KEYWORDS.has(normalized);
+
+  if (OPT_OUT_KEYWORDS.has(normalized)) {
+    return true;
+  }
+
+  for (const phrase of OPT_OUT_PHRASES) {
+    if (normalized.includes(phrase)) {
+      return true;
+    }
+  }
+
+  return false;
 }

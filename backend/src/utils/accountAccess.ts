@@ -18,6 +18,11 @@ export async function findAccountForUser(
     return { ...account, isShared: false, isOwner: true };
   }
 
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (user && user.role === "ADMIN") {
+    return { ...account, isShared: false, isOwner: false };
+  }
+
   const share = await prisma.accountShare.findFirst({
     where: { accountId, userId },
   });

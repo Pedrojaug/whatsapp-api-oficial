@@ -102,8 +102,25 @@ export const metaService = {
    */
   async getMediaContentStream(mediaUrl: string, accessToken: string) {
     return axios.get(mediaUrl, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "curl/7.64.1"
+      },
       responseType: "stream"
+    });
+  },
+
+  /**
+   * Obtém o buffer binário completo de um arquivo de mídia Meta
+   */
+  async getMediaBuffer(mediaUrl: string, accessToken: string) {
+    return axios.get(mediaUrl, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "curl/7.64.1"
+      },
+      responseType: "arraybuffer",
+      timeout: 30000
     });
   },
 

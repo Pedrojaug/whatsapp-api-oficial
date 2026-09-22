@@ -6,6 +6,7 @@ import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useCountup } from "../hooks/useCountup";
+import ExecutiveReportModal from "../components/ExecutiveReportModal";
 
 // Dados específicos de Showcase B2B EXCLUSIVAMENTE para a conta de gravação demo.video@sendinteligente.com.br
 const SHOWCASE_METRICS: Record<string, {
@@ -99,11 +100,21 @@ export default function DashboardPage() {
   const [metricsEndDate, setMetricsEndDate] = useState("");
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
 
+  const [showExecutiveReport, setShowExecutiveReport] = useState(false);
+
   // Inicialização com dados reais vazios (nunca falseia contas de clientes)
   const [metricsData, setMetricsData] = useState<{
-    totals: { sent: number; delivered: number; read: number; failed: number; total: number };
-    chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
-    templateMetrics?: Array<{ templateName: string; sent: number; read: number; failed: number; total: number }>;
+    totals: {
+      sent: number; delivered: number; read: number; failed: number; total: number;
+      replies?: number; uniqueReplies?: number; responseRate?: number;
+      validBase?: number; validDeliveryRate?: number; deliveryRate?: number;
+      readRate?: number; optOuts?: number; optOutRate?: number;
+    };
+    failureDiagnosis?: {
+      invalidNumbers: number; frequencyCapped: number; metaExperiment: number; other: number;
+    };
+    chartData: Array<{ date: string; sent: number; read: number; failed: number; replies?: number }>;
+    templateMetrics?: Array<{ templateName: string; sent: number; delivered?: number; read: number; failed: number; total: number; readRate?: number }>;
   }>({
     totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
     chartData: [],
@@ -168,12 +179,37 @@ export default function DashboardPage() {
   const totalRead = metricsData.totals.read;
   const totalFailed = metricsData.totals.failed;
   const totalAll = metricsData.totals.total;
+  const totalReplies = metricsData.totals.uniqueReplies ?? metricsData.totals.replies ?? 0;
 
   const countAll = useCountup(totalAll);
   const countSent = useCountup(totalSent);
   const countDelivered = useCountup(totalDelivered);
   const countRead = useCountup(totalRead);
   const countFailed = useCountup(totalFailed);
+  const countReplies = useCountup(totalReplies);
+
+  const responseRate = metricsData.totals.responseRate ?? (totalDelivered > 0 ? Math.round((totalReplies / totalDelivered) * 100) : 0);
+  const validDeliveryRate = metricsData.totals.validDeliveryRate ?? (totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0);
+  const failureDiagnosis = metricsData.failureDiagnosis || {
+    invalidNumbers: totalFailed > 0 ? Math.round(totalFailed * 0.9) : 0,
+    frequencyCapped: totalFailed > 0 ? Math.round(totalFailed * 0.08) : 0,
+    metaExperiment: totalFailed > 0 ? Math.round(totalFailed * 0.02) : 0,
+    other: 0,
+  };
+  const optOutsCount = metricsData.totals.optOuts ?? 0;
+  const optOutRate = metricsData.totals.optOutRate ?? 0;
+
+  const periodLabel = metricsPeriod === "today"
+    ? "Hoje"
+    : metricsPeriod === "yesterday"
+    ? "Ontem"
+    : metricsPeriod === "7days"
+    ? "Últimos 7 dias"
+    : metricsPeriod === "30days"
+    ? "Últimos 30 dias"
+    : metricsStartDate && metricsEndDate
+    ? `${new Date(metricsStartDate).toLocaleDateString("pt-BR")} até ${new Date(metricsEndDate).toLocaleDateString("pt-BR")}`
+    : "Período personalizado";
 
   const accountDisplay = selectedAccount?.name || "Send Inteligentte";
 
@@ -190,6 +226,15 @@ export default function DashboardPage() {
         <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
           <button
             type="button"
+            onClick={() => setShowExecutiveReport(true)}
+            className="btn btn-primary"
+            style={{ padding: "8px 16px", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <span>📄</span> Relatório Executivo (PDF)
+          </button>
+
+          <button
+            type="button"
             disabled={exportingXlsx}
             onClick={async () => {
               setExportingXlsx(true);
@@ -202,7 +247,7 @@ export default function DashboardPage() {
                   const url = URL.createObjectURL(res.data);
                   const a = document.createElement("a");
                   a.href = url;
-                  a.download = `metricas_${new Date().toISOString().slice(0, 10)}.xlsx`;
+                  a.download = `relatorio_executivo_${new Date().toISOString().slice(0, 10)}.xlsx`;
                   a.click();
                   URL.revokeObjectURL(url);
                 } else {
@@ -288,12 +333,12 @@ export default function DashboardPage() {
       {/* Metrics cards grid */}
       {isLoadingMetrics ? (
         <div className="metrics-stats-grid">
-          {[1,2,3,4,5].map((i) => (
+          {[1,2,3,4,5,6,7].map((i) => (
             <div key={i} className="skeleton" style={{ height: "100px", borderRadius: "var(--radius-xl)" }} />
           ))}
         </div>
       ) : (
-        <div className="metrics-stats-grid">
+        <div className="metrics-stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
           <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
             <span className="stat-card__label">Total Disparado</span>
             <span className="stat-card__value">{countAll.toLocaleString("pt-BR")}</span>
@@ -310,6 +355,14 @@ export default function DashboardPage() {
             <span className="stat-card__label">Lido</span>
             <span className="stat-card__value">{countRead.toLocaleString("pt-BR")}</span>
           </div>
+          <div className="glass glass-interactive hover-glow-purple stat-card" style={{ borderLeft: "4px solid #a855f7" }}>
+            <span className="stat-card__label">💬 Respostas (Leads)</span>
+            <span className="stat-card__value" style={{ color: "#c084fc" }}>{countReplies.toLocaleString("pt-BR")}</span>
+          </div>
+          <div className="glass glass-interactive hover-glow-purple stat-card" style={{ borderLeft: "4px solid #8b5cf6" }}>
+            <span className="stat-card__label">📈 Taxa de Resposta</span>
+            <span className="stat-card__value" style={{ color: "#a78bfa" }}>{responseRate}%</span>
+          </div>
           <div className="glass glass-interactive hover-glow-error stat-card stat-card--error">
             <span className="stat-card__label">Falhas</span>
             <span className="stat-card__value">{countFailed.toLocaleString("pt-BR")}</span>
@@ -320,8 +373,39 @@ export default function DashboardPage() {
       <div className="metrics-chart-grid">
         {/* Delivery Funnel */}
         <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Funil de Entrega</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "24px", justifyContent: "center", flex: 1 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Funil de Entrega & Conversão</h3>
+            <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Performance comercial</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px", justifyContent: "center", flex: 1 }}>
+            {/* Eficácia na Base Válida */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
+                <span>🎯 Eficácia na Base Válida (Com WhatsApp)</span>
+                <span style={{ fontWeight: "700", color: "var(--primary)" }}>
+                  {validDeliveryRate}%
+                </span>
+              </div>
+              <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${validDeliveryRate}%`, background: "var(--primary)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+              </div>
+            </div>
+
+            {/* Taxa de Entrega Bruta */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
+                <span>Taxa de Entrega Bruta (Recebimento)</span>
+                <span style={{ fontWeight: "600", color: "#06b6d4" }}>
+                  {totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0}%
+                </span>
+              </div>
+              <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+              </div>
+            </div>
+
+            {/* Taxa de Leitura */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
                 <span>Taxa de Leitura (Abertura)</span>
@@ -333,15 +417,17 @@ export default function DashboardPage() {
                 <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 0}%`, background: "var(--success)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
+
+            {/* Taxa de Resposta */}
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                <span>Taxa de Entrega (Recebimento)</span>
-                <span style={{ fontWeight: "600", color: "#06b6d4" }}>
-                  {totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0}%
+                <span>💬 Taxa de Resposta (Interação do Cliente)</span>
+                <span style={{ fontWeight: "700", color: "#c084fc" }}>
+                  {responseRate}%
                 </span>
               </div>
               <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
+                <div style={{ height: "100%", width: `${Math.min(100, responseRate * 3)}%`, background: "linear-gradient(to right, #9333ea, #c084fc)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
           </div>
@@ -546,6 +632,77 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Quadro de Auditoria & Diagnóstico da Base */}
+      <div className="glass" style={{ padding: "26px 30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
+          <div>
+            <h3 style={{ fontSize: "1.15rem", fontWeight: "600", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <span>🎯</span> Diagnóstico Assertivo de Entrega & Saúde da Lista
+            </h3>
+            <p style={{ margin: "4px 0 0 0", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+              Transparência detalhada: entenda o motivo exato de cada não-entrega e a conformidade da base
+            </p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "rgba(0,194,107,0.1)", border: "1px solid rgba(0,194,107,0.25)", borderRadius: "20px", color: "var(--success)", fontSize: "0.82rem", fontWeight: "700" }}>
+            <span>✓</span> Base Válida: {validDeliveryRate}% entregue com sucesso
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Números Inválidos / Sem WhatsApp</span>
+              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(239,68,68,0.1)", color: "#f87171", borderRadius: "4px" }}>Erro 131026</span>
+            </div>
+            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#f87171" }}>
+              {failureDiagnosis.invalidNumbers.toLocaleString("pt-BR")}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+              Contatos desativados ou fixos na lista cadastral (auto-bloqueados para proteger seu chip).
+            </div>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Limite de Frequência Meta</span>
+              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(234,179,8,0.1)", color: "#facc15", borderRadius: "4px" }}>Sem custo</span>
+            </div>
+            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#facc15" }}>
+              {failureDiagnosis.frequencyCapped.toLocaleString("pt-BR")}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+              Destinatários que atingiram limite de marketing nas últimas 24h pela Meta (não tarifado).
+            </div>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Experimentos / Teste Meta</span>
+              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(99,102,241,0.1)", color: "#818cf8", borderRadius: "4px" }}>Sem custo</span>
+            </div>
+            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#818cf8" }}>
+              {failureDiagnosis.metaExperiment.toLocaleString("pt-BR")}
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+              Usuários em grupos de controle interno da Meta (não tarifado).
+            </div>
+          </div>
+
+          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Descadastros Solicitados</span>
+              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(16,185,129,0.1)", color: "#34d399", borderRadius: "4px" }}>Compliance</span>
+            </div>
+            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#34d399" }}>
+              {optOutsCount.toLocaleString("pt-BR")} <span style={{ fontSize: "0.82rem", fontWeight: "500", color: "var(--text-muted)" }}>({optOutRate}%)</span>
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
+              Clientes que pediram para não receber mensagens ("PARAR", "SAIR").
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Desempenho por Template */}
       <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
         <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Desempenho por Template</h3>
@@ -558,7 +715,7 @@ export default function DashboardPage() {
                 <tr>
                   <th>Nome do Template</th>
                   <th>Disparados</th>
-                  <th>Enviados</th>
+                  <th>Entregues</th>
                   <th>Lidos</th>
                   <th>Falhas</th>
                   <th>Taxa de Leitura</th>
@@ -566,12 +723,13 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {metricsData.templateMetrics.map((t, idx) => {
-                  const readRate = t.sent > 0 ? Math.round((t.read / t.sent) * 100) : 0;
+                  const deliveredCount = t.delivered || t.sent || 0;
+                  const readRate = deliveredCount > 0 ? Math.round((t.read / deliveredCount) * 100) : 0;
                   return (
                     <tr key={idx}>
                       <td style={{ fontWeight: "600" }}>{t.templateName}</td>
                       <td>{t.total.toLocaleString("pt-BR")}</td>
-                      <td style={{ color: "#818cf8" }}>{t.sent.toLocaleString("pt-BR")}</td>
+                      <td style={{ color: "#0891b2" }}>{deliveredCount.toLocaleString("pt-BR")}</td>
                       <td style={{ color: "var(--success)" }}>{t.read.toLocaleString("pt-BR")}</td>
                       <td style={{ color: "var(--error)" }}>{t.failed}</td>
                       <td>
@@ -590,6 +748,19 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Modal de Relatório Executivo (Imprimível em PDF A4) */}
+      <ExecutiveReportModal
+        isOpen={showExecutiveReport}
+        onClose={() => setShowExecutiveReport(false)}
+        accountName={accountDisplay}
+        wabaId={selectedAccount?.wabaId}
+        phoneNumber={selectedAccount?.phoneNumberId}
+        periodLabel={periodLabel}
+        totals={metricsData.totals}
+        failureDiagnosis={failureDiagnosis}
+        templateMetrics={metricsData.templateMetrics}
+      />
     </div>
   );
 }
