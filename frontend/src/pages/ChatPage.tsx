@@ -380,6 +380,65 @@ function normalizePhone(phone: string): string {
   return digits;
 }
 
+// Renderizador visual da formatação do WhatsApp (*negrito*, _itálico_, ~tachado~, `código`, links e quebras de linha)
+function renderWhatsAppFormatted(text: string): React.ReactNode {
+  if (!text) return null;
+
+  const lines = text.split("\n");
+  return lines.map((line, lineIdx) => {
+    const parts: React.ReactNode[] = [];
+    let remaining = line;
+    let keyIdx = 0;
+
+    // Expressão regular que captura *negrito*, _itálico_, ~tachado~, `código`, links http(s)
+    const regex = /(\*([^*\n]+)\*|_([^_\n]+)_|~([^~\n]+)~|`([^`\n]+)`|(https?:\/\/[^\s]+))/;
+
+    while (remaining) {
+      const match = remaining.match(regex);
+      if (!match || match.index === undefined) {
+        parts.push(remaining);
+        break;
+      }
+
+      if (match.index > 0) {
+        parts.push(remaining.substring(0, match.index));
+      }
+
+      const matchedStr = match[0];
+      if (matchedStr.startsWith("*") && matchedStr.endsWith("*") && match[2]) {
+        parts.push(<strong key={keyIdx++}>{match[2]}</strong>);
+      } else if (matchedStr.startsWith("_") && matchedStr.endsWith("_") && match[3]) {
+        parts.push(<em key={keyIdx++}>{match[3]}</em>);
+      } else if (matchedStr.startsWith("~") && matchedStr.endsWith("~") && match[4]) {
+        parts.push(<del key={keyIdx++}>{match[4]}</del>);
+      } else if (matchedStr.startsWith("`") && matchedStr.endsWith("`") && match[5]) {
+        parts.push(
+          <code key={keyIdx++} style={{ background: "rgba(255,255,255,0.12)", padding: "1px 4px", borderRadius: "3px", fontSize: "0.85em", fontFamily: "monospace" }}>
+            {match[5]}
+          </code>
+        );
+      } else if (matchedStr.startsWith("http://") || matchedStr.startsWith("https://")) {
+        parts.push(
+          <a key={keyIdx++} href={matchedStr} target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary, #10b981)", textDecoration: "underline" }}>
+            {matchedStr}
+          </a>
+        );
+      } else {
+        parts.push(matchedStr);
+      }
+
+      remaining = remaining.substring(match.index + matchedStr.length);
+    }
+
+    return (
+      <React.Fragment key={lineIdx}>
+        {parts}
+        {lineIdx < lines.length - 1 && <br />}
+      </React.Fragment>
+    );
+  });
+}
+
 interface Template {
   id: string;
   metaId: string | null;
@@ -417,7 +476,36 @@ export default function ChatPage() {
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const insertFormat = (wrapChar: string) => {
+    const ta = replyTextareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const selected = replyBody.substring(start, end);
+    let newText = "";
+    let newCursor = start;
+
+    if (wrapChar === "• ") {
+      newText = replyBody.substring(0, start) + "• " + selected + replyBody.substring(end);
+      newCursor = start + 2 + selected.length;
+    } else {
+      const sample = selected || "texto";
+      const wrapped = `${wrapChar}${sample}${wrapChar}`;
+      newText = replyBody.substring(0, start) + wrapped + replyBody.substring(end);
+      newCursor = selected ? end + wrapChar.length * 2 : start + wrapChar.length + sample.length;
+    }
+
+    setReplyBody(newText);
+    setTimeout(() => {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = newCursor;
+      ta.style.height = "auto";
+      ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+    }, 0);
+  };
 
   // Template states for quick sending
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -1140,24 +1228,25 @@ export default function ChatPage() {
                                 if (isAudioMsg && (!msg.body || msg.body === "🎤 Mensagem de voz" || msg.body === "🎵 Áudio" || msg.body === "Mensagem de voz")) {
                                   return null;
                                 }
-                                return msg.body || (msg.templateName ? (
-                                  (() => {
-                                    const tmpl = templates.find(t => t.name === msg.templateName);
-                                    if (!tmpl) return `📋 Template: ${msg.templateName}`;
-                                    const bodyComp = Array.isArray(tmpl.components)
-                                      ? tmpl.components.find((c: any) => c.type === "BODY")
-                                      : null;
-                                    if (!bodyComp || !bodyComp.text) return `📋 Template: ${msg.templateName}`;
-                                    let text = bodyComp.text;
-                                    const resolvedVars = msg.variables?.variables || [];
-                                    if (Array.isArray(resolvedVars)) {
-                                      resolvedVars.forEach((val: any, idx: number) => {
-                                        text = text.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), val);
-                                      });
-                                    }
-                                    return text;
-                                  })()
-                                ) : (!msg.mediaUrl && !msg.variables?.mediaUrl ? "Mídia" : null));
+                                let rawText = msg.body;
+                                if (!rawText && msg.templateName) {
+                                  const tmpl = templates.find(t => t.name === msg.templateName);
+                                  if (!tmpl) return `📋 Template: ${msg.templateName}`;
+                                  const bodyComp = Array.isArray(tmpl.components)
+                                    ? tmpl.components.find((c: any) => c.type === "BODY")
+                                    : null;
+                                  if (!bodyComp || !bodyComp.text) return `📋 Template: ${msg.templateName}`;
+                                  let text = bodyComp.text;
+                                  const resolvedVars = msg.variables?.variables || [];
+                                  if (Array.isArray(resolvedVars)) {
+                                    resolvedVars.forEach((val: any, idx: number) => {
+                                      text = text.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), val);
+                                    });
+                                  }
+                                  rawText = text;
+                                }
+                                if (!rawText) return (!msg.mediaUrl && !msg.variables?.mediaUrl ? "Mídia" : null);
+                                return renderWhatsAppFormatted(rawText);
                               })()}
                             </div>
                             <div className="msg-time" style={{ display: "flex", gap: "6px" }}>
@@ -1264,6 +1353,158 @@ export default function ChatPage() {
                         </div>
                       )}
 
+                      {/* Barra de Formatação estilo WhatsApp e Botão de Prévia */}
+                      {(!lastInc || isWindowActive) && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", padding: "0 4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                            <button
+                              type="button"
+                              onClick={() => insertFormat("*")}
+                              title="Negrito (*texto*)"
+                              style={{
+                                background: "rgba(255, 255, 255, 0.06)",
+                                border: "1px solid var(--border-color)",
+                                color: "var(--text-primary)",
+                                borderRadius: "4px",
+                                padding: "3px 9px",
+                                fontSize: "0.78rem",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                            >
+                              B
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => insertFormat("_")}
+                              title="Itálico (_texto_)"
+                              style={{
+                                background: "rgba(255, 255, 255, 0.06)",
+                                border: "1px solid var(--border-color)",
+                                color: "var(--text-primary)",
+                                borderRadius: "4px",
+                                padding: "3px 9px",
+                                fontSize: "0.78rem",
+                                fontStyle: "italic",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                            >
+                              I
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => insertFormat("~")}
+                              title="Tachado (~texto~)"
+                              style={{
+                                background: "rgba(255, 255, 255, 0.06)",
+                                border: "1px solid var(--border-color)",
+                                color: "var(--text-primary)",
+                                borderRadius: "4px",
+                                padding: "3px 9px",
+                                fontSize: "0.78rem",
+                                textDecoration: "line-through",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                            >
+                              S
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => insertFormat("• ")}
+                              title="Marcador de Lista"
+                              style={{
+                                background: "rgba(255, 255, 255, 0.06)",
+                                border: "1px solid var(--border-color)",
+                                color: "var(--text-primary)",
+                                borderRadius: "4px",
+                                padding: "3px 9px",
+                                fontSize: "0.78rem",
+                                cursor: "pointer",
+                                transition: "all 0.15s ease"
+                              }}
+                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
+                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                            >
+                              • Lista
+                            </button>
+                          </div>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {replyBody.trim() && (
+                              <button
+                                type="button"
+                                onClick={() => setShowPreview(!showPreview)}
+                                style={{
+                                  background: showPreview ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.06)",
+                                  border: showPreview ? "1px solid var(--primary, #10b981)" : "1px solid var(--border-color)",
+                                  color: showPreview ? "var(--primary, #10b981)" : "var(--text-muted)",
+                                  borderRadius: "4px",
+                                  padding: "3px 10px",
+                                  fontSize: "0.74rem",
+                                  cursor: "pointer",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  transition: "all 0.15s ease"
+                                }}
+                                title="Ver como o cliente receberá no WhatsApp"
+                              >
+                                <span>📱</span> {showPreview ? "Ocultar Prévia" : "Prévia WhatsApp"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Balão de Prévia Realística do WhatsApp (quando ativo) */}
+                      {showPreview && replyBody.trim() && (
+                        <div style={{
+                          background: "rgba(15, 23, 42, 0.85)",
+                          border: "1px solid rgba(16, 185, 129, 0.3)",
+                          borderRadius: "10px",
+                          padding: "10px 14px",
+                          marginBottom: "8px",
+                          backdropFilter: "blur(6px)"
+                        }}>
+                          <div style={{ fontSize: "0.72rem", color: "var(--primary, #10b981)", fontWeight: 600, marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                            <span>📱 Prévia exata no WhatsApp do cliente:</span>
+                            <button
+                              type="button"
+                              onClick={() => setShowPreview(false)}
+                              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem" }}
+                            >
+                              ✕ Fechar prévia
+                            </button>
+                          </div>
+                          <div style={{
+                            background: "#005c4b", // Verde do balão enviado no WhatsApp Dark
+                            color: "#e9edef",
+                            borderRadius: "12px 12px 2px 12px",
+                            padding: "8px 12px",
+                            fontSize: "0.88rem",
+                            lineHeight: "1.45",
+                            wordBreak: "break-word",
+                            display: "inline-block",
+                            maxWidth: "92%",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.35)"
+                          }}>
+                            {renderWhatsAppFormatted(replyBody)}
+                            <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.6)", textAlign: "right", marginTop: "4px" }}>
+                              {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ✓✓
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Campo de digitação de mensagem e botões */}
                       <form onSubmit={sendReply} style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
                         <textarea
@@ -1278,6 +1519,29 @@ export default function ChatPage() {
                             setReplyBody(e.target.value);
                             e.target.style.height = "auto";
                             e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
+                          }}
+                          onPaste={(e) => {
+                            const text = e.clipboardData.getData("text/plain");
+                            if (!text) return;
+                            e.preventDefault();
+                            // Preserva quebras de linha estritamente e normaliza formato de markdown
+                            const normalized = text
+                              .replace(/\r\n/g, "\n")
+                              .replace(/\r/g, "\n")
+                              .replace(/\*\*([^*\n]+)\*\*/g, "*$1*");
+                            
+                            const ta = replyTextareaRef.current;
+                            if (!ta) return;
+                            const start = ta.selectionStart;
+                            const end = ta.selectionEnd;
+                            const nextVal = replyBody.substring(0, start) + normalized + replyBody.substring(end);
+                            setReplyBody(nextVal);
+                            setTimeout(() => {
+                              ta.focus();
+                              ta.selectionStart = ta.selectionEnd = start + normalized.length;
+                              ta.style.height = "auto";
+                              ta.style.height = `${Math.min(ta.scrollHeight, 140)}px`;
+                            }, 0);
                           }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
