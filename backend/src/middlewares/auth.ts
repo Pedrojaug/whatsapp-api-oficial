@@ -15,12 +15,15 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
   const authHeader = req.headers.authorization;
 
   if (authHeader) {
-    const parts = authHeader.split(" ");
+    const parts = authHeader.trim().split(" ");
     if (parts.length === 2 && /^Bearer$/i.test(parts[0])) {
-      token = parts[1];
+      token = parts[1].trim();
+    } else if (parts.length === 1) {
+      token = parts[0].trim();
     }
   } else if (req.query.token) {
-    token = req.query.token as string;
+    const qToken = String(req.query.token).trim();
+    token = qToken.replace(/^Bearer\s+/i, "").trim();
   }
 
   if (!token) {

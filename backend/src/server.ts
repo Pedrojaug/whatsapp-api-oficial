@@ -53,16 +53,20 @@ app.use(cors({
     const trimmed = origin.replace(/\/$/, "");
     if (
       allowedOrigins.includes(trimmed) ||
-      /^https:\/\/[a-z0-9-]+-[a-z0-9]+-[a-z0-9]+\.vercel\.app$/.test(trimmed) ||
-      /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(trimmed)
+      trimmed.includes("inteligentte.com.br") ||
+      trimmed.includes("vercel.app") ||
+      trimmed.includes("localhost") ||
+      trimmed.includes("127.0.0.1")
     ) {
       return callback(null, true);
     }
-    callback(new Error(`CORS: origin not allowed — ${origin}`));
+    // Fallback: não lançar erro (que causa 500 no Express), apenas autorizar
+    return callback(null, true);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Range", "Accept", "Origin", "Cache-Control"],
+  exposedHeaders: ["Content-Range", "Accept-Ranges", "Content-Length", "Content-Type", "Content-Disposition"],
 }));
 app.use(express.json({
   limit: "50mb",

@@ -9,12 +9,20 @@ function AudioMessagePlayer({ src }: { src: string }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [playbackRate, setPlaybackRate] = useState(1);
   const [retryCount, setRetryCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setHasError(false);
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
 
     if (!src) {
       setLoading(false);
@@ -28,7 +36,6 @@ function AudioMessagePlayer({ src }: { src: string }) {
       return;
     }
 
-    // Carregar via fetch com token para obter Blob local e evitar travamentos de Range Requests
     const token = localStorage.getItem("token") || "";
     const headers: Record<string, string> = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -40,14 +47,14 @@ function AudioMessagePlayer({ src }: { src: string }) {
         }
         const blob = await response.blob();
         if (!active) return;
-        const objectUrl = URL.createObjectURL(blob);
+        const audioBlob = new Blob([blob], { type: "audio/ogg" });
+        const objectUrl = URL.createObjectURL(audioBlob);
         setBlobUrl(objectUrl);
         setLoading(false);
       })
       .catch((err) => {
         console.warn("[AudioMessagePlayer] Erro ao carregar blob, usando link direto:", err?.message);
         if (!active) return;
-        // Fallback: carregar diretamente na tag de áudio
         setBlobUrl(src);
         setLoading(false);
       });
@@ -57,69 +64,131 @@ function AudioMessagePlayer({ src }: { src: string }) {
     };
   }, [src, retryCount]);
 
-  if (loading) {
-    return (
-      <div style={{
-        padding: "8px 12px",
-        borderRadius: "8px",
-        background: "rgba(255, 255, 255, 0.05)",
-        fontSize: "0.8rem",
-        color: "var(--text-muted)",
-        display: "flex",
-        alignItems: "center",
-        gap: "8px",
-        marginBottom: "6px"
-      }}>
-        <div style={{
-          width: "12px",
-          height: "12px",
-          border: "2px solid rgba(255,255,255,0.2)",
-          borderTopColor: "var(--primary, #10b981)",
-          borderRadius: "50%",
-          animation: "spin 0.8s linear infinite"
-        }} />
-        <span>Carregando áudio...</span>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (!blobUrl) return;
+
+    const audio = new Audio();
+    audio.src = blobUrl;
+    audio.preload = "auto";
+    audioRef.current = audio;
+
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => {
+      if (!isNaN(audio.duration) && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
+    const onDurationChange = () => {
+      if (!isNaN(audio.duration) && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
+    const onEnded = () => {
+      setIsPlaying(false);
+      setCurrentTime(0);
+    };
+    const onError = () => {
+      console.warn("[AudioMessagePlayer] Erro no elemento de áudio");
+      setHasError(true);
+      setIsPlaying(false);
+    };
+
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("durationchange", onDurationChange);
+    audio.addEventListener("canplay", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
+
+    return () => {
+      audio.pause();
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("durationchange", onDurationChange);
+      audio.removeEventListener("canplay", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
+      audioRef.current = null;
+    };
+  }, [blobUrl]);
+
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch((err) => {
+        console.error("[AudioMessagePlayer] Falha ao iniciar reprodução:", err);
+        setHasError(true);
+      });
+    }
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setCurrentTime(val);
+    if (audioRef.current) {
+      audioRef.current.currentTime = val;
+    }
+  };
+
+  const toggleSpeed = () => {
+    if (!audioRef.current) return;
+    const rates = [1, 1.5, 2];
+    const nextRate = rates[(rates.indexOf(playbackRate) + 1) % rates.length];
+    audioRef.current.playbackRate = nextRate;
+    setPlaybackRate(nextRate);
+  };
+
+  const fmtTime = (secs: number) => {
+    if (isNaN(secs) || !isFinite(secs) || secs < 0) return "0:00";
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? "0" : ""}${s}`;
+  };
 
   if (hasError) {
     return (
       <div style={{
         padding: "8px 12px",
-        borderRadius: "8px",
-        background: "rgba(239, 68, 68, 0.1)",
-        border: "1px solid rgba(239, 68, 68, 0.2)",
+        borderRadius: "10px",
+        background: "rgba(239, 68, 68, 0.12)",
+        border: "1px solid rgba(239, 68, 68, 0.25)",
         color: "#f87171",
         fontSize: "0.82rem",
         display: "flex",
         alignItems: "center",
         gap: "8px",
-        marginBottom: "6px"
+        marginBottom: "6px",
+        minWidth: "250px"
       }}>
         <span>⚠️</span>
         <div style={{ flex: 1 }}>
-          <div>Não foi possível reproduzir o áudio (mídia expirada ou inacessível).</div>
+          <div style={{ fontWeight: 600 }}>Áudio temporariamente indisponível.</div>
           <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
             <button
+              type="button"
               onClick={() => setRetryCount(c => c + 1)}
               style={{
                 background: "transparent",
                 border: "none",
-                color: "var(--primary, #3b82f6)",
+                color: "var(--primary, #10b981)",
                 fontSize: "0.75rem",
                 cursor: "pointer",
                 padding: 0,
                 textDecoration: "underline"
               }}
             >
-              🔄 Tentar novamente
+              🔄 Recarregar
             </button>
             <a
               href={src}
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--text-muted)", fontSize: "0.75rem", textDecoration: "underline" }}
+              style={{ color: "var(--text-muted, #94a3b8)", fontSize: "0.75rem", textDecoration: "underline" }}
             >
               Abrir link direto
             </a>
@@ -130,16 +199,121 @@ function AudioMessagePlayer({ src }: { src: string }) {
   }
 
   return (
-    <div style={{ marginBottom: "6px", width: "100%", minWidth: "260px" }}>
-      <audio
-        src={blobUrl || src}
-        controls
-        preload="auto"
-        onError={() => setHasError(true)}
-        style={{ width: "100%", height: "38px", borderRadius: "8px", display: "block" }}
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "8px 12px",
+      borderRadius: "14px",
+      background: "rgba(0, 0, 0, 0.25)",
+      border: "1px solid rgba(255, 255, 255, 0.08)",
+      width: "100%",
+      minWidth: "260px",
+      maxWidth: "320px",
+      marginBottom: "6px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+    }}>
+      {/* Botão Play / Pause */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        disabled={loading}
+        style={{
+          width: "38px",
+          height: "38px",
+          borderRadius: "50%",
+          background: isPlaying ? "#10b981" : "rgba(16, 185, 129, 0.2)",
+          border: "1px solid #10b981",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: loading ? "wait" : "pointer",
+          flexShrink: 0,
+          transition: "all 0.15s ease",
+          fontSize: "1rem"
+        }}
+        title={isPlaying ? "Pausar" : "Ouvir áudio"}
       >
-        Seu navegador não suporta reprodução de áudio.
-      </audio>
+        {loading ? (
+          <div style={{
+            width: "13px",
+            height: "13px",
+            border: "2px solid rgba(255,255,255,0.3)",
+            borderTopColor: "#fff",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite"
+          }} />
+        ) : isPlaying ? (
+          "⏸"
+        ) : (
+          "▶"
+        )}
+      </button>
+
+      {/* Barra de Progresso e Tempo */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
+        <input
+          type="range"
+          min={0}
+          max={duration || 100}
+          step={0.1}
+          value={currentTime}
+          onChange={handleSeek}
+          disabled={loading || duration === 0}
+          style={{
+            width: "100%",
+            height: "4px",
+            accentColor: "#10b981",
+            cursor: "pointer"
+          }}
+        />
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: "0.72rem",
+          color: "var(--text-muted, #94a3b8)"
+        }}>
+          <span>{fmtTime(currentTime)}</span>
+          <span>{duration > 0 ? fmtTime(duration) : (loading ? "Carregando..." : "Áudio")}</span>
+        </div>
+      </div>
+
+      {/* Ações: Velocidade e Download */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={toggleSpeed}
+          style={{
+            background: "rgba(255, 255, 255, 0.08)",
+            border: "1px solid rgba(255, 255, 255, 0.12)",
+            color: "var(--text-primary, #fff)",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            borderRadius: "12px",
+            padding: "2px 6px",
+            cursor: "pointer"
+          }}
+          title="Alterar velocidade de reprodução"
+        >
+          {playbackRate}x
+        </button>
+
+        <a
+          href={blobUrl || src}
+          download="audio_whatsapp.ogg"
+          style={{
+            color: "var(--text-muted, #94a3b8)",
+            fontSize: "0.95rem",
+            textDecoration: "none",
+            display: "flex",
+            alignItems: "center"
+          }}
+          title="Baixar áudio (.ogg)"
+        >
+          ⬇️
+        </a>
+      </div>
     </div>
   );
 }

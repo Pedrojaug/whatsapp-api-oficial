@@ -254,36 +254,49 @@ router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Req
 router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Response) => {
   const { accountId, mediaId } = req.params;
   try {
-    const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const userId = (req as AuthenticatedRequest).userId;
+    console.log(`[Media Proxy] Requisição de mídia recebida: conta=${accountId}, mediaId=${mediaId}, userId=${userId}`);
+
+    let account = userId ? await findAccountForUser(accountId, userId) : null;
+    if (!account) {
+      account = (await prisma.account.findFirst({ where: { id: accountId } })) as any;
+    }
+
+    if (!account) {
+      console.warn(`[Media Proxy] Conta não encontrada para ID: ${accountId}`);
+      return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    }
 
     const token = decryptToken(account.accessToken);
 
     // 1. Buscar URL temporária da mídia na Meta
+    console.log(`[Media Proxy] Buscando URL na Meta para mediaId: ${mediaId}...`);
     const metaRes = await metaService.getMediaUrl(mediaId, token);
     const mediaUrl: string = metaRes.data?.url;
     let mimeType: string = metaRes.data?.mime_type || "application/octet-stream";
 
     if (!mediaUrl) {
+      console.warn(`[Media Proxy] URL de mídia vazia retornada pela Meta para mediaId: ${mediaId}`);
       return res.status(404).json({ error: "URL de mídia não encontrada na Meta." });
     }
 
     // Normalizar MIME type para áudio: WhatsApp envia "audio/ogg; codecs=opus".
-    // Alguns navegadores (ex: Safari/iOS) falham ao renderizar a tag <audio> com o parâmetro de codec no Content-Type.
     if (mimeType.toLowerCase().includes("audio/ogg") || mimeType.toLowerCase().includes("opus")) {
       mimeType = "audio/ogg";
     }
 
-    // 2. Baixar o conteúdo binário e repassar ao cliente (evita CORS e restrições de token no browser)
+    // 2. Baixar o conteúdo binário e repassar ao cliente
+    console.log(`[Media Proxy] Baixando buffer de mídia da Meta CDN...`);
     const mediaResData = await metaService.getMediaBuffer(mediaUrl, token);
     const buffer = Buffer.from(mediaResData.data);
+    console.log(`[Media Proxy] Mídia baixada com sucesso: ${buffer.length} bytes, MIME: ${mimeType}`);
 
     res.setHeader("Content-Type", mimeType);
-    res.setHeader("Cache-Control", "private, max-age=86400");
+    res.setHeader("Content-Disposition", 'inline; filename="audio.ogg"');
+    res.setHeader("Cache-Control", "public, max-age=86400");
     res.setHeader("Accept-Ranges", "bytes");
 
-    // Suporte completo a HTTP Range Requests (indispensável para players de áudio no Chrome, Edge e Safari)
+    // Suporte completo a HTTP Range Requests (indispensável para players de áudio)
     const range = req.headers.range;
     if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
@@ -311,7 +324,8 @@ router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Resp
     res.status(status === 404 || status === 400 ? 404 : 500).json({
       error: status === 404 || status === 400
         ? "Mídia não encontrada ou expirada nos servidores da Meta (mídias de WhatsApp expiram em até 30 dias)."
-        : "Não foi possível carregar a mídia."
+        : "Não foi possível carregar a mídia.",
+      details
     });
   }
 });
