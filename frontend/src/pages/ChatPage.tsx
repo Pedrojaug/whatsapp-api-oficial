@@ -5,6 +5,12 @@ import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL, useAuth } from "../contexts/AuthContext";
 
+// 30 amplitudes pré-definidas simulando a curva harmônica de voz do WhatsApp
+const WAVEFORM_HEIGHTS = [
+  25, 45, 70, 35, 80, 100, 65, 45, 90, 95, 70, 50, 85, 90, 60, 45,
+  80, 95, 55, 35, 75, 85, 60, 40, 75, 90, 50, 35, 65, 40
+];
+
 function AudioMessagePlayer({ src }: { src: string }) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,6 +21,7 @@ function AudioMessagePlayer({ src }: { src: string }) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [retryCount, setRetryCount] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const waveformRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -127,11 +134,15 @@ function AudioMessagePlayer({ src }: { src: string }) {
     }
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    setCurrentTime(val);
+  const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!waveformRef.current || !duration || duration <= 0) return;
+    const rect = waveformRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const pct = Math.max(0, Math.min(1, clickX / rect.width));
+    const newTime = pct * duration;
+    setCurrentTime(newTime);
     if (audioRef.current) {
-      audioRef.current.currentTime = val;
+      audioRef.current.currentTime = newTime;
     }
   };
 
@@ -153,22 +164,21 @@ function AudioMessagePlayer({ src }: { src: string }) {
   if (hasError) {
     return (
       <div style={{
-        padding: "8px 12px",
-        borderRadius: "10px",
+        padding: "10px 14px",
+        borderRadius: "12px",
         background: "rgba(239, 68, 68, 0.12)",
         border: "1px solid rgba(239, 68, 68, 0.25)",
         color: "#f87171",
         fontSize: "0.82rem",
         display: "flex",
         alignItems: "center",
-        gap: "8px",
-        marginBottom: "6px",
+        gap: "10px",
         minWidth: "250px"
       }}>
-        <span>⚠️</span>
+        <span style={{ fontSize: "1.1rem" }}>⚠️</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600 }}>Áudio temporariamente indisponível.</div>
-          <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
+          <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
             <button
               type="button"
               onClick={() => setRetryCount(c => c + 1)}
@@ -179,7 +189,8 @@ function AudioMessagePlayer({ src }: { src: string }) {
                 fontSize: "0.75rem",
                 cursor: "pointer",
                 padding: 0,
-                textDecoration: "underline"
+                textDecoration: "underline",
+                fontWeight: 600
               }}
             >
               🔄 Recarregar
@@ -198,121 +209,164 @@ function AudioMessagePlayer({ src }: { src: string }) {
     );
   }
 
+  const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
+
   return (
     <div style={{
       display: "flex",
       alignItems: "center",
-      gap: "10px",
-      padding: "8px 12px",
-      borderRadius: "14px",
-      background: "rgba(0, 0, 0, 0.25)",
-      border: "1px solid rgba(255, 255, 255, 0.08)",
+      gap: "12px",
+      padding: "4px 2px",
       width: "100%",
       minWidth: "260px",
-      maxWidth: "320px",
-      marginBottom: "6px",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
+      maxWidth: "330px"
     }}>
-      {/* Botão Play / Pause */}
+      {/* Botão Play / Pause Estilo WhatsApp */}
       <button
         type="button"
         onClick={togglePlay}
         disabled={loading}
         style={{
-          width: "38px",
-          height: "38px",
+          width: "42px",
+          height: "42px",
           borderRadius: "50%",
-          background: isPlaying ? "#10b981" : "rgba(16, 185, 129, 0.2)",
-          border: "1px solid #10b981",
-          color: "#fff",
+          background: isPlaying
+            ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+            : "linear-gradient(135deg, #059669 0%, #047857 100%)",
+          boxShadow: isPlaying
+            ? "0 4px 14px rgba(16, 185, 129, 0.45)"
+            : "0 2px 8px rgba(0, 0, 0, 0.3)",
+          border: "none",
+          color: "#ffffff",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: loading ? "wait" : "pointer",
           flexShrink: 0,
-          transition: "all 0.15s ease",
-          fontSize: "1rem"
+          transition: "transform 0.15s ease, box-shadow 0.15s ease",
+          outline: "none"
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         title={isPlaying ? "Pausar" : "Ouvir áudio"}
       >
         {loading ? (
           <div style={{
-            width: "13px",
-            height: "13px",
-            border: "2px solid rgba(255,255,255,0.3)",
+            width: "15px",
+            height: "15px",
+            border: "2px solid rgba(255, 255, 255, 0.3)",
             borderTopColor: "#fff",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite"
           }} />
         ) : isPlaying ? (
-          "⏸"
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1.5" />
+            <rect x="14" y="4" width="4" height="16" rx="1.5" />
+          </svg>
         ) : (
-          "▶"
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: "2px" }}>
+            <path d="M8 5.14v13.72a1 1 0 001.55.83l11-6.86a1 1 0 000-1.66l-11-6.86A1 1 0 008 5.14z" />
+          </svg>
         )}
       </button>
 
-      {/* Barra de Progresso e Tempo */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "4px", minWidth: 0 }}>
-        <input
-          type="range"
-          min={0}
-          max={duration || 100}
-          step={0.1}
-          value={currentTime}
-          onChange={handleSeek}
-          disabled={loading || duration === 0}
+      {/* Conteúdo Central: Onda Sonora Interativa + Metadados */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
+        {/* Waveform Scrubber */}
+        <div
+          ref={waveformRef}
+          onClick={handleWaveformClick}
           style={{
-            width: "100%",
-            height: "4px",
-            accentColor: "#10b981",
-            cursor: "pointer"
-          }}
-        />
-        <div style={{
-          display: "flex",
-          justifyContent: "space-between",
-          fontSize: "0.72rem",
-          color: "var(--text-muted, #94a3b8)"
-        }}>
-          <span>{fmtTime(currentTime)}</span>
-          <span>{duration > 0 ? fmtTime(duration) : (loading ? "Carregando..." : "Áudio")}</span>
-        </div>
-      </div>
-
-      {/* Ações: Velocidade e Download */}
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-        <button
-          type="button"
-          onClick={toggleSpeed}
-          style={{
-            background: "rgba(255, 255, 255, 0.08)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            color: "var(--text-primary, #fff)",
-            fontSize: "0.7rem",
-            fontWeight: 700,
-            borderRadius: "12px",
-            padding: "2px 6px",
-            cursor: "pointer"
-          }}
-          title="Alterar velocidade de reprodução"
-        >
-          {playbackRate}x
-        </button>
-
-        <a
-          href={blobUrl || src}
-          download="audio_whatsapp.ogg"
-          style={{
-            color: "var(--text-muted, #94a3b8)",
-            fontSize: "0.95rem",
-            textDecoration: "none",
+            height: "28px",
             display: "flex",
-            alignItems: "center"
+            alignItems: "center",
+            gap: "2.5px",
+            cursor: duration > 0 ? "pointer" : "default",
+            padding: "2px 0",
+            position: "relative"
           }}
-          title="Baixar áudio (.ogg)"
+          title="Clique para navegar no áudio"
         >
-          ⬇️
-        </a>
+          {WAVEFORM_HEIGHTS.map((h, i) => {
+            const barRatio = i / WAVEFORM_HEIGHTS.length;
+            const isFilled = barRatio <= progressRatio;
+            return (
+              <span
+                key={i}
+                style={{
+                  flex: 1,
+                  height: `${h}%`,
+                  minHeight: "4px",
+                  borderRadius: "2px",
+                  background: isFilled ? "var(--primary, #10b981)" : "rgba(255, 255, 255, 0.22)",
+                  transition: "background 0.1s ease",
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Linha Inferior: Duração + Velocidade + Download */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.72rem", color: "var(--text-muted, #94a3b8)", fontWeight: 500 }}>
+            <span>🎙️</span>
+            <span>
+              {isPlaying || currentTime > 0
+                ? fmtTime(currentTime)
+                : (duration > 0 ? fmtTime(duration) : (loading ? "Carregando..." : "0:00"))}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {/* Seletor de Velocidade 1x/1.5x/2x */}
+            <button
+              type="button"
+              onClick={toggleSpeed}
+              style={{
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                color: playbackRate > 1 ? "var(--primary, #10b981)" : "var(--text-secondary, #cbd5e1)",
+                fontSize: "0.68rem",
+                fontWeight: 700,
+                borderRadius: "10px",
+                padding: "2px 6px",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                lineHeight: "1.2"
+              }}
+              title="Velocidade de reprodução"
+            >
+              {playbackRate}x
+            </button>
+
+            {/* Ícone de Download em SVG limpo */}
+            <a
+              href={blobUrl || src}
+              download="mensagem_voz.ogg"
+              style={{
+                color: "var(--text-muted, #94a3b8)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "20px",
+                height: "20px",
+                borderRadius: "4px",
+                transition: "color 0.15s ease",
+                textDecoration: "none"
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary, #10b981)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted, #94a3b8)")}
+              title="Baixar áudio (.ogg)"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1074,24 +1128,30 @@ export default function ChatPage() {
                               })()}
 
                               {/* Texto da mensagem */}
-                              {msg.body || (msg.templateName ? (
-                                (() => {
-                                  const tmpl = templates.find(t => t.name === msg.templateName);
-                                  if (!tmpl) return `📋 Template: ${msg.templateName}`;
-                                  const bodyComp = Array.isArray(tmpl.components)
-                                    ? tmpl.components.find((c: any) => c.type === "BODY")
-                                    : null;
-                                  if (!bodyComp || !bodyComp.text) return `📋 Template: ${msg.templateName}`;
-                                  let text = bodyComp.text;
-                                  const resolvedVars = msg.variables?.variables || [];
-                                  if (Array.isArray(resolvedVars)) {
-                                    resolvedVars.forEach((val: any, idx: number) => {
-                                      text = text.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), val);
-                                    });
-                                  }
-                                  return text;
-                                })()
-                              ) : (!msg.mediaUrl && !msg.variables?.mediaUrl ? "Mídia" : null))}
+                              {(() => {
+                                const isAudioMsg = (msg.messageType || "").toUpperCase() === "AUDIO" || (msg.messageType || "").toUpperCase() === "VOICE";
+                                if (isAudioMsg && (!msg.body || msg.body === "🎤 Mensagem de voz" || msg.body === "🎵 Áudio" || msg.body === "Mensagem de voz")) {
+                                  return null;
+                                }
+                                return msg.body || (msg.templateName ? (
+                                  (() => {
+                                    const tmpl = templates.find(t => t.name === msg.templateName);
+                                    if (!tmpl) return `📋 Template: ${msg.templateName}`;
+                                    const bodyComp = Array.isArray(tmpl.components)
+                                      ? tmpl.components.find((c: any) => c.type === "BODY")
+                                      : null;
+                                    if (!bodyComp || !bodyComp.text) return `📋 Template: ${msg.templateName}`;
+                                    let text = bodyComp.text;
+                                    const resolvedVars = msg.variables?.variables || [];
+                                    if (Array.isArray(resolvedVars)) {
+                                      resolvedVars.forEach((val: any, idx: number) => {
+                                        text = text.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), val);
+                                      });
+                                    }
+                                    return text;
+                                  })()
+                                ) : (!msg.mediaUrl && !msg.variables?.mediaUrl ? "Mídia" : null));
+                              })()}
                             </div>
                             <div className="msg-time" style={{ display: "flex", gap: "6px" }}>
                               <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
