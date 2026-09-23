@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
@@ -439,6 +439,93 @@ function renderWhatsAppFormatted(text: string): React.ReactNode {
   });
 }
 
+function getSlaInfo(updatedAt: string | Date, direction: string): { label: string; color: string; bg: string; border: string; level: 'good' | 'warning' | 'urgent'; minutes: number } | null {
+  if (direction !== "INCOMING") return null;
+  const diffMs = Date.now() - new Date(updatedAt).getTime();
+  const minutes = Math.max(0, Math.floor(diffMs / (1000 * 60)));
+  
+  if (minutes < 5) {
+    return {
+      label: `⏳ ${minutes === 0 ? "Agora" : `${minutes}m`}`,
+      color: "#10b981",
+      bg: "rgba(16, 185, 129, 0.15)",
+      border: "1px solid rgba(16, 185, 129, 0.35)",
+      level: 'good',
+      minutes
+    };
+  }
+  if (minutes < 15) {
+    return {
+      label: `⚠️ ${minutes}m aguardando`,
+      color: "#f59e0b",
+      bg: "rgba(245, 158, 11, 0.15)",
+      border: "1px solid rgba(245, 158, 11, 0.35)",
+      level: 'warning',
+      minutes
+    };
+  }
+  const hours = Math.floor(minutes / 60);
+  const text = hours > 0 ? `${hours}h${minutes % 60}m` : `${minutes}m`;
+  return {
+    label: `🚨 ${text} aguardando`,
+    color: "#ef4444",
+    bg: "rgba(239, 68, 68, 0.2)",
+    border: "1px solid rgba(239, 68, 68, 0.5)",
+    level: 'urgent',
+    minutes
+  };
+}
+
+export interface QuickReply {
+  id: string;
+  title: string;
+  text: string;
+}
+
+export const DEFAULT_QUICK_REPLIES: QuickReply[] = [
+  {
+    id: "oferta",
+    title: "🎁 Oferta Body Splash",
+    text: `Obrigada pelo retorno! 💚 💦\n\nFestival de Body Splash 21 a 30/09 | 1 lançamento por dia\n200 ml — à vista ou cartão:\n\n🔥 R$ 75 por R$ 40\n🔥 R$ 72 por R$ 38\n\n🎁 *Incentivos:*\n• R$ 299 ➔ Body Splash 100 ml\n• R$ 400 ➔ Colônia 100 ml\n• R$ 800 ➔ 2 Colônias + Body Splash 200 ml\n\nJá revelados: *Laranja* e *Brisa Verde*.\nAmanhã: *Ternura* 🤫\n\nQuer pedir? Responda *SIM* e encaminhamos você para o atendimento da loja!`
+  },
+  {
+    id: "pix",
+    title: "💳 Chave PIX",
+    text: `Perfeito! Segue a nossa chave PIX para pagamento:\n\n🔑 Chave: (84) 99999-9999\nTitular: Magda Perfumaria e Cosméticos\n\nAssim que fizer o envio do comprovante, separamos o seu pedido imediatamente! ✨`
+  },
+  {
+    id: "horario",
+    title: "📍 Endereço & Horários",
+    text: `📍 Nossa loja fica localizada no Centro.\n⏰ Horário de atendimento:\nSegunda a Sexta: 08:30 às 18:00\nSábado: 08:30 às 13:00\n\nVenha nos visitar ou peça para entregarmos aí para você!`
+  },
+  {
+    id: "momento",
+    title: "⏳ Pedir um Momento",
+    text: `Olá! Já recebi sua mensagem e estou verificando o seu pedido com a nossa equipe. Em minutinhos te dou o retorno completo, tá bem? Obrigado pela paciência! 💚`
+  },
+  {
+    id: "saudacao",
+    title: "👋 Boas-vindas",
+    text: `Olá! Tudo bem? Que bom falar com você! Como posso te ajudar hoje? 😊`
+  }
+];
+
+export type FunnelStage = 'NEW' | 'NEGOTIATING' | 'WAITING_PAYMENT' | 'WON' | 'LOST';
+
+export const FUNNEL_STAGES: Record<FunnelStage, { label: string; color: string; bg: string; border: string }> = {
+  NEW: { label: "📥 Novo Lead", color: "#38bdf8", bg: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.3)" },
+  NEGOTIATING: { label: "💬 Em Negociação", color: "#a855f7", bg: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.3)" },
+  WAITING_PAYMENT: { label: "💳 Aguardando PIX", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "1px solid rgba(245, 158, 11, 0.3)" },
+  WON: { label: "🎉 Venda Concluída", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.35)" },
+  LOST: { label: "💤 Sem Retorno", color: "#94a3b8", bg: "rgba(148, 163, 184, 0.1)", border: "1px solid rgba(148, 163, 184, 0.2)" }
+};
+
+export interface LeadCrmData {
+  stage: FunnelStage;
+  tags: string[];
+  notes: string;
+}
+
 interface Template {
   id: string;
   metaId: string | null;
@@ -474,10 +561,88 @@ export default function ChatPage() {
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [showQuickReplyModal, setShowQuickReplyModal] = useState(false);
+  const [editingQrId, setEditingQrId] = useState<string | null>(null);
+  const [qrTitleInput, setQrTitleInput] = useState("");
+  const [qrTextInput, setQrTextInput] = useState("");
+
+  // Mini-CRM states
+  const [showCrmDrawer, setShowCrmDrawer] = useState(false);
+  const [crmData, setCrmData] = useState<LeadCrmData>({ stage: 'NEW', tags: [], notes: '' });
+  const [newTagInput, setNewTagInput] = useState("");
+
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Carregar e persistir Respostas Rápidas isoladas por accountId
+  useEffect(() => {
+    if (!selectedAccount) {
+      setQuickReplies([]);
+      return;
+    }
+    const key = `send_quick_replies_${selectedAccount.id}`;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setQuickReplies(parsed);
+          return;
+        }
+      }
+      setQuickReplies(DEFAULT_QUICK_REPLIES);
+      localStorage.setItem(key, JSON.stringify(DEFAULT_QUICK_REPLIES));
+    } catch {
+      setQuickReplies(DEFAULT_QUICK_REPLIES);
+    }
+  }, [selectedAccount?.id]);
+
+  const saveQuickReplies = (replies: QuickReply[]) => {
+    if (!selectedAccount) return;
+    setQuickReplies(replies);
+    try {
+      localStorage.setItem(`send_quick_replies_${selectedAccount.id}`, JSON.stringify(replies));
+    } catch (e) {
+      console.warn("Falha ao salvar respostas rápidas no localStorage:", e);
+    }
+  };
+
+  // Carregar e persistir dados do Mini-CRM do Lead selecionado
+  useEffect(() => {
+    if (!selectedAccount || !selectedPhone) {
+      setCrmData({ stage: 'NEW', tags: [], notes: '' });
+      return;
+    }
+    const key = `send_crm_${selectedAccount.id}_${selectedPhone}`;
+    try {
+      const stored = localStorage.getItem(key);
+      if (stored) {
+        setCrmData(JSON.parse(stored));
+      } else {
+        setCrmData({ stage: 'NEW', tags: [], notes: '' });
+      }
+    } catch {
+      setCrmData({ stage: 'NEW', tags: [], notes: '' });
+    }
+  }, [selectedAccount?.id, selectedPhone]);
+
+  const updateCrm = (updater: (prev: LeadCrmData) => LeadCrmData) => {
+    if (!selectedAccount || !selectedPhone) return;
+    setCrmData(prev => {
+      const next = updater(prev);
+      const key = `send_crm_${selectedAccount.id}_${selectedPhone}`;
+      try {
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch (e) {
+        console.warn("Falha ao salvar dados de CRM no localStorage:", e);
+      }
+      return next;
+    });
+  };
 
   const insertFormat = (wrapChar: string) => {
     const ta = replyTextareaRef.current;
@@ -667,7 +832,27 @@ export default function ChatPage() {
     }
   };
 
-  const filteredConversations = conversations.filter(matchesConvFilter);
+  const filteredConversations = useMemo(() => {
+    let list = conversations.filter(matchesConvFilter);
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const qDigits = q.replace(/\D/g, "");
+      list = list.filter((c) => {
+        const nameMatch = c.profileName && c.profileName.toLowerCase().includes(q);
+        const phoneMatch = c.phone.includes(q) || (qDigits.length >= 3 && c.phone.includes(qDigits));
+        const msgMatch = c.lastMessage && c.lastMessage.toLowerCase().includes(q);
+        return Boolean(nameMatch || phoneMatch || msgMatch);
+      });
+    }
+
+    // Para a fila de Não Lidas / Aguardando, priorizar os clientes que esperam há mais tempo (FIFO)
+    if (convFilter === "UNANSWERED") {
+      return [...list].sort((a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime());
+    }
+
+    return list;
+  }, [conversations, convFilter, searchQuery]);
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -880,6 +1065,48 @@ export default function ChatPage() {
               </button>
             </div>
 
+            {/* 1.1 Campo de Busca Instantânea Inteligente */}
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.02)" }}>
+              <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                <span style={{ position: "absolute", left: "10px", fontSize: "0.85rem", color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
+                <input
+                  type="text"
+                  placeholder="Buscar nome, número ou mensagem..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="form-control"
+                  style={{
+                    paddingLeft: "32px",
+                    paddingRight: searchQuery ? "28px" : "10px",
+                    fontSize: "0.8rem",
+                    height: "36px",
+                    borderRadius: "var(--radius-md)",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid var(--border-color)"
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    style={{
+                      position: "absolute",
+                      right: "8px",
+                      background: "none",
+                      border: "none",
+                      color: "var(--text-muted)",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      padding: "2px"
+                    }}
+                    title="Limpar busca"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
             {/* Filtro por período + exportação de leads */}
             <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "8px" }}>
               <select
@@ -1043,41 +1270,93 @@ export default function ChatPage() {
                         }}>
                           {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
                         </div>
-                        {/* Badge de situação do chat */}
-                        {(() => {
-                          const badge = c.direction === "INCOMING"
-                            ? { text: "🔥 Aguardando resposta", color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", border: "1px solid rgba(16, 185, 129, 0.35)" }
-                            : c.hasIncoming && c.direction === "OUTGOING"
-                              ? { text: "✅ Já respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
-                              : c.hasFailed && !c.hasDelivered && !c.hasRead
-                                ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239, 68, 68, 0.12)", border: "none" }
-                                : c.hasRead
-                                  ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34, 211, 238, 0.1)", border: "none" }
-                                  : c.hasDelivered
-                                    ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
-                                    : c.direction === "OUTGOING"
-                                      ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
-                                      : null;
-                          if (!badge) return null;
-                          return (
-                            <span style={{
-                              fontSize: "0.65rem",
-                              fontWeight: 600,
-                              color: badge.color,
-                              background: badge.bg,
-                              border: badge.border || "none",
-                              padding: "2px 8px",
-                              borderRadius: "10px",
-                              marginTop: "3px",
-                              alignSelf: "flex-start",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px"
-                            }}>
-                              {badge.text}
-                            </span>
-                          );
-                        })()}
+                        {/* Badges de situação do chat e SLA de espera */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "3px" }}>
+                          {(() => {
+                            const badge = c.direction === "INCOMING"
+                              ? { text: "🔥 Aguardando resposta", color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", border: "1px solid rgba(16, 185, 129, 0.35)" }
+                              : c.hasIncoming && c.direction === "OUTGOING"
+                                ? { text: "✅ Já respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
+                                : c.hasFailed && !c.hasDelivered && !c.hasRead
+                                  ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239, 68, 68, 0.12)", border: "none" }
+                                  : c.hasRead
+                                    ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34, 211, 238, 0.1)", border: "none" }
+                                    : c.hasDelivered
+                                      ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
+                                      : c.direction === "OUTGOING"
+                                        ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
+                                        : null;
+                            if (!badge) return null;
+                            return (
+                              <span style={{
+                                fontSize: "0.65rem",
+                                fontWeight: 600,
+                                color: badge.color,
+                                background: badge.bg,
+                                border: badge.border || "none",
+                                padding: "2px 8px",
+                                borderRadius: "10px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}>
+                                {badge.text}
+                              </span>
+                            );
+                          })()}
+
+                          {/* Badge de SLA (Tempo de Espera) */}
+                          {(() => {
+                            const sla = getSlaInfo(c.updatedAt, c.direction);
+                            if (!sla) return null;
+                            return (
+                              <span style={{
+                                fontSize: "0.65rem",
+                                fontWeight: 600,
+                                color: sla.color,
+                                background: sla.bg,
+                                border: sla.border,
+                                padding: "2px 7px",
+                                borderRadius: "10px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px"
+                              }}>
+                                {sla.label}
+                              </span>
+                            );
+                          })()}
+
+                          {/* Badge de Estágio do Funil (se atribuído no CRM) */}
+                          {(() => {
+                            if (!selectedAccount) return null;
+                            try {
+                              const raw = localStorage.getItem(`send_crm_${selectedAccount.id}_${c.phone}`);
+                              if (!raw) return null;
+                              const crm = JSON.parse(raw);
+                              if (!crm.stage || crm.stage === 'NEW') return null;
+                              const stage = FUNNEL_STAGES[crm.stage as FunnelStage];
+                              if (!stage) return null;
+                              return (
+                                <span style={{
+                                  fontSize: "0.65rem",
+                                  fontWeight: 600,
+                                  color: stage.color,
+                                  background: stage.bg,
+                                  border: stage.border,
+                                  padding: "2px 7px",
+                                  borderRadius: "10px",
+                                  display: "inline-flex",
+                                  alignItems: "center"
+                                }}>
+                                  {stage.label}
+                                </span>
+                              );
+                            } catch {
+                              return null;
+                            }
+                          })()}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1099,7 +1378,7 @@ export default function ChatPage() {
             ) : (
               <>
                 {/* Header da conversa */}
-                <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)", gap: "8px" }}>
+                <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)", gap: "10px", flexWrap: "wrap" }}>
                   <button
                     type="button"
                     onClick={() => setSelectedPhone("")}
@@ -1109,26 +1388,105 @@ export default function ChatPage() {
                   >
                     ← Voltar
                   </button>
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
-                    <span style={{ fontWeight: "700", fontSize: "1.1rem" }}>
-                      {conversations.find(c => c.phone === selectedPhone)?.profileName
-                        ? `👤 ${conversations.find(c => c.phone === selectedPhone)?.profileName}`
-                        : `📱 ${selectedPhone}`}
-                    </span>
-                    <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                      {conversations.find(c => c.phone === selectedPhone)?.profileName
-                        ? selectedPhone
-                        : "Canal Oficial do WhatsApp"}
-                    </span>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: "180px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: "700", fontSize: "1.05rem" }}>
+                        {conversations.find(c => c.phone === selectedPhone)?.profileName
+                          ? `👤 ${conversations.find(c => c.phone === selectedPhone)?.profileName}`
+                          : `📱 ${selectedPhone}`}
+                      </span>
+
+                      {/* Pill do Estágio do Funil (com seletor rápido) */}
+                      <select
+                        value={crmData.stage}
+                        onChange={(e) => updateCrm(prev => ({ ...prev, stage: e.target.value as FunnelStage }))}
+                        style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          cursor: "pointer",
+                          color: FUNNEL_STAGES[crmData.stage]?.color || "var(--text-primary)",
+                          background: FUNNEL_STAGES[crmData.stage]?.bg || "transparent",
+                          border: FUNNEL_STAGES[crmData.stage]?.border || "1px solid var(--border-color)",
+                          outline: "none"
+                        }}
+                        title="Alterar etapa do funil do lead"
+                      >
+                        {(Object.keys(FUNNEL_STAGES) as FunnelStage[]).map(st => (
+                          <option key={st} value={st} style={{ background: "#1e293b", color: "#fff" }}>
+                            {FUNNEL_STAGES[st].label}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* SLA do Lead Ativo (se estiver aguardando resposta) */}
+                      {(() => {
+                        const currentConv = conversations.find(c => c.phone === selectedPhone);
+                        if (!currentConv) return null;
+                        const sla = getSlaInfo(currentConv.updatedAt, currentConv.direction);
+                        if (!sla) return null;
+                        return (
+                          <span style={{
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            padding: "2px 8px",
+                            borderRadius: "10px",
+                            color: sla.color,
+                            background: sla.bg,
+                            border: sla.border
+                          }}>
+                            {sla.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.76rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                      <span>{selectedPhone}</span>
+                      <a
+                        href={`https://wa.me/${selectedPhone}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--primary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                        title="Abrir no WhatsApp Web"
+                      >
+                        <span>↗️</span> wa.me
+                      </a>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)}
-                    className="btn btn-secondary"
-                    style={{ padding: "6px 12px", fontSize: "0.8rem" }}
-                  >
-                    🔄 Atualizar Chat
-                  </button>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {/* Botão de Abrir/Fechar Mini-CRM */}
+                    <button
+                      type="button"
+                      onClick={() => setShowCrmDrawer(!showCrmDrawer)}
+                      className="btn"
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        background: showCrmDrawer ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.05)",
+                        border: showCrmDrawer ? "1px solid var(--primary)" : "1px solid var(--border-color)",
+                        color: showCrmDrawer ? "var(--primary)" : "var(--text-primary)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "5px"
+                      }}
+                      title="Abrir painel lateral com histórico, tags e anotações deste lead"
+                    >
+                      <span>👤</span> Ficha do Lead
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)}
+                      className="btn btn-secondary"
+                      style={{ padding: "6px 12px", fontSize: "0.78rem" }}
+                    >
+                      🔄 Atualizar
+                    </button>
+                  </div>
                 </div>
 
                 {/* Barra de filtros por status */}
@@ -1380,6 +1738,86 @@ export default function ChatPage() {
                         </div>
                       )}
 
+                      {/* Barra de Respostas Rápidas (1-Clique / Canned Responses) */}
+                      {(!lastInc || isWindowActive) && quickReplies.length > 0 && (
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          marginBottom: "8px",
+                          overflowX: "auto",
+                          paddingBottom: "4px",
+                          scrollbarWidth: "none"
+                        }}>
+                          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
+                            ⚡ Rápidas:
+                          </span>
+                          {quickReplies.map((qr) => (
+                            <button
+                              key={qr.id}
+                              type="button"
+                              onClick={() => {
+                                setReplyBody(prev => (prev.trim() ? prev + "\n\n" + qr.text : qr.text));
+                                setTimeout(() => {
+                                  if (replyTextareaRef.current) {
+                                    replyTextareaRef.current.focus();
+                                    replyTextareaRef.current.style.height = "auto";
+                                    replyTextareaRef.current.style.height = `${Math.min(replyTextareaRef.current.scrollHeight, 140)}px`;
+                                  }
+                                }, 10);
+                              }}
+                              style={{
+                                fontSize: "0.74rem",
+                                padding: "4px 10px",
+                                borderRadius: "14px",
+                                background: "rgba(255, 255, 255, 0.05)",
+                                border: "1px solid var(--border-color)",
+                                color: "var(--text-primary)",
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                                transition: "all 0.15s ease",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px"
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = "var(--primary)";
+                                e.currentTarget.style.background = "rgba(16, 185, 129, 0.12)";
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = "var(--border-color)";
+                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                              }}
+                              title={qr.text.slice(0, 100) + "..."}
+                            >
+                              {qr.title}
+                            </button>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingQrId(null);
+                              setQrTitleInput("");
+                              setQrTextInput("");
+                              setShowQuickReplyModal(true);
+                            }}
+                            style={{
+                              fontSize: "0.72rem",
+                              padding: "3px 8px",
+                              borderRadius: "12px",
+                              background: "transparent",
+                              border: "1px dashed var(--border-color)",
+                              color: "var(--text-muted)",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap"
+                            }}
+                            title="Gerenciar e criar novas respostas rápidas"
+                          >
+                            ⚙️ Gerenciar
+                          </button>
+                        </div>
+                      )}
+
                       {/* Barra de Formatação estilo WhatsApp e Botão de Prévia */}
                       {(!lastInc || isWindowActive) && (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", padding: "0 4px" }}>
@@ -1616,6 +2054,214 @@ export default function ChatPage() {
               </>
             )}
           </div>
+
+          {/* 3. Gaveta Lateral / Mini-CRM do Lead (Retrátil) */}
+          {selectedPhone && showCrmDrawer && (
+            <div className="chat-panel-crm">
+              {/* Topo do Mini-CRM */}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ fontSize: "1.1rem" }}>👤</span>
+                  <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>Ficha do Lead (CRM)</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCrmDrawer(false)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: "var(--text-muted)",
+                    cursor: "pointer",
+                    fontSize: "1.1rem",
+                    padding: "4px"
+                  }}
+                  title="Fechar Ficha do Lead"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Informações do Lead */}
+              <div style={{
+                background: "rgba(255, 255, 255, 0.03)",
+                borderRadius: "10px",
+                padding: "12px",
+                border: "1px solid var(--border-color)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px"
+              }}>
+                <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                  {conversations.find(c => c.phone === selectedPhone)?.profileName || "Nome não identificado"}
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
+                  {selectedPhone}
+                </div>
+                <div style={{ marginTop: "6px", display: "flex", gap: "8px" }}>
+                  <a
+                    href={`https://wa.me/${selectedPhone}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    style={{
+                      fontSize: "0.72rem",
+                      padding: "4px 8px",
+                      textDecoration: "none",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                  >
+                    <span>💬</span> WhatsApp Web ↗
+                  </a>
+                </div>
+              </div>
+
+              {/* Etapa do Funil */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Etapa do Funil de Vendas
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  {(Object.keys(FUNNEL_STAGES) as FunnelStage[]).map((stageKey) => {
+                    const stage = FUNNEL_STAGES[stageKey];
+                    const isCurrent = crmData.stage === stageKey;
+                    return (
+                      <button
+                        key={stageKey}
+                        type="button"
+                        onClick={() => updateCrm(prev => ({ ...prev, stage: stageKey }))}
+                        style={{
+                          padding: "8px 12px",
+                          borderRadius: "8px",
+                          fontSize: "0.78rem",
+                          fontWeight: isCurrent ? 700 : 500,
+                          textAlign: "left",
+                          cursor: "pointer",
+                          border: isCurrent ? stage.border : "1px solid transparent",
+                          background: isCurrent ? stage.bg : "rgba(255,255,255,0.03)",
+                          color: isCurrent ? stage.color : "var(--text-secondary)",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          transition: "all 0.15s ease"
+                        }}
+                      >
+                        <span>{stage.label}</span>
+                        {isCurrent && <span style={{ fontWeight: 800 }}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Tags / Etiquetas */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Etiquetas / Segmentação
+                </label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", minHeight: "26px" }}>
+                  {crmData.tags.length === 0 ? (
+                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                      Nenhuma tag adicionada
+                    </span>
+                  ) : (
+                    crmData.tags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: "0.72rem",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          background: "rgba(16, 185, 129, 0.15)",
+                          border: "1px solid rgba(16, 185, 129, 0.35)",
+                          color: "#10b981",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px"
+                        }}
+                      >
+                        #{tag}
+                        <button
+                          type="button"
+                          onClick={() => updateCrm(prev => ({ ...prev, tags: prev.tags.filter((_, i) => i !== idx) }))}
+                          style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", padding: "0 2px", fontSize: "0.75rem", lineHeight: 1 }}
+                          title="Remover tag"
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                  <input
+                    type="text"
+                    placeholder="Adicionar tag (Enter)..."
+                    value={newTagInput}
+                    onChange={(e) => setNewTagInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        const cleaned = newTagInput.trim().replace(/^#/, "");
+                        if (cleaned && !crmData.tags.includes(cleaned)) {
+                          updateCrm(prev => ({ ...prev, tags: [...prev.tags, cleaned] }));
+                          setNewTagInput("");
+                        }
+                      }
+                    }}
+                    className="form-control"
+                    style={{ fontSize: "0.75rem", padding: "5px 8px", height: "32px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const cleaned = newTagInput.trim().replace(/^#/, "");
+                      if (cleaned && !crmData.tags.includes(cleaned)) {
+                        updateCrm(prev => ({ ...prev, tags: [...prev.tags, cleaned] }));
+                        setNewTagInput("");
+                      }
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              {/* Anotações Privadas do Atendimento */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Notas da Negociação
+                  </label>
+                  <span style={{ fontSize: "0.68rem", color: "#10b981" }}>● Auto-salvamento</span>
+                </div>
+                <textarea
+                  placeholder="Ex: Cliente tem interesse em 3 frascos do Body Splash Ternura. Aguardando envio do comprovante PIX até as 17h..."
+                  value={crmData.notes}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    updateCrm(prev => ({ ...prev, notes: val }));
+                  }}
+                  className="form-control"
+                  style={{
+                    fontSize: "0.8rem",
+                    padding: "10px",
+                    borderRadius: "8px",
+                    minHeight: "120px",
+                    resize: "vertical",
+                    flex: 1,
+                    lineHeight: "1.45"
+                  }}
+                />
+                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                  🔒 Estas notas são visíveis apenas para a sua equipe e não são enviadas ao cliente.
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -1726,6 +2372,196 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* Modal de Gerenciamento de Respostas Rápidas */}
+      {showQuickReplyModal && (
+        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
+          <div className="glass" style={{ width: "90%", maxWidth: "600px", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: "24px", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.2rem" }}>⚡</span>
+                <h3 style={{ fontSize: "1.15rem", fontWeight: "700", margin: 0 }}>Respostas Rápidas (Canned Responses)</h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => {
+                  setShowQuickReplyModal(false);
+                  setEditingQrId(null);
+                  setQrTitleInput("");
+                  setQrTextInput("");
+                }} 
+                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--text-muted)" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: "0 0 14px 0" }}>
+              Cadastre mensagens padrão (ofertas, dados bancários, dúvidas frequentes) para agilizar o atendimento de alta demanda com apenas 1 clique.
+            </p>
+
+            {/* Formulário de Adicionar / Editar */}
+            <div style={{ background: "rgba(255,255,255,0.03)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border-color)", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
+              <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--primary)" }}>
+                {editingQrId ? "✏️ Editar Resposta Rápida" : "➕ Nova Resposta Rápida"}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Título do Botão (ex: 🎁 Oferta Body Splash):</label>
+                <input
+                  type="text"
+                  placeholder="Ex: 💳 Chave PIX"
+                  value={qrTitleInput}
+                  onChange={(e) => setQrTitleInput(e.target.value)}
+                  className="form-control"
+                  style={{ fontSize: "0.82rem", height: "36px" }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Texto da Mensagem (pode usar formatação do WhatsApp *negrito*, etc):</label>
+                <textarea
+                  placeholder="Digite a mensagem completa..."
+                  value={qrTextInput}
+                  onChange={(e) => setQrTextInput(e.target.value)}
+                  className="form-control"
+                  style={{ fontSize: "0.82rem", minHeight: "85px", resize: "vertical" }}
+                />
+              </div>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
+                {editingQrId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingQrId(null);
+                      setQrTitleInput("");
+                      setQrTextInput("");
+                    }}
+                    className="btn btn-secondary"
+                    style={{ fontSize: "0.78rem", padding: "6px 12px" }}
+                  >
+                    Cancelar Edição
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!qrTitleInput.trim() || !qrTextInput.trim()) {
+                      showAlert("Preencha o título e o texto da resposta rápida.", "error");
+                      return;
+                    }
+                    if (editingQrId) {
+                      const updated = quickReplies.map(qr => qr.id === editingQrId ? { ...qr, title: qrTitleInput.trim(), text: qrTextInput } : qr);
+                      saveQuickReplies(updated);
+                      showAlert("Resposta rápida atualizada com sucesso! ✅", "success");
+                    } else {
+                      const newQr: QuickReply = {
+                        id: `qr_${Date.now()}`,
+                        title: qrTitleInput.trim(),
+                        text: qrTextInput
+                      };
+                      saveQuickReplies([...quickReplies, newQr]);
+                      showAlert("Nova resposta rápida criada com sucesso! 🚀", "success");
+                    }
+                    setEditingQrId(null);
+                    setQrTitleInput("");
+                    setQrTextInput("");
+                  }}
+                  className="btn btn-primary"
+                  style={{ fontSize: "0.78rem", padding: "6px 14px" }}
+                >
+                  {editingQrId ? "Salvar Alterações" : "Adicionar Resposta"}
+                </button>
+              </div>
+            </div>
+
+            {/* Lista de Respostas Atuais */}
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", maxHeight: "240px" }}>
+              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
+                Respostas Salvas ({quickReplies.length})
+              </div>
+              {quickReplies.map((qr) => (
+                <div
+                  key={qr.id}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--border-color)",
+                    background: "rgba(255,255,255,0.02)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: "10px"
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.82rem", color: "var(--text-primary)" }}>
+                      {qr.title}
+                    </div>
+                    <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: "2px" }}>
+                      {qr.text.replace(/\n/g, " ")}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingQrId(qr.id);
+                        setQrTitleInput(qr.title);
+                        setQrTextInput(qr.text);
+                      }}
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 8px", fontSize: "0.72rem" }}
+                      title="Editar"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = quickReplies.filter(item => item.id !== qr.id);
+                        saveQuickReplies(updated);
+                        if (editingQrId === qr.id) {
+                          setEditingQrId(null);
+                          setQrTitleInput("");
+                          setQrTextInput("");
+                        }
+                      }}
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 8px", fontSize: "0.72rem", color: "var(--error)" }}
+                      title="Excluir"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm("Deseja restaurar as respostas rápidas originais (Body Splash, PIX, Endereço, etc)?")) {
+                    saveQuickReplies(DEFAULT_QUICK_REPLIES);
+                    showAlert("Respostas padrões restauradas com sucesso!", "success");
+                  }
+                }}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}
+              >
+                🔄 Restaurar modelos de fábrica
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowQuickReplyModal(false)}
+                className="btn btn-primary"
+                style={{ fontSize: "0.8rem", padding: "6px 14px" }}
+              >
+                Concluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

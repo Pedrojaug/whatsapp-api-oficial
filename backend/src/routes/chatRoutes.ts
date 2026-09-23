@@ -148,7 +148,11 @@ function conversationStatusLabel(c: ConversationRow): string {
 }
 
 function csvCell(v: any): string {
-  const s = String(v ?? "");
+  let s = String(v ?? "");
+  // Prevenção contra CSV Injection / Formula Injection no Excel/Sheets (CWE-1236)
+  if (/^[=+\-@\t\r]/.test(s)) {
+    s = `'${s}`;
+  }
   return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
