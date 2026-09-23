@@ -643,9 +643,11 @@ export default function ChatPage() {
   });
 
   // Filtro da lista de conversas (chats), baseado nos agregados do histórico
-  const CONV_FILTERS: { key: string; label: string; title: string }[] = [
+  const CONV_FILTERS: { key: string; label: string; title: string; highlight?: boolean }[] = [
     { key: "ALL", label: "Todas", title: "Todas as conversas" },
-    { key: "REPLIED", label: "💬 Respondidas", title: "O cliente respondeu — chats mais importantes" },
+    { key: "UNANSWERED", label: "🔥 Não Lidas / Aguardando", title: "Clientes que responderam ao disparo e estão aguardando o atendente", highlight: true },
+    { key: "ANSWERED", label: "✅ Já Atendidas", title: "Conversas que o cliente respondeu e você já enviou mensagem" },
+    { key: "REPLIED", label: "💬 Todas Respondidas", title: "Histórico geral de todos os clientes que responderam" },
     { key: "READ", label: "✓✓ Lidas", title: "Cliente leu a mensagem (mas pode não ter respondido)" },
     { key: "DELIVERED", label: "✓✓ Entregues", title: "Mensagem chegou no aparelho do cliente" },
     { key: "UNDELIVERED", label: "✉️ Não entregues", title: "Apenas enviadas — nunca chegaram ao cliente" },
@@ -654,6 +656,8 @@ export default function ChatPage() {
 
   const matchesConvFilter = (c: any) => {
     switch (convFilter) {
+      case "UNANSWERED": return c.direction === "INCOMING";
+      case "ANSWERED": return !!c.hasIncoming && c.direction === "OUTGOING";
       case "REPLIED": return !!c.hasIncoming;
       case "READ": return !!c.hasRead;
       case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
@@ -934,6 +938,8 @@ export default function ChatPage() {
                   ? conversations.length
                   : conversations.filter(c => {
                       switch (f.key) {
+                        case "UNANSWERED": return c.direction === "INCOMING";
+                        case "ANSWERED": return !!c.hasIncoming && c.direction === "OUTGOING";
                         case "REPLIED": return !!c.hasIncoming;
                         case "READ": return !!c.hasRead;
                         case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
@@ -955,9 +961,21 @@ export default function ChatPage() {
                       fontWeight: 600,
                       whiteSpace: "nowrap",
                       cursor: "pointer",
-                      border: isActive ? "1px solid var(--primary)" : "1px solid var(--border-color)",
-                      background: isActive ? "rgba(0,194,107,0.15)" : "transparent",
-                      color: isActive ? "var(--primary)" : "var(--text-muted)",
+                      border: isActive
+                        ? "1px solid var(--primary)"
+                        : f.highlight && count > 0
+                          ? "1px solid rgba(16, 185, 129, 0.55)"
+                          : "1px solid var(--border-color)",
+                      background: isActive
+                        ? "rgba(0,194,107,0.22)"
+                        : f.highlight && count > 0
+                          ? "rgba(16, 185, 129, 0.12)"
+                          : "transparent",
+                      color: isActive
+                        ? "var(--primary)"
+                        : f.highlight && count > 0
+                          ? "#10b981"
+                          : "var(--text-muted)",
                       transition: "all 0.15s",
                       flexShrink: 0,
                     }}
@@ -1019,22 +1037,27 @@ export default function ChatPage() {
                             {new Date(c.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <div className="conv-item__preview" style={{ fontStyle: c.direction === "INCOMING" ? "italic" : "normal" }}>
+                        <div className="conv-item__preview" style={{
+                          fontWeight: c.direction === "INCOMING" ? 600 : "normal",
+                          color: c.direction === "INCOMING" ? "var(--text-primary)" : "var(--text-secondary)",
+                        }}>
                           {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
                         </div>
                         {/* Badge de situação do chat */}
                         {(() => {
-                          const badge = c.hasIncoming
-                            ? { text: "💬 Respondeu", color: "var(--primary)", bg: "rgba(0,194,107,0.12)" }
-                            : c.hasFailed && !c.hasDelivered && !c.hasRead
-                              ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239,68,68,0.12)" }
-                              : c.hasRead
-                                ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34,211,238,0.1)" }
-                                : c.hasDelivered
-                                  ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255,255,255,0.06)" }
-                                  : c.direction === "OUTGOING"
-                                    ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255,255,255,0.04)" }
-                                    : null;
+                          const badge = c.direction === "INCOMING"
+                            ? { text: "🔥 Aguardando resposta", color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", border: "1px solid rgba(16, 185, 129, 0.35)" }
+                            : c.hasIncoming && c.direction === "OUTGOING"
+                              ? { text: "✅ Já respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
+                              : c.hasFailed && !c.hasDelivered && !c.hasRead
+                                ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239, 68, 68, 0.12)", border: "none" }
+                                : c.hasRead
+                                  ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34, 211, 238, 0.1)", border: "none" }
+                                  : c.hasDelivered
+                                    ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
+                                    : c.direction === "OUTGOING"
+                                      ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
+                                      : null;
                           if (!badge) return null;
                           return (
                             <span style={{
@@ -1042,10 +1065,14 @@ export default function ChatPage() {
                               fontWeight: 600,
                               color: badge.color,
                               background: badge.bg,
-                              padding: "1px 8px",
+                              border: badge.border || "none",
+                              padding: "2px 8px",
                               borderRadius: "10px",
                               marginTop: "3px",
                               alignSelf: "flex-start",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px"
                             }}>
                               {badge.text}
                             </span>

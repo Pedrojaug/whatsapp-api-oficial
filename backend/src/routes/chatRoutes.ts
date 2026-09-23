@@ -122,6 +122,12 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
 // Filtro de status equivalente ao matchesConvFilter do frontend.
 function matchesConvFilter(c: ConversationRow, filter: string): boolean {
   switch (filter) {
+    case "UNANSWERED":
+    case "PENDING":
+    case "UNREAD":
+      return c.direction === "INCOMING";
+    case "ANSWERED":
+      return !!c.hasIncoming && c.direction === "OUTGOING";
     case "REPLIED": return !!c.hasIncoming;
     case "READ": return !!c.hasRead;
     case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
@@ -132,6 +138,8 @@ function matchesConvFilter(c: ConversationRow, filter: string): boolean {
 }
 
 function conversationStatusLabel(c: ConversationRow): string {
+  if (c.direction === "INCOMING") return "Aguardando Resposta";
+  if (c.hasIncoming && c.direction === "OUTGOING") return "Atendida";
   if (c.hasIncoming) return "Respondeu";
   if (c.hasRead) return "Lida";
   if (c.hasDelivered) return "Entregue";
