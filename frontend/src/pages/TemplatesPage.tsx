@@ -550,7 +550,8 @@ export default function TemplatesPage() {
                     value={newTemplateName}
                     onChange={(e) => setNewTemplateName(e.target.value)}
                     disabled={!!editingTemplateId}
-                    style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", opacity: editingTemplateId ? 0.6 : 1 }}
+                    className="field-input"
+                    style={{ padding: "12px", borderRadius: "var(--radius-md)", opacity: editingTemplateId ? 0.6 : 1 }}
                   />
                 </div>
 
@@ -560,7 +561,8 @@ export default function TemplatesPage() {
                     <select
                       value={newTemplateCategory}
                       onChange={(e) => setNewTemplateCategory(e.target.value)}
-                      style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                      className="field-input"
+                      style={{ padding: "12px", borderRadius: "var(--radius-md)" }}
                     >
                       <option value="MARKETING">Marketing</option>
                       <option value="UTILITY">Utilidade</option>
@@ -573,7 +575,8 @@ export default function TemplatesPage() {
                       placeholder="pt_BR"
                       value={newTemplateLanguage}
                       onChange={(e) => setNewTemplateLanguage(e.target.value)}
-                      style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                      className="field-input"
+                      style={{ padding: "12px", borderRadius: "var(--radius-md)" }}
                     />
                   </div>
                 </div>
@@ -613,7 +616,8 @@ export default function TemplatesPage() {
                       placeholder="Texto do cabeçalho (ex: Bem-vindo!)"
                       value={newTemplateHeaderText}
                       onChange={(e) => setNewTemplateHeaderText(e.target.value)}
-                      style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                      className="field-input"
+                      style={{ padding: "12px", borderRadius: "var(--radius-md)" }}
                     />
                   )}
 
@@ -671,7 +675,8 @@ export default function TemplatesPage() {
                     value={newTemplateBodyText}
                     onChange={(e) => setNewTemplateBodyText(e.target.value)}
                     rows={3}
-                    style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", resize: "none", fontFamily: "inherit", outline: "none" }}
+                    className="field-input"
+                    style={{ padding: "12px", borderRadius: "var(--radius-md)", resize: "none", fontFamily: "inherit" }}
                   />
                   <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Use {"{{1}}"}, {"{{2}}"} para indicar variáveis dinâmicas.</span>
 
@@ -691,7 +696,8 @@ export default function TemplatesPage() {
                               updated[idx] = e.target.value;
                               setNewTemplateBodyVariables(updated);
                             }}
-                            style={{ flex: 1, padding: "8px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.85rem", outline: "none" }}
+                            className="field-input"
+                            style={{ flex: 1, padding: "8px", borderRadius: "var(--radius-sm)", fontSize: "0.85rem" }}
                           />
                         </div>
                       ))}
@@ -707,7 +713,8 @@ export default function TemplatesPage() {
                     placeholder="Texto pequeno no rodapé (ex: Cancelar inscrições digite SAIR)"
                     value={newTemplateFooterText}
                     onChange={(e) => setNewTemplateFooterText(e.target.value)}
-                    style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                    className="field-input"
+                    style={{ padding: "12px", borderRadius: "var(--radius-md)" }}
                   />
                 </div>
 
@@ -722,7 +729,8 @@ export default function TemplatesPage() {
                       setNewTemplateButtonType(type);
                       setNewTemplateButtons([]);
                     }}
-                    style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none" }}
+                    className="field-input"
+                    style={{ padding: "12px", borderRadius: "var(--radius-md)" }}
                   >
                     <option value="NONE">Sem botões</option>
                     <option value="QUICK_REPLY">Respostas Rápidas (Até 10)</option>
@@ -743,7 +751,8 @@ export default function TemplatesPage() {
                               updated[idx].text = e.target.value;
                               setNewTemplateButtons(updated);
                             }}
-                            style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                            className="field-input"
+                            style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
                           />
                           <button
                             type="button"
@@ -800,7 +809,8 @@ export default function TemplatesPage() {
                                 }
                                 setNewTemplateButtons(updated);
                               }}
-                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                              className="field-input"
+                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", fontSize: "0.85rem" }}
                             >
                               <option value="URL">Link Web (URL)</option>
                               <option value="PHONE_NUMBER">Ligar para Telefone</option>
@@ -815,7 +825,8 @@ export default function TemplatesPage() {
                                 updated[idx].text = e.target.value;
                                 setNewTemplateButtons(updated);
                               }}
-                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                              className="field-input"
+                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", fontSize: "0.85rem" }}
                             />
                           </div>
 
@@ -829,7 +840,8 @@ export default function TemplatesPage() {
                                 updated[idx].url = e.target.value;
                                 setNewTemplateButtons(updated);
                               }}
-                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                              className="field-input"
+                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", fontSize: "0.85rem" }}
                             />
                           ) : (
                             <input
@@ -841,7 +853,8 @@ export default function TemplatesPage() {
                                 updated[idx].phoneNumber = e.target.value;
                                 setNewTemplateButtons(updated);
                               }}
-                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                              className="field-input"
+                              style={{ padding: "8px", borderRadius: "var(--radius-sm)", fontSize: "0.85rem" }}
                             />
                           )}
                         </div>

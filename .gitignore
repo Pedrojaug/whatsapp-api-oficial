@@ -32,3 +32,6 @@ Thumbs.db
 # Uploaded media assets
 backend/uploads/
 **/uploads/
+
+
+.clinerules

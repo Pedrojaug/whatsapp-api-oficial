@@ -314,7 +314,8 @@ export default function DashboardPage() {
                 type="date"
                 value={metricsStartDate}
                 onChange={(e) => setMetricsStartDate(e.target.value)}
-                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                className="field-input"
+                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", width: "auto", fontSize: "0.85rem" }}
               />
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
@@ -323,7 +324,8 @@ export default function DashboardPage() {
                 type="date"
                 value={metricsEndDate}
                 onChange={(e) => setMetricsEndDate(e.target.value)}
-                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                className="field-input"
+                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", width: "auto", fontSize: "0.85rem" }}
               />
             </div>
           </div>
@@ -387,7 +389,7 @@ export default function DashboardPage() {
                   {validDeliveryRate}%
                 </span>
               </div>
-              <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${validDeliveryRate}%`, background: "var(--primary)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
@@ -400,7 +402,7 @@ export default function DashboardPage() {
                   {totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0}%
                 </span>
               </div>
-              <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
@@ -413,7 +415,7 @@ export default function DashboardPage() {
                   {totalAll > 0 ? Math.round((totalRead / totalAll) * 100) : 0}%
                 </span>
               </div>
-              <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 0}%`, background: "var(--success)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>
@@ -426,7 +428,7 @@ export default function DashboardPage() {
                   {responseRate}%
                 </span>
               </div>
-              <div style={{ height: "10px", background: "rgba(255,255,255,0.05)", borderRadius: "5px", overflow: "hidden" }}>
+              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
                 <div style={{ height: "100%", width: `${Math.min(100, responseRate * 3)}%`, background: "linear-gradient(to right, #9333ea, #c084fc)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
               </div>
             </div>

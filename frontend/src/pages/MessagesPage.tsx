@@ -379,7 +379,8 @@ export default function MessagesPage() {
             <select
               value={selectedTemplateName}
               onChange={(e) => handleTemplateSelectionChange(e.target.value)}
-              style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+              className="field-input"
+              style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
             >
               <option value="">Selecione um template</option>
               {templates
@@ -422,7 +423,8 @@ export default function MessagesPage() {
                 placeholder="DDI + DDD + Número (ex: 5511999999999)"
                 value={recipientNumber}
                 onChange={(e) => setRecipientNumber(e.target.value)}
-                style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                className="field-input"
+                style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
               />
             </div>
           ) : (
@@ -434,7 +436,8 @@ export default function MessagesPage() {
                   <select
                     value={listTagFilter}
                     onChange={(e) => { setListTagFilter(e.target.value); setSelectedListId(""); }}
-                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: listTagFilter ? "#fff" : "var(--text-muted)", outline: "none", fontSize: "0.8rem" }}
+                    className="field-input"
+                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: "0.8rem" }}
                   >
                     <option value="">🏷️ Filtrar por tag (todas)</option>
                     {allTags.map((tag) => (
@@ -447,7 +450,8 @@ export default function MessagesPage() {
               <select
                 value={selectedListId}
                 onChange={(e) => setSelectedListId(e.target.value)}
-                style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                className="field-input"
+                style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
               >
                 <option value="">Selecione uma lista</option>
                 {contactLists
@@ -479,7 +483,8 @@ export default function MessagesPage() {
                     placeholder={`https://site.com/media.${headerComp.format === "IMAGE" ? "jpg" : headerComp.format === "VIDEO" ? "mp4" : "pdf"}`}
                     value={messageMediaUrl}
                     onChange={(e) => setMessageMediaUrl(e.target.value)}
-                    style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                    className="field-input"
+                    style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
                   />
                   <button
                     type="button"
@@ -519,7 +524,8 @@ export default function MessagesPage() {
                         placeholder={`Valor para {{${idx + 1}}}`}
                         value={variable}
                         onChange={(e) => handleVariableChange(idx, e.target.value)}
-                        style={{ padding: "8px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.85rem", outline: "none" }}
+                        className="field-input"
+                        style={{ padding: "8px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
                       />
                     </div>
                   );
@@ -544,7 +550,8 @@ export default function MessagesPage() {
                           }
                           setVariableMappings(updated);
                         }}
-                        style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.8rem" }}
+                        className="field-input"
+                        style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}
                       >
                         <option value="STATIC_VALUE">Valor Fixo (Estático)</option>
                         <option value="CONTACT_NAME">Nome do Contato</option>
@@ -564,7 +571,8 @@ export default function MessagesPage() {
                             updated[idx] = `STATIC:${e.target.value}`;
                             setVariableMappings(updated);
                           }}
-                          style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", fontSize: "0.8rem", outline: "none" }}
+                          className="field-input"
+                          style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}
                         />
                       )}
                     </div>
@@ -613,7 +621,8 @@ export default function MessagesPage() {
                       const pad = (n: number) => String(n).padStart(2, "0");
                       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
                     })()}
-                    style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                    className="field-input"
+                    style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
                     required
                   />
                 </div>
@@ -763,7 +772,8 @@ export default function MessagesPage() {
                         fetchMessages(selectedAccount.id, 1, messagesSearch, messagesStatus, messagesTemplateFilter);
                       }
                     }}
-                    style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                    className="field-input"
+                    style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
                   />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "130px" }}>
@@ -771,7 +781,8 @@ export default function MessagesPage() {
                   <select
                     value={messagesStatus}
                     onChange={(e) => setMessagesStatus(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                    className="field-input"
+                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
                   >
                     <option value="">Todos</option>
                     <option value="PENDING">Pendente (Enviando)</option>
@@ -786,7 +797,8 @@ export default function MessagesPage() {
                   <select
                     value={messagesTemplateFilter}
                     onChange={(e) => setMessagesTemplateFilter(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.85rem" }}
+                    className="field-input"
+                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
                   >
                     <option value="">Todos</option>
                     {templates.map(t => (
@@ -829,7 +841,7 @@ export default function MessagesPage() {
                 <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma mensagem enviada por esta conta.</p>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div style={{ overflowX: "auto" }}>
+                  <div className="table-scroll-container">
                     <table className="data-table">
                       <thead>
                         <tr>
@@ -938,7 +950,7 @@ export default function MessagesPage() {
               ) : scheduledMessages.length === 0 ? (
                 <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhum agendamento futuro encontrado para esta conta.</p>
               ) : (
-                <div style={{ overflowX: "auto" }}>
+                <div className="table-scroll-container">
                   <table className="data-table">
                     <thead>
                       <tr>
@@ -1002,11 +1014,11 @@ export default function MessagesPage() {
         <ModalPortal>
           <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(6px)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 1000 }}>
             <div className="glass fade-in" style={{ width: "420px", maxWidth: "90vw", display: "flex", flexDirection: "column", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 28px", borderBottom: "1px solid var(--border-color)" }}>
                 <h3 style={{ fontSize: "1.2rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
                   <span>📅</span> Reagendar Mensagem
                 </h3>
-                <button type="button" onClick={() => { setShowRescheduleModal(null); setRescheduleDate(""); }} style={{ background: "none", border: "none", color: "#fff", fontSize: "1.2rem", cursor: "pointer", opacity: 0.7 }}>✕</button>
+                <button type="button" onClick={() => { setShowRescheduleModal(null); setRescheduleDate(""); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "1.2rem", cursor: "pointer", opacity: 0.8 }}>✕</button>
               </div>
 
               <form onSubmit={(e) => { e.preventDefault(); if (showRescheduleModal) handleReschedule(showRescheduleModal); }} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
@@ -1021,7 +1033,8 @@ export default function MessagesPage() {
                       const pad = (n: number) => String(n).padStart(2, "0");
                       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
                     })()}
-                    style={{ padding: "10px", borderRadius: "var(--radius-md)", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border-color)", color: "#fff", outline: "none", fontSize: "0.9rem" }}
+                    className="field-input"
+                    style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
                     required
                   />
                 </div>

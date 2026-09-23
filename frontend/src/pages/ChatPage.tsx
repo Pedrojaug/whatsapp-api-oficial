@@ -1066,7 +1066,7 @@ export default function ChatPage() {
             </div>
 
             {/* 1.1 Campo de Busca Instantânea Inteligente */}
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.02)" }}>
+            <div className="chat-search-bar" style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)" }}>
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 <span style={{ position: "absolute", left: "10px", fontSize: "0.85rem", color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
                 <input
@@ -1074,15 +1074,13 @@ export default function ChatPage() {
                   placeholder="Buscar nome, número ou mensagem..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="form-control"
+                  className="form-control chat-search-input"
                   style={{
                     paddingLeft: "32px",
                     paddingRight: searchQuery ? "28px" : "10px",
                     fontSize: "0.8rem",
                     height: "36px",
-                    borderRadius: "var(--radius-md)",
-                    background: "rgba(255,255,255,0.05)",
-                    border: "1px solid var(--border-color)"
+                    borderRadius: "var(--radius-md)"
                   }}
                 />
                 {searchQuery && (
@@ -1378,7 +1376,7 @@ export default function ChatPage() {
             ) : (
               <>
                 {/* Header da conversa */}
-                <div style={{ padding: "12px 18px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(0,0,0,0.05)", gap: "10px", flexWrap: "wrap" }}>
+                <div className="chat-header-bar" style={{ padding: "12px 18px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                   <button
                     type="button"
                     onClick={() => setSelectedPhone("")}
@@ -1400,10 +1398,11 @@ export default function ChatPage() {
                       <select
                         value={crmData.stage}
                         onChange={(e) => updateCrm(prev => ({ ...prev, stage: e.target.value as FunnelStage }))}
+                        className="funnel-stage-select"
                         style={{
                           fontSize: "0.72rem",
                           fontWeight: 700,
-                          padding: "2px 8px",
+                          padding: "3px 10px",
                           borderRadius: "12px",
                           cursor: "pointer",
                           color: FUNNEL_STAGES[crmData.stage]?.color || "var(--text-primary)",
@@ -1414,7 +1413,7 @@ export default function ChatPage() {
                         title="Alterar etapa do funil do lead"
                       >
                         {(Object.keys(FUNNEL_STAGES) as FunnelStage[]).map(st => (
-                          <option key={st} value={st} style={{ background: "#1e293b", color: "#fff" }}>
+                          <option key={st} value={st} className="funnel-stage-option">
                             {FUNNEL_STAGES[st].label}
                           </option>
                         ))}
@@ -1461,17 +1460,11 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => setShowCrmDrawer(!showCrmDrawer)}
-                      className="btn"
+                      className="chat-crm-toggle-btn"
                       style={{
-                        padding: "6px 12px",
-                        fontSize: "0.78rem",
-                        fontWeight: 600,
-                        background: showCrmDrawer ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.05)",
-                        border: showCrmDrawer ? "1px solid var(--primary)" : "1px solid var(--border-color)",
-                        color: showCrmDrawer ? "var(--primary)" : "var(--text-primary)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "5px"
+                        background: showCrmDrawer ? "rgba(16, 185, 129, 0.2)" : undefined,
+                        borderColor: showCrmDrawer ? "var(--primary)" : undefined,
+                        color: showCrmDrawer ? "var(--primary)" : undefined
                       }}
                       title="Abrir painel lateral com histórico, tags e anotações deste lead"
                     >
@@ -1490,7 +1483,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Barra de filtros por status */}
-                <div style={{ display: "flex", gap: "6px", padding: "10px 20px", borderBottom: "1px solid var(--border-color)", background: "rgba(0,0,0,0.03)", overflowX: "auto", flexWrap: "nowrap" }}>
+                <div className="chat-templates-bar" style={{ display: "flex", gap: "6px", padding: "10px 20px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap" }}>
                   {FILTERS.map(f => {
                     const isActive = statusFilter === f.key;
                     const count = f.key === "ALL"
@@ -1687,7 +1680,7 @@ export default function ChatPage() {
                   }
 
                   return (
-                    <div style={{ padding: "16px 20px", borderTop: "1px solid var(--border-color)", background: "rgba(0,0,0,0.1)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div className="chat-input-container" style={{ padding: "16px 20px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "10px" }}>
                       
                       {lastInc ? (
                         isWindowActive ? (
@@ -1739,60 +1732,40 @@ export default function ChatPage() {
                       )}
 
                       {/* Barra de Respostas Rápidas (1-Clique / Canned Responses) */}
-                      {(!lastInc || isWindowActive) && quickReplies.length > 0 && (
-                        <div style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          marginBottom: "8px",
-                          overflowX: "auto",
-                          paddingBottom: "4px",
-                          scrollbarWidth: "none"
-                        }}>
-                          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", whiteSpace: "nowrap" }}>
-                            ⚡ Rápidas:
-                          </span>
-                          {quickReplies.map((qr) => (
-                            <button
-                              key={qr.id}
-                              type="button"
-                              onClick={() => {
-                                setReplyBody(prev => (prev.trim() ? prev + "\n\n" + qr.text : qr.text));
-                                setTimeout(() => {
-                                  if (replyTextareaRef.current) {
-                                    replyTextareaRef.current.focus();
-                                    replyTextareaRef.current.style.height = "auto";
-                                    replyTextareaRef.current.style.height = `${Math.min(replyTextareaRef.current.scrollHeight, 140)}px`;
-                                  }
-                                }, 10);
-                              }}
-                              style={{
-                                fontSize: "0.74rem",
-                                padding: "4px 10px",
-                                borderRadius: "14px",
-                                background: "rgba(255, 255, 255, 0.05)",
-                                border: "1px solid var(--border-color)",
-                                color: "var(--text-primary)",
-                                cursor: "pointer",
-                                whiteSpace: "nowrap",
-                                transition: "all 0.15s ease",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px"
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor = "var(--primary)";
-                                e.currentTarget.style.background = "rgba(16, 185, 129, 0.12)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor = "var(--border-color)";
-                                e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                              }}
-                              title={qr.text.slice(0, 100) + "..."}
-                            >
-                              {qr.title}
-                            </button>
-                          ))}
+                      {(!lastInc || isWindowActive) && (
+                        <div className="quick-replies-toolbar">
+                          <div className="quick-replies-scroll-area">
+                            <span className="quick-replies-label">
+                              <span>⚡</span> Rápidas:
+                            </span>
+                            {quickReplies.map((qr) => (
+                              <button
+                                key={qr.id}
+                                type="button"
+                                onClick={() => {
+                                  setReplyBody(prev => (prev.trim() ? prev + "\n\n" + qr.text : qr.text));
+                                  setTimeout(() => {
+                                    if (replyTextareaRef.current) {
+                                      replyTextareaRef.current.focus();
+                                      replyTextareaRef.current.style.height = "auto";
+                                      replyTextareaRef.current.style.height = `${Math.min(replyTextareaRef.current.scrollHeight, 140)}px`;
+                                    }
+                                  }, 10);
+                                }}
+                                className="quick-reply-chip"
+                                title={qr.text.slice(0, 120) + (qr.text.length > 120 ? "..." : "")}
+                              >
+                                {qr.title}
+                              </button>
+                            ))}
+                            {quickReplies.length === 0 && (
+                              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                                Nenhuma resposta rápida cadastrada.
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Botão Gerenciar sempre fixo na direita, destacado e visível em ambos os temas */}
                           <button
                             type="button"
                             onClick={() => {
@@ -1801,19 +1774,10 @@ export default function ChatPage() {
                               setQrTextInput("");
                               setShowQuickReplyModal(true);
                             }}
-                            style={{
-                              fontSize: "0.72rem",
-                              padding: "3px 8px",
-                              borderRadius: "12px",
-                              background: "transparent",
-                              border: "1px dashed var(--border-color)",
-                              color: "var(--text-muted)",
-                              cursor: "pointer",
-                              whiteSpace: "nowrap"
-                            }}
+                            className="quick-reply-manage-btn"
                             title="Gerenciar e criar novas respostas rápidas"
                           >
-                            ⚙️ Gerenciar
+                            <span>⚙️</span> Gerenciar
                           </button>
                         </div>
                       )}
@@ -1826,19 +1790,8 @@ export default function ChatPage() {
                               type="button"
                               onClick={() => insertFormat("*")}
                               title="Negrito (*texto*)"
-                              style={{
-                                background: "rgba(255, 255, 255, 0.06)",
-                                border: "1px solid var(--border-color)",
-                                color: "var(--text-primary)",
-                                borderRadius: "4px",
-                                padding: "3px 9px",
-                                fontSize: "0.78rem",
-                                fontWeight: "bold",
-                                cursor: "pointer",
-                                transition: "all 0.15s ease"
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                              className="chat-fmt-btn"
+                              style={{ fontWeight: "bold" }}
                             >
                               B
                             </button>
@@ -1846,19 +1799,8 @@ export default function ChatPage() {
                               type="button"
                               onClick={() => insertFormat("_")}
                               title="Itálico (_texto_)"
-                              style={{
-                                background: "rgba(255, 255, 255, 0.06)",
-                                border: "1px solid var(--border-color)",
-                                color: "var(--text-primary)",
-                                borderRadius: "4px",
-                                padding: "3px 9px",
-                                fontSize: "0.78rem",
-                                fontStyle: "italic",
-                                cursor: "pointer",
-                                transition: "all 0.15s ease"
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                              className="chat-fmt-btn"
+                              style={{ fontStyle: "italic" }}
                             >
                               I
                             </button>
@@ -1866,19 +1808,8 @@ export default function ChatPage() {
                               type="button"
                               onClick={() => insertFormat("~")}
                               title="Tachado (~texto~)"
-                              style={{
-                                background: "rgba(255, 255, 255, 0.06)",
-                                border: "1px solid var(--border-color)",
-                                color: "var(--text-primary)",
-                                borderRadius: "4px",
-                                padding: "3px 9px",
-                                fontSize: "0.78rem",
-                                textDecoration: "line-through",
-                                cursor: "pointer",
-                                transition: "all 0.15s ease"
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                              className="chat-fmt-btn"
+                              style={{ textDecoration: "line-through" }}
                             >
                               S
                             </button>
@@ -1886,18 +1817,7 @@ export default function ChatPage() {
                               type="button"
                               onClick={() => insertFormat("• ")}
                               title="Marcador de Lista"
-                              style={{
-                                background: "rgba(255, 255, 255, 0.06)",
-                                border: "1px solid var(--border-color)",
-                                color: "var(--text-primary)",
-                                borderRadius: "4px",
-                                padding: "3px 9px",
-                                fontSize: "0.78rem",
-                                cursor: "pointer",
-                                transition: "all 0.15s ease"
-                              }}
-                              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--primary)")}
-                              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-color)")}
+                              className="chat-fmt-btn"
                             >
                               • Lista
                             </button>
@@ -1908,18 +1828,16 @@ export default function ChatPage() {
                               <button
                                 type="button"
                                 onClick={() => setShowPreview(!showPreview)}
+                                className="chat-fmt-btn"
                                 style={{
-                                  background: showPreview ? "rgba(16, 185, 129, 0.2)" : "rgba(255, 255, 255, 0.06)",
-                                  border: showPreview ? "1px solid var(--primary, #10b981)" : "1px solid var(--border-color)",
-                                  color: showPreview ? "var(--primary, #10b981)" : "var(--text-muted)",
-                                  borderRadius: "4px",
-                                  padding: "3px 10px",
+                                  background: showPreview ? "rgba(16, 185, 129, 0.2)" : undefined,
+                                  borderColor: showPreview ? "var(--primary, #10b981)" : undefined,
+                                  color: showPreview ? "var(--primary, #10b981)" : undefined,
                                   fontSize: "0.74rem",
-                                  cursor: "pointer",
+                                  padding: "3px 10px",
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: "4px",
-                                  transition: "all 0.15s ease"
+                                  gap: "4px"
                                 }}
                                 title="Ver como o cliente receberá no WhatsApp"
                               >
