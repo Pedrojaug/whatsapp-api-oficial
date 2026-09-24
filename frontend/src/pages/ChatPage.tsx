@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
@@ -439,8 +439,8 @@ function renderWhatsAppFormatted(text: string): React.ReactNode {
   });
 }
 
-function getSlaInfo(updatedAt: string | Date, direction: string): { label: string; color: string; bg: string; border: string; level: 'good' | 'warning' | 'urgent'; minutes: number } | null {
-  if (direction !== "INCOMING") return null;
+function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?: boolean): { label: string; color: string; bg: string; border: string; level: 'good' | 'warning' | 'urgent'; minutes: number } | null {
+  if (direction !== "INCOMING" || isHandledLead) return null;
   const diffMs = Date.now() - new Date(updatedAt).getTime();
   const minutes = Math.max(0, Math.floor(diffMs / (1000 * 60)));
   
@@ -474,6 +474,43 @@ function getSlaInfo(updatedAt: string | Date, direction: string): { label: strin
     level: 'urgent',
     minutes
   };
+}
+
+function loadInitialHandledPhones(accountId: string): Set<string> {
+  const set = new Set<string>();
+  try {
+    const raw = localStorage.getItem(`send_handled_chats_${accountId}`);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        arr.forEach((p: string) => set.add(p));
+      }
+    }
+  } catch (e) {
+    console.warn("Erro ao ler handled chats do localStorage:", e);
+  }
+
+  // Auto-arquiva leads que já estão marcados no CRM como Sem Retorno (LOST) ou Venda Concluída (WON)
+  try {
+    const prefix = `send_crm_${accountId}_`;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) {
+        const phone = k.slice(prefix.length);
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const crm = JSON.parse(raw);
+          if (crm && (crm.stage === 'LOST' || crm.stage === 'WON')) {
+            set.add(phone);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Erro ao indexar leads LOST/WON do CRM:", e);
+  }
+
+  return set;
 }
 
 export interface QuickReply {
@@ -572,6 +609,89 @@ export default function ChatPage() {
   const [showCrmDrawer, setShowCrmDrawer] = useState(false);
   const [crmData, setCrmData] = useState<LeadCrmData>({ stage: 'NEW', tags: [], notes: '' });
   const [newTagInput, setNewTagInput] = useState("");
+  const [crmUpdateTick, setCrmUpdateTick] = useState(0);
+
+  // Estado de conversas atendidas/concluídas/arquivadas (por conta)
+  const [handledPhones, setHandledPhones] = useState<Set<string>>(() =>
+    selectedAccount ? loadInitialHandledPhones(selectedAccount.id) : new Set<string>()
+  );
+
+  useEffect(() => {
+    if (selectedAccount) {
+      setHandledPhones(loadInitialHandledPhones(selectedAccount.id));
+    } else {
+      setHandledPhones(new Set());
+    }
+  }, [selectedAccount?.id]);
+
+  const persistHandledPhones = useCallback((accountId: string, set: Set<string>) => {
+    try {
+      localStorage.setItem(`send_handled_chats_${accountId}`, JSON.stringify(Array.from(set)));
+    } catch (e) {
+      console.warn("Falha ao salvar conversas atendidas no localStorage:", e);
+    }
+  }, []);
+
+  const isConversationHandled = useCallback((phone: string, _conv?: any): boolean => {
+    if (handledPhones.has(phone)) return true;
+    if (!selectedAccount) return false;
+    try {
+      const raw = localStorage.getItem(`send_crm_${selectedAccount.id}_${phone}`);
+      if (raw) {
+        const crm = JSON.parse(raw);
+        if (crm && (crm.stage === 'LOST' || crm.stage === 'WON')) {
+          return true;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  }, [handledPhones, selectedAccount, crmUpdateTick]);
+
+  const toggleHandled = useCallback((phone: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!selectedAccount || !phone) return;
+
+    setHandledPhones(prev => {
+      const next = new Set(prev);
+      const isCurrentlyHandled = isConversationHandled(phone);
+
+      if (isCurrentlyHandled) {
+        // Reabrir conversa (retira do arquivo / atendido)
+        next.delete(phone);
+        persistHandledPhones(selectedAccount.id, next);
+
+        // Se no CRM constava como LOST, reverter para NEGOTIATING para não re-fechar imediatamente
+        const crmKey = `send_crm_${selectedAccount.id}_${phone}`;
+        try {
+          const raw = localStorage.getItem(crmKey);
+          if (raw) {
+            const crm = JSON.parse(raw);
+            if (crm.stage === 'LOST') {
+              crm.stage = 'NEGOTIATING';
+              localStorage.setItem(crmKey, JSON.stringify(crm));
+              if (selectedPhone === phone) {
+                setCrmData(crm);
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("Erro ao reverter estágio do CRM:", err);
+        }
+
+        setCrmUpdateTick(t => t + 1);
+        showAlert("Atendimento reaberto! Lead voltou para a fila de espera.", "info");
+      } else {
+        // Concluir / arquivar atendimento
+        next.add(phone);
+        persistHandledPhones(selectedAccount.id, next);
+        showAlert("Conversa concluída / arquivada com sucesso!", "success");
+      }
+
+      return next;
+    });
+  }, [selectedAccount, isConversationHandled, persistHandledPhones, selectedPhone, showAlert]);
 
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
@@ -640,6 +760,32 @@ export default function ChatPage() {
       } catch (e) {
         console.warn("Falha ao salvar dados de CRM no localStorage:", e);
       }
+
+      // Sincroniza estado de arquivamento/atendimento com o estágio do CRM
+      if (next.stage === 'LOST' || next.stage === 'WON') {
+        setHandledPhones(prevHandled => {
+          if (!prevHandled.has(selectedPhone)) {
+            const nextSet = new Set(prevHandled);
+            nextSet.add(selectedPhone);
+            persistHandledPhones(selectedAccount.id, nextSet);
+            return nextSet;
+          }
+          return prevHandled;
+        });
+      } else if (prev.stage === 'LOST' || prev.stage === 'WON') {
+        // Lead reaberto para negociação ativa
+        setHandledPhones(prevHandled => {
+          if (prevHandled.has(selectedPhone)) {
+            const nextSet = new Set(prevHandled);
+            nextSet.delete(selectedPhone);
+            persistHandledPhones(selectedAccount.id, nextSet);
+            return nextSet;
+          }
+          return prevHandled;
+        });
+      }
+
+      setCrmUpdateTick(t => t + 1);
       return next;
     });
   };
@@ -811,7 +957,8 @@ export default function ChatPage() {
   const CONV_FILTERS: { key: string; label: string; title: string; highlight?: boolean }[] = [
     { key: "ALL", label: "Todas", title: "Todas as conversas" },
     { key: "UNANSWERED", label: "🔥 Não Lidas / Aguardando", title: "Clientes que responderam ao disparo e estão aguardando o atendente", highlight: true },
-    { key: "ANSWERED", label: "✅ Já Atendidas", title: "Conversas que o cliente respondeu e você já enviou mensagem" },
+    { key: "ANSWERED", label: "✅ Já Atendidas", title: "Conversas que você já respondeu ou marcou como concluídas" },
+    { key: "HANDLED", label: "📁 Concluídas / Sem Retorno", title: "Conversas marcadas como atendidas ou classificadas como Sem Retorno / Concluídas" },
     { key: "REPLIED", label: "💬 Todas Respondidas", title: "Histórico geral de todos os clientes que responderam" },
     { key: "READ", label: "✓✓ Lidas", title: "Cliente leu a mensagem (mas pode não ter respondido)" },
     { key: "DELIVERED", label: "✓✓ Entregues", title: "Mensagem chegou no aparelho do cliente" },
@@ -819,10 +966,23 @@ export default function ChatPage() {
     { key: "FAILED", label: "⚠️ Com falha", title: "Chats com pelo menos uma mensagem que falhou" },
   ];
 
-  const matchesConvFilter = (c: any) => {
-    switch (convFilter) {
-      case "UNANSWERED": return c.direction === "INCOMING";
-      case "ANSWERED": return !!c.hasIncoming && c.direction === "OUTGOING";
+  const matchesConvFilter = useCallback((c: any, filterOverride?: string) => {
+    const filter = filterOverride || convFilter;
+    const handled = isConversationHandled(c.phone, c);
+
+    switch (filter) {
+      case "UNANSWERED": 
+        // Não lidas / aguardando: cliente mandou mensagem e NÃO foi arquivado / atendido / sem retorno
+        return c.direction === "INCOMING" && !handled;
+
+      case "ANSWERED": 
+        // Já atendidas: respondidas por mensagem ou marcadas manualmente como concluídas
+        return (!!c.hasIncoming && c.direction === "OUTGOING") || (c.direction === "INCOMING" && handled);
+
+      case "HANDLED":
+        // Concluídas / Arquivadas / Sem Retorno
+        return handled;
+
       case "REPLIED": return !!c.hasIncoming;
       case "READ": return !!c.hasRead;
       case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
@@ -830,10 +990,10 @@ export default function ChatPage() {
       case "FAILED": return !!c.hasFailed;
       default: return true;
     }
-  };
+  }, [convFilter, isConversationHandled]);
 
   const filteredConversations = useMemo(() => {
-    let list = conversations.filter(matchesConvFilter);
+    let list = conversations.filter(c => matchesConvFilter(c));
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -852,7 +1012,25 @@ export default function ChatPage() {
     }
 
     return list;
-  }, [conversations, convFilter, searchQuery]);
+  }, [conversations, matchesConvFilter, searchQuery, convFilter]);
+
+  const markAllFilteredAsHandled = useCallback(() => {
+    if (!selectedAccount || filteredConversations.length === 0) return;
+    const count = filteredConversations.length;
+    if (!window.confirm(`Deseja marcar todas as ${count} conversas desta lista como atendidas/concluídas?`)) {
+      return;
+    }
+
+    setHandledPhones(prev => {
+      const next = new Set(prev);
+      filteredConversations.forEach(c => {
+        next.add(c.phone);
+      });
+      persistHandledPhones(selectedAccount.id, next);
+      showAlert(`${count} conversas foram marcadas como atendidas!`, "success");
+      return next;
+    });
+  }, [selectedAccount, filteredConversations, persistHandledPhones, showAlert]);
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1007,6 +1185,24 @@ export default function ChatPage() {
             mediaUrl: data.mediaUrl,
             createdAt: data.updatedAt || new Date().toISOString(),
           }];
+        });
+      // Se o cliente enviar uma nova mensagem recebida (INCOMING), retira automaticamente do status atendido para reabrir na fila
+      if (data.direction === "INCOMING") {
+        setHandledPhones(prev => {
+          let foundPhone: string | null = null;
+          for (const p of prev) {
+            if (normalizePhone(p) === incomingPhone || p === data.to) {
+              foundPhone = p;
+              break;
+            }
+          }
+          if (foundPhone) {
+            const next = new Set(prev);
+            next.delete(foundPhone);
+            if (selectedAccount) persistHandledPhones(selectedAccount.id, next);
+            return next;
+          }
+          return prev;
         });
       }
 
@@ -1172,15 +1368,40 @@ export default function ChatPage() {
                   />
                 </div>
               )}
-              <button
-                type="button"
-                onClick={exportCsv}
-                disabled={isExporting}
-                style={{ fontSize: "0.75rem", padding: "6px 10px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600 }}
-                title="Exportar os contatos filtrados para CSV"
-              >
-                {isExporting ? "Exportando..." : "⬇️ Exportar CSV"}
-              </button>
+              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={isExporting}
+                  style={{ fontSize: "0.75rem", padding: "6px 10px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600, flex: 1 }}
+                  title="Exportar os contatos filtrados para CSV"
+                >
+                  {isExporting ? "Exportando..." : "⬇️ Exportar CSV"}
+                </button>
+                {convFilter === "UNANSWERED" && filteredConversations.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllFilteredAsHandled}
+                    style={{
+                      fontSize: "0.75rem",
+                      padding: "6px 10px",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      border: "1px solid rgba(16, 185, 129, 0.4)",
+                      borderRadius: "6px",
+                      color: "#10b981",
+                      cursor: "pointer",
+                      fontWeight: 600,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      whiteSpace: "nowrap"
+                    }}
+                    title="Marcar todas as conversas desta fila como atendidas/concluídas"
+                  >
+                    ✓✓ Concluir Todas ({filteredConversations.length})
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Filtros de conversas (chats) */}
@@ -1189,18 +1410,7 @@ export default function ChatPage() {
                 const isActive = convFilter === f.key;
                 const count = f.key === "ALL"
                   ? conversations.length
-                  : conversations.filter(c => {
-                      switch (f.key) {
-                        case "UNANSWERED": return c.direction === "INCOMING";
-                        case "ANSWERED": return !!c.hasIncoming && c.direction === "OUTGOING";
-                        case "REPLIED": return !!c.hasIncoming;
-                        case "READ": return !!c.hasRead;
-                        case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
-                        case "UNDELIVERED": return !c.hasDelivered && !c.hasRead && !c.hasIncoming && !c.hasFailed;
-                        case "FAILED": return !!c.hasFailed;
-                        default: return true;
-                      }
-                    }).length;
+                  : conversations.filter(c => matchesConvFilter(c, f.key)).length;
                 return (
                   <button
                     key={f.key}
@@ -1273,6 +1483,14 @@ export default function ChatPage() {
                       <div className="conv-actions">
                         <button
                           type="button"
+                          className={`conv-action-btn ${isConversationHandled(c.phone, c) ? "conv-action-btn--active" : "conv-action-btn--success"}`}
+                          title={isConversationHandled(c.phone, c) ? "Reabrir conversa (voltar para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila)"}
+                          onClick={(e) => toggleHandled(c.phone, e)}
+                        >
+                          {isConversationHandled(c.phone, c) ? "↩️" : "✅"}
+                        </button>
+                        <button
+                          type="button"
                           className="conv-action-btn"
                           title="Mover para a Lista Negra"
                           onClick={(e) => blacklistContact(c.phone, e)}
@@ -1291,27 +1509,30 @@ export default function ChatPage() {
                           </span>
                         </div>
                         <div className="conv-item__preview" style={{
-                          fontWeight: c.direction === "INCOMING" ? 600 : "normal",
-                          color: c.direction === "INCOMING" ? "var(--text-primary)" : "var(--text-secondary)",
+                          fontWeight: c.direction === "INCOMING" && !isConversationHandled(c.phone, c) ? 600 : "normal",
+                          color: c.direction === "INCOMING" && !isConversationHandled(c.phone, c) ? "var(--text-primary)" : "var(--text-secondary)",
                         }}>
                           {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
                         </div>
                         {/* Badges de situação do chat e SLA de espera */}
                         <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "3px" }}>
                           {(() => {
-                            const badge = c.direction === "INCOMING"
-                              ? { text: "🔥 Aguardando resposta", color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", border: "1px solid rgba(16, 185, 129, 0.35)" }
-                              : c.hasIncoming && c.direction === "OUTGOING"
-                                ? { text: "✅ Já respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
-                                : c.hasFailed && !c.hasDelivered && !c.hasRead
-                                  ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239, 68, 68, 0.12)", border: "none" }
-                                  : c.hasRead
-                                    ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34, 211, 238, 0.1)", border: "none" }
-                                    : c.hasDelivered
-                                      ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
-                                      : c.direction === "OUTGOING"
-                                        ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
-                                        : null;
+                            const isHandledLead = isConversationHandled(c.phone, c);
+                            const badge = isHandledLead
+                              ? { text: "✅ Concluído", color: "#10b981", bg: "rgba(16, 185, 129, 0.14)", border: "1px solid rgba(16, 185, 129, 0.3)" }
+                              : c.direction === "INCOMING"
+                                ? { text: "🔥 Aguardando resposta", color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", border: "1px solid rgba(16, 185, 129, 0.35)" }
+                                : c.hasIncoming && c.direction === "OUTGOING"
+                                  ? { text: "✅ Já respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
+                                  : c.hasFailed && !c.hasDelivered && !c.hasRead
+                                    ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239, 68, 68, 0.12)", border: "none" }
+                                    : c.hasRead
+                                      ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34, 211, 238, 0.1)", border: "none" }
+                                      : c.hasDelivered
+                                        ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
+                                        : c.direction === "OUTGOING"
+                                          ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
+                                          : null;
                             if (!badge) return null;
                             return (
                               <span style={{
@@ -1331,9 +1552,10 @@ export default function ChatPage() {
                             );
                           })()}
 
-                          {/* Badge de SLA (Tempo de Espera) */}
+                          {/* Badge de SLA (Tempo de Espera) - oculto se atendido ou concluído */}
                           {(() => {
-                            const sla = getSlaInfo(c.updatedAt, c.direction);
+                            const isHandledLead = isConversationHandled(c.phone, c);
+                            const sla = getSlaInfo(c.updatedAt, c.direction, isHandledLead);
                             if (!sla) return null;
                             return (
                               <span style={{
@@ -1451,7 +1673,8 @@ export default function ChatPage() {
                       {(() => {
                         const currentConv = conversations.find(c => c.phone === selectedPhone);
                         if (!currentConv) return null;
-                        const sla = getSlaInfo(currentConv.updatedAt, currentConv.direction);
+                        const isSelHandled = isConversationHandled(selectedPhone, currentConv);
+                        const sla = getSlaInfo(currentConv.updatedAt, currentConv.direction, isSelHandled);
                         if (!sla) return null;
                         return (
                           <span style={{
@@ -1484,6 +1707,30 @@ export default function ChatPage() {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {/* Botão de Concluir / Reabrir Atendimento */}
+                    <button
+                      type="button"
+                      onClick={() => toggleHandled(selectedPhone)}
+                      className="btn"
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: "0.78rem",
+                        fontWeight: 600,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        borderRadius: "8px",
+                        background: isConversationHandled(selectedPhone) ? "rgba(56, 189, 248, 0.12)" : "rgba(16, 185, 129, 0.14)",
+                        border: isConversationHandled(selectedPhone) ? "1px solid rgba(56, 189, 248, 0.35)" : "1px solid rgba(16, 185, 129, 0.35)",
+                        color: isConversationHandled(selectedPhone) ? "#38bdf8" : "#10b981",
+                        cursor: "pointer",
+                        transition: "all 0.18s ease"
+                      }}
+                      title={isConversationHandled(selectedPhone) ? "Reabrir atendimento (retorna para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila de espera)"}
+                    >
+                      <span>{isConversationHandled(selectedPhone) ? "↩️ Reabrir Atendimento" : "✅ Marcar como Atendido"}</span>
+                    </button>
+
                     {/* Botão de Abrir/Fechar Mini-CRM */}
                     <button
                       type="button"
