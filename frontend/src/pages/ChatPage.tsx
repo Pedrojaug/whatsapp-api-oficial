@@ -956,10 +956,10 @@ export default function ChatPage() {
   // Filtro da lista de conversas (chats), baseado nos agregados do histórico
   const CONV_FILTERS: { key: string; label: string; title: string; highlight?: boolean }[] = [
     { key: "ALL", label: "Todas", title: "Todas as conversas" },
-    { key: "UNANSWERED", label: "🔥 Não Lidas / Aguardando", title: "Clientes que responderam ao disparo e estão aguardando o atendente", highlight: true },
-    { key: "ANSWERED", label: "✅ Já Atendidas", title: "Conversas que você já respondeu ou marcou como concluídas" },
-    { key: "HANDLED", label: "📁 Concluídas / Sem Retorno", title: "Conversas marcadas como atendidas ou classificadas como Sem Retorno / Concluídas" },
-    { key: "REPLIED", label: "💬 Todas Respondidas", title: "Histórico geral de todos os clientes que responderam" },
+    { key: "UNANSWERED", label: "🔥 Aguardando", title: "Clientes que responderam ao disparo e aguardam resposta", highlight: true },
+    { key: "ANSWERED", label: "✅ Atendidas", title: "Conversas que você já respondeu ou marcou como concluídas" },
+    { key: "HANDLED", label: "📁 Concluídas", title: "Conversas marcadas como concluídas ou Sem Retorno" },
+    { key: "REPLIED", label: "💬 Respondidas", title: "Histórico geral de todos os clientes que responderam" },
     { key: "READ", label: "✓✓ Lidas", title: "Cliente leu a mensagem (mas pode não ter respondido)" },
     { key: "DELIVERED", label: "✓✓ Entregues", title: "Mensagem chegou no aparelho do cliente" },
     { key: "UNDELIVERED", label: "✉️ Não entregues", title: "Apenas enviadas — nunca chegaram ao cliente" },
@@ -1260,13 +1260,13 @@ export default function ChatPage() {
   });
 
   return (
-    <div className="fade-in chat-page-root" style={{ display: "flex", flexDirection: "column", gap: "8px", height: "100%", minHeight: 0, flex: 1, overflow: "hidden" }}>
+    <div className="fade-in chat-page-root" style={{ display: "flex", flexDirection: "column", gap: "6px", height: "100%", maxHeight: "100%", minHeight: 0, flex: 1, overflow: "hidden" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, padding: "0 2px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <h1 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <h1 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px" }}>
             <span>💬</span> Caixa de Entrada
           </h1>
-          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 8px", borderRadius: "10px", fontWeight: 500 }}>
+          <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 7px", borderRadius: "10px", fontWeight: 500 }}>
             Live Chat
           </span>
         </div>
@@ -1281,7 +1281,7 @@ export default function ChatPage() {
           </div>
         </div>
       ) : (
-        <div className="glass" style={{ display: "flex", flex: 1, height: "100%", minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
+        <div className="glass chat-glass-container" style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
           
           {/* 1. Lista de Conversas (Esquerda) */}
           <div className={`chat-panel-list${selectedPhone ? " mobile-hidden" : ""}`}>
@@ -1971,7 +1971,17 @@ export default function ChatPage() {
                   }
 
                   return (
-                    <div className="chat-input-container" style={{ padding: "8px 14px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "5px", flexShrink: 0 }}>
+                    <div className="chat-input-container" style={{
+                      padding: "8px 14px",
+                      borderTop: "1px solid var(--border-color)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "5px",
+                      flexShrink: 0,
+                      background: "rgba(16, 18, 22, 0.98)",
+                      boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.25)",
+                      zIndex: 10
+                    }}>
                       
                       {lastInc ? (
                         isWindowActive ? (
@@ -2231,20 +2241,21 @@ export default function ChatPage() {
                           rows={1}
                           style={{
                             flex: 1,
-                            padding: "10px 14px",
-                            borderRadius: "var(--radius-lg)",
+                            padding: "8px 12px",
+                            borderRadius: "var(--radius-md)",
                             resize: "none",
-                            minHeight: "44px",
-                            maxHeight: "140px",
+                            minHeight: "40px",
+                            maxHeight: "110px",
                             lineHeight: "1.4",
                             overflowY: "auto",
-                            fontFamily: "inherit"
+                            fontFamily: "inherit",
+                            fontSize: "0.86rem"
                           }}
                         />
                         <button
                           type="submit"
                           className="btn btn-primary"
-                          style={{ padding: "10px 20px", borderRadius: "var(--radius-lg)", height: "44px", flexShrink: 0 }}
+                          style={{ padding: "0 18px", borderRadius: "var(--radius-md)", height: "40px", flexShrink: 0, fontSize: "0.82rem", fontWeight: 600 }}
                           disabled={isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
                         >
                           {isSendingReply ? "Enviando..." : "Enviar ✈️"}
@@ -2254,7 +2265,7 @@ export default function ChatPage() {
                           type="button"
                           onClick={() => setShowChatTemplateModal(true)}
                           className="btn btn-secondary"
-                          style={{ padding: "10px 16px", borderRadius: "var(--radius-lg)", whiteSpace: "nowrap", height: "44px", flexShrink: 0 }}
+                          style={{ padding: "0 14px", borderRadius: "var(--radius-md)", whiteSpace: "nowrap", height: "40px", flexShrink: 0, fontSize: "0.82rem" }}
                           title="Enviar Template de Mensagem"
                         >
                           📝 Reabrir

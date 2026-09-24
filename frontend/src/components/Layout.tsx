@@ -43,6 +43,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const mainRef = useRef<HTMLElement>(null);
+  const isChatRoute = location.pathname.startsWith("/chat");
 
   // Theme state — default dark, persisted in localStorage
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
@@ -87,7 +88,7 @@ export default function Layout() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${isChatRoute ? " app-shell--chat" : ""}`}>
 
       {/* ── Email verification banner ── */}
       {user && !user.emailVerified && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
@@ -225,7 +226,7 @@ export default function Layout() {
       </header>
 
       {/* Main layout container */}
-      <div className="app-layout">
+      <div className={`app-layout${isChatRoute ? " app-layout--chat" : ""}`}>
         {/* Sidebar */}
         <aside className={`app-sidebar${isSidebarOpen ? " open" : ""}`}>
           {/* Logo & Brand Header */}
@@ -439,46 +440,48 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Floating Support Button */}
-      <a
-        href={SUPPORT_WHATSAPP_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Falar com Suporte"
-        className="support-fab"
-        style={{
-          position: "fixed",
-          bottom: "24px",
-          right: "24px",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          background: "#25D366",
-          color: "#fff",
-          border: "none",
-          borderRadius: "50px",
-          padding: "12px 20px 12px 16px",
-          fontSize: "0.85rem",
-          fontWeight: 600,
-          fontFamily: "inherit",
-          cursor: "pointer",
-          textDecoration: "none",
-          boxShadow: "0 4px 20px rgba(37,211,102,0.4)",
-          transition: "transform 0.15s ease, box-shadow 0.15s ease",
-        }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1.05)";
-          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 6px 28px rgba(37,211,102,0.55)";
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1)";
-          (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 4px 20px rgba(37,211,102,0.4)";
-        }}
-      >
-        <WhatsAppIcon />
-        <span className="support-fab-text">Suporte</span>
-      </a>
+      {/* Floating Support Button (oculto no chat para não sobrepor o envio de mensagens) */}
+      {!isChatRoute && (
+        <a
+          href={SUPPORT_WHATSAPP_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Falar com Suporte"
+          className="support-fab"
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            background: "#25D366",
+            color: "#fff",
+            border: "none",
+            borderRadius: "50px",
+            padding: "12px 20px 12px 16px",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            fontFamily: "inherit",
+            cursor: "pointer",
+            textDecoration: "none",
+            boxShadow: "0 4px 20px rgba(37,211,102,0.4)",
+            transition: "transform 0.15s ease, box-shadow 0.15s ease",
+          }}
+          onMouseEnter={e => {
+            (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1.05)";
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 6px 28px rgba(37,211,102,0.55)";
+          }}
+          onMouseLeave={e => {
+            (e.currentTarget as HTMLAnchorElement).style.transform = "scale(1)";
+            (e.currentTarget as HTMLAnchorElement).style.boxShadow = "0 4px 20px rgba(37,211,102,0.4)";
+          }}
+        >
+          <WhatsAppIcon />
+          <span className="support-fab-text">Suporte</span>
+        </a>
+      )}
     </div>
   );
 }
