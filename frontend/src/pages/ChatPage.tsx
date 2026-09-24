@@ -447,9 +447,9 @@ function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?:
   if (minutes < 5) {
     return {
       label: `⏳ ${minutes === 0 ? "Agora" : `${minutes}m`}`,
-      color: "#10b981",
-      bg: "rgba(16, 185, 129, 0.15)",
-      border: "1px solid rgba(16, 185, 129, 0.35)",
+      color: "#34d399",
+      bg: "rgba(16, 185, 129, 0.18)",
+      border: "1px solid rgba(16, 185, 129, 0.45)",
       level: 'good',
       minutes
     };
@@ -457,9 +457,9 @@ function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?:
   if (minutes < 15) {
     return {
       label: `⚠️ ${minutes}m aguardando`,
-      color: "#f59e0b",
-      bg: "rgba(245, 158, 11, 0.15)",
-      border: "1px solid rgba(245, 158, 11, 0.35)",
+      color: "#fde047",
+      bg: "rgba(245, 158, 11, 0.2)",
+      border: "1px solid rgba(245, 158, 11, 0.45)",
       level: 'warning',
       minutes
     };
@@ -468,12 +468,33 @@ function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?:
   const text = hours > 0 ? `${hours}h${minutes % 60}m` : `${minutes}m`;
   return {
     label: `🚨 ${text} aguardando`,
-    color: "#ef4444",
-    bg: "rgba(239, 68, 68, 0.2)",
-    border: "1px solid rgba(239, 68, 68, 0.5)",
+    color: "#fca5a5",
+    bg: "rgba(239, 68, 68, 0.24)",
+    border: "1px solid rgba(239, 68, 68, 0.55)",
     level: 'urgent',
     minutes
   };
+}
+
+function getQrIcon(title: string): string {
+  const lower = title.toLowerCase();
+  if (lower.includes("pix") || lower.includes("pagamento") || lower.includes("preço") || lower.includes("valor")) return "💳";
+  if (lower.includes("oferta") || lower.includes("promo") || lower.includes("desconto") || lower.includes("splash")) return "🏷️";
+  if (lower.includes("endereço") || lower.includes("horário") || lower.includes("local") || lower.includes("onde")) return "📍";
+  if (lower.includes("olá") || lower.includes("boa") || lower.includes("boas-vindas") || lower.includes("bem-vindo")) return "👋";
+  if (lower.includes("momento") || lower.includes("aguard") || lower.includes("minut")) return "⏳";
+  if (lower.includes("catalogo") || lower.includes("catálogo") || lower.includes("menu")) return "📖";
+  return "⚡";
+}
+
+function formatDateDivider(dateStr: string): string {
+  const d = new Date(dateStr);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return "Hoje";
+  if (d.toDateString() === yesterday.toDateString()) return "Ontem";
+  return d.toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
 }
 
 function loadInitialHandledPhones(accountId: string): Set<string> {
@@ -1528,63 +1549,76 @@ export default function ChatPage() {
                         }}>
                           {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
                         </div>
-                        {/* Badges de situação do chat e SLA de espera */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "3px" }}>
+                        {/* Badge unificado de status e SLA */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
                           {(() => {
                             const isHandledLead = isConversationHandled(c.phone, c);
-                            const badge = isHandledLead
-                              ? { text: "✅ Concluído", color: "#10b981", bg: "rgba(16, 185, 129, 0.14)", border: "1px solid rgba(16, 185, 129, 0.3)" }
-                              : c.direction === "INCOMING"
-                                ? { text: "🔥 Aguardando resposta", color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", border: "1px solid rgba(16, 185, 129, 0.35)" }
-                                : c.hasIncoming && c.direction === "OUTGOING"
-                                  ? { text: "✅ Já respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
-                                  : c.hasFailed && !c.hasDelivered && !c.hasRead
-                                    ? { text: "⚠️ Falha", color: "var(--error)", bg: "rgba(239, 68, 68, 0.12)", border: "none" }
-                                    : c.hasRead
-                                      ? { text: "✓✓ Lida", color: "#22d3ee", bg: "rgba(34, 211, 238, 0.1)", border: "none" }
-                                      : c.hasDelivered
-                                        ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
-                                        : c.direction === "OUTGOING"
-                                          ? { text: "✓ Só enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
-                                          : null;
+                            if (isHandledLead) {
+                              return (
+                                <span style={{
+                                  fontSize: "0.66rem",
+                                  fontWeight: 600,
+                                  color: "#34d399",
+                                  background: "rgba(16, 185, 129, 0.16)",
+                                  border: "1px solid rgba(16, 185, 129, 0.35)",
+                                  padding: "1px 7px",
+                                  borderRadius: "10px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px"
+                                }}>
+                                  ✅ Concluído
+                                </span>
+                              );
+                            }
+
+                            // Se for mensagem recebida (aguardando), usa o SLA de alto contraste como badge principal
+                            if (c.direction === "INCOMING") {
+                              const sla = getSlaInfo(c.updatedAt, c.direction, false);
+                              return (
+                                <span style={{
+                                  fontSize: "0.66rem",
+                                  fontWeight: 600,
+                                  color: sla ? sla.color : "#34d399",
+                                  background: sla ? sla.bg : "rgba(16, 185, 129, 0.18)",
+                                  border: sla ? sla.border : "1px solid rgba(16, 185, 129, 0.45)",
+                                  padding: "1px 7px",
+                                  borderRadius: "10px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px"
+                                }}>
+                                  {sla ? sla.label : "🔥 Aguardando"}
+                                </span>
+                              );
+                            }
+
+                            const badge = c.hasIncoming && c.direction === "OUTGOING"
+                              ? { text: "✓✓ Respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
+                              : c.hasFailed && !c.hasDelivered && !c.hasRead
+                                ? { text: "⚠️ Falha", color: "#fca5a5", bg: "rgba(239, 68, 68, 0.2)", border: "1px solid rgba(239, 68, 68, 0.4)" }
+                                : c.hasRead
+                                  ? { text: "✓✓ Lida", color: "#38bdf8", bg: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.3)" }
+                                  : c.hasDelivered
+                                    ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
+                                    : c.direction === "OUTGOING"
+                                      ? { text: "✓ Enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
+                                      : null;
                             if (!badge) return null;
                             return (
                               <span style={{
-                                fontSize: "0.65rem",
+                                fontSize: "0.66rem",
                                 fontWeight: 600,
                                 color: badge.color,
                                 background: badge.bg,
                                 border: badge.border || "none",
-                                padding: "2px 8px",
-                                borderRadius: "10px",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px"
-                              }}>
-                                {badge.text}
-                              </span>
-                            );
-                          })()}
-
-                          {/* Badge de SLA (Tempo de Espera) - oculto se atendido ou concluído */}
-                          {(() => {
-                            const isHandledLead = isConversationHandled(c.phone, c);
-                            const sla = getSlaInfo(c.updatedAt, c.direction, isHandledLead);
-                            if (!sla) return null;
-                            return (
-                              <span style={{
-                                fontSize: "0.65rem",
-                                fontWeight: 600,
-                                color: sla.color,
-                                background: sla.bg,
-                                border: sla.border,
-                                padding: "2px 7px",
+                                padding: "1px 7px",
                                 borderRadius: "10px",
                                 display: "inline-flex",
                                 alignItems: "center",
                                 gap: "3px"
                               }}>
-                                {sla.label}
+                                {badge.text}
                               </span>
                             );
                           })()}
@@ -1826,11 +1860,34 @@ export default function ChatPage() {
                     <>
                       {filteredMessages.map((msg, index) => {
                         const isIncoming = msg.direction === "INCOMING";
+                        const prevMsg = index > 0 ? filteredMessages[index - 1] : null;
+                        const msgDate = new Date(msg.createdAt).toDateString();
+                        const prevDate = prevMsg ? new Date(prevMsg.createdAt).toDateString() : null;
+                        const showDateDivider = msgDate !== prevDate;
+
                         return (
-                          <div
-                            key={msg.id || index}
-                            className={`msg-bubble-wrap msg-bubble-wrap--${isIncoming ? "in" : "out"}`}
-                          >
+                          <div key={msg.id || index} style={{ display: "flex", flexDirection: "column", width: "100%" }}>
+                            {showDateDivider && (
+                              <div style={{ display: "flex", justifyContent: "center", margin: "10px 0 6px 0" }}>
+                                <span style={{
+                                  fontSize: "0.72rem",
+                                  fontWeight: 600,
+                                  background: "rgba(17, 24, 39, 0.88)",
+                                  backdropFilter: "blur(8px)",
+                                  color: "var(--text-muted)",
+                                  padding: "3px 12px",
+                                  borderRadius: "12px",
+                                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.25)"
+                                }}>
+                                  {formatDateDivider(msg.createdAt)}
+                                </span>
+                              </div>
+                            )}
+
+                            <div
+                              className={`msg-bubble-wrap msg-bubble-wrap--${isIncoming ? "in" : "out"}`}
+                            >
                             <div className={`msg-bubble msg-bubble--${isIncoming ? "in" : "out"}`}>
                               {/* Mídia do cabeçalho do template (OUTGOING) */}
                               {(() => {
@@ -1934,7 +1991,8 @@ export default function ChatPage() {
                               )}
                             </div>
                           </div>
-                        );
+                        </div>
+                      );
                       })}
                       
                       {/* Âncora para auto-scroll */}
@@ -2055,10 +2113,11 @@ export default function ChatPage() {
                                   }, 10);
                                 }}
                                 className="quick-reply-chip"
-                                style={{ fontSize: "0.7rem", padding: "2px 7px" }}
+                                style={{ fontSize: "0.72rem", padding: "3px 9px", display: "inline-flex", alignItems: "center", gap: "5px" }}
                                 title={qr.text.slice(0, 120) + (qr.text.length > 120 ? "..." : "")}
                               >
-                                {qr.title}
+                                <span>{getQrIcon(qr.title)}</span>
+                                <span>{qr.title}</span>
                               </button>
                             ))}
                             {quickReplies.length === 0 && (
@@ -2237,7 +2296,7 @@ export default function ChatPage() {
                             }
                           }}
                           disabled={lastInc ? !isWindowActive : true}
-                          className="form-control"
+                          className="chat-textarea form-control"
                           rows={1}
                           style={{
                             flex: 1,
@@ -2254,8 +2313,8 @@ export default function ChatPage() {
                         />
                         <button
                           type="submit"
-                          className="btn btn-primary"
-                          style={{ padding: "0 18px", borderRadius: "var(--radius-md)", height: "40px", flexShrink: 0, fontSize: "0.82rem", fontWeight: 600 }}
+                          className="chat-send-btn btn btn-primary"
+                          style={{ height: "40px", flexShrink: 0 }}
                           disabled={isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
                         >
                           {isSendingReply ? "Enviando..." : "Enviar ✈️"}

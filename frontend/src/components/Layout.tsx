@@ -45,6 +45,8 @@ export default function Layout() {
   const mainRef = useRef<HTMLElement>(null);
   const isChatRoute = location.pathname.startsWith("/chat");
 
+  const [dismissEmailBanner, setDismissEmailBanner] = useState(false);
+
   // Theme state — default dark, persisted in localStorage
   const [isDarkTheme, setIsDarkTheme] = useState<boolean>(
     localStorage.getItem("theme") !== "light"
@@ -91,21 +93,39 @@ export default function Layout() {
     <div className={`app-shell${isChatRoute ? " app-shell--chat" : ""}`}>
 
       {/* ── Email verification banner ── */}
-      {user && !user.emailVerified && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
+      {user && !user.emailVerified && !dismissEmailBanner && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
         <div style={{
           background: "linear-gradient(90deg, rgba(251,191,36,0.12), rgba(251,191,36,0.06))",
           borderBottom: "1px solid rgba(251,191,36,0.25)",
-          padding: "9px 24px",
-          fontSize: "0.83rem",
+          padding: "7px 24px",
+          fontSize: "0.82rem",
           color: "#fbbf24",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: "8px",
           zIndex: 1001,
+          position: "relative"
         }}>
           <span>⚠️</span>
           <span>Confirme seu e-mail para garantir o acesso à sua conta. Verifique a caixa de entrada de <strong>{user.email}</strong>.</span>
+          <button
+            type="button"
+            onClick={() => setDismissEmailBanner(true)}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#fbbf24",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+              padding: "2px 8px",
+              marginLeft: "12px",
+              opacity: 0.8
+            }}
+            title="Dispensar aviso"
+          >
+            ✕
+          </button>
         </div>
       )}
 
