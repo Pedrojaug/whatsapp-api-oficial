@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
+import { storageService } from "../services/storageService";
 
 const router = Router();
 
@@ -82,25 +83,13 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
     }
 
     // Gerar um nome único para evitar colisões
-    // path.basename remove qualquer componente de diretorio (../) do nome
-    // enviado pelo cliente — impede escrita fora de uploads/.
     const safeName = path.basename(filename).replace(/\s+/g, "_");
     const uniqueFilename = `${Date.now()}-${safeName}`;
-    const uploadsDir = path.join(__dirname, "../../uploads");
-    
-    // Garantir que a pasta uploads existe
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
-
-    const filePath = path.join(uploadsDir, uniqueFilename);
-
-    // Salvar arquivo físico no disco
-    fs.writeFileSync(filePath, fileBuffer);
-
-    // Gerar URL pública do asset
     const backendUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
-    const fileUrl = `${backendUrl}/uploads/${uniqueFilename}`;
+
+    // Upload via StorageService (Cloudflare R2 se configurado, ou pasta local uploads/ como fallback)
+    const fileUrl = await storageService.uploadFile(uniqueFilename, fileBuffer, mimeType, backendUrl);
+    const isCloud = storageService.isCloudConfigured();
 
     const mediaAsset = await prisma.mediaAsset.create({
       data: {
@@ -109,7 +98,9 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
         url: fileUrl,
         mimeType,
         size: fileBuffer.length,
-        fileData: fileBase64, // Salvar o base64 para persistência/recuperação posterior
+        // Quando o Cloudflare R2 está configurado, NÃO gravamos Base64 no Postgres (fileData = null)!
+        // Isso elimina o inchaço de dados/WAL e preserva a memória RAM da Neon Tech.
+        fileData: isCloud ? null : fileBase64,
       }
     });
 
@@ -136,11 +127,8 @@ router.delete("/accounts/:accountId/media/:mediaId", async (req: Request, res: R
     });
     if (!mediaAsset) return res.status(404).json({ error: "Mídia não encontrada." });
 
-    // Excluir arquivo físico se existir
-    const filePath = path.join(__dirname, "../../uploads", mediaAsset.filename);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    // Excluir via StorageService (remove do Cloudflare R2 e do disco local)
+    await storageService.deleteFile(mediaAsset.filename);
 
     // Excluir do banco
     await prisma.mediaAsset.delete({

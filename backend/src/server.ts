@@ -30,6 +30,7 @@ import publicApiRouter from "./routes/publicApiRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
 import { startCampaignWorker } from "./workers/campaignWorker";
 import { prisma } from "./db";
+import { storageService } from "./services/storageService";
 
 const app = express();
 app.set("trust proxy", true);
@@ -77,7 +78,7 @@ app.use(express.json({
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 
-// Interceptador para restaurar imagens apagadas (Render free tier cache reset)
+// Interceptador para servir ou restaurar imagens (R2 Cloud Storage ou fallback legado de banco)
 app.get("/uploads/:filename", async (req, res, next) => {
   const { filename } = req.params;
   const filePath = path.join(uploadsDir, filename);
@@ -87,21 +88,29 @@ app.get("/uploads/:filename", async (req, res, next) => {
     return next();
   }
 
-  // Se sumiu física do disco (ex: reinicialização do Render), busca e recupera do banco Postgres
+  // 1. Tentar recuperar via StorageService (se o arquivo estiver no Cloudflare R2)
+  try {
+    const cloudBuffer = await storageService.getFileBuffer(filename);
+    if (cloudBuffer) {
+      fs.writeFileSync(filePath, cloudBuffer);
+      return res.sendFile(filePath);
+    }
+  } catch (cloudErr: any) {
+    // Continua para o fallback de banco se houver
+  }
+
+  // 2. Fallback de compatibilidade com arquivos legados gravados como Base64 no banco
   try {
     const mediaAsset = await prisma.mediaAsset.findFirst({
-      where: { filename }
+      where: { filename },
+      select: { fileData: true }
     });
 
     if (mediaAsset && mediaAsset.fileData) {
-      // Remover prefixo de base64 se houver
       const base64Data = mediaAsset.fileData.replace(/^data:.*?;base64,/, "");
       const fileBuffer = Buffer.from(base64Data, "base64");
-      
-      // Escrever de volta no disco rígido para requisições futuras rápidas
       fs.writeFileSync(filePath, fileBuffer);
-      console.log(`[Media Cache] Arquivo ${filename} restaurado do banco de dados com sucesso.`);
-      
+      console.log(`[Media Cache] Arquivo legado ${filename} restaurado do banco com sucesso.`);
       return res.sendFile(filePath);
     }
   } catch (error) {

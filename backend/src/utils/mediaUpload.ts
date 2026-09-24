@@ -1,6 +1,7 @@
 import axios from "axios";
 import { prisma } from "../db";
 import { metaService } from "../services/metaService";
+import { storageService } from "../services/storageService";
 
 /**
  * Sobe uma mídia para o endpoint /media da Meta e retorna o media id, para
@@ -22,16 +23,30 @@ export async function resolveMetaMediaId(
     let mimeType: string;
     let filename: string;
 
-    // Preferimos os bytes do banco (fileData Base64) — mais confiável que o
-    // disco efêmero do Render.
-    const asset = await prisma.mediaAsset.findFirst({ where: { url: mediaUrl, accountId } });
-    if (asset && asset.fileData) {
-      const b64 = asset.fileData.replace(/^data:.*?;base64,/, "");
-      buffer = Buffer.from(b64, "base64");
-      mimeType = asset.mimeType;
+    const asset = await prisma.mediaAsset.findFirst({
+      where: { url: mediaUrl, accountId },
+      select: { filename: true, mimeType: true, fileData: true, url: true }
+    });
+
+    if (asset) {
       filename = asset.filename;
+      mimeType = asset.mimeType;
+
+      // 1. Tenta obter o buffer via StorageService (Cloudflare R2 ou disco local)
+      const storageBuffer = await storageService.getFileBuffer(asset.filename, asset.url);
+      if (storageBuffer) {
+        buffer = storageBuffer;
+      } else if (asset.fileData) {
+        // Fallback de compatibilidade para arquivos legados salvos em Base64
+        const b64 = asset.fileData.replace(/^data:.*?;base64,/, "");
+        buffer = Buffer.from(b64, "base64");
+      } else {
+        // Fallback via download HTTP
+        const resp = await axios.get(asset.url, { responseType: "arraybuffer", timeout: 20000 });
+        buffer = Buffer.from(resp.data as any);
+      }
     } else {
-      // URL externa (ou asset sem fileData): baixamos nós mesmos.
+      // URL externa não gerenciada pelo sistema: baixamos nós mesmos.
       const resp = await axios.get(mediaUrl, {
         responseType: "arraybuffer",
         timeout: 20000,
