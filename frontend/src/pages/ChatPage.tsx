@@ -1258,10 +1258,16 @@ export default function ChatPage() {
   });
 
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "20px", height: "calc(100vh - 150px)", minHeight: "550px" }}>
-      <div>
-        <h1 className="page-heading">Caixa de Entrada</h1>
-        <p className="page-subheading">Visualize e responda conversas com clientes em tempo real</p>
+    <div className="fade-in chat-page-root" style={{ display: "flex", flexDirection: "column", gap: "8px", height: "100%", minHeight: 0, flex: 1, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, padding: "0 2px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <h1 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px" }}>
+            <span>💬</span> Caixa de Entrada
+          </h1>
+          <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 8px", borderRadius: "10px", fontWeight: 500 }}>
+            Live Chat
+          </span>
+        </div>
       </div>
 
       {!selectedAccount ? (
@@ -1273,16 +1279,21 @@ export default function ChatPage() {
           </div>
         </div>
       ) : (
-        <div className="glass" style={{ display: "flex", flex: 1, borderRadius: "var(--radius-xl)", overflow: "hidden", border: "1px solid var(--border-color)", minHeight: "450px" }}>
+        <div className="glass" style={{ display: "flex", flex: 1, height: "100%", minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
           
           {/* 1. Lista de Conversas (Esquerda) */}
           <div className={`chat-panel-list${selectedPhone ? " mobile-hidden" : ""}`}>
-            <div style={{ padding: "16px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: "1rem", fontWeight: "600" }}>Conversas Recentes</h3>
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontSize: "0.88rem", fontWeight: "600" }}>Conversas</span>
+                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: "8px" }}>
+                  {conversations.length}
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={() => fetchConversations(selectedAccount.id)}
-                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.1rem" }}
+                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "0.95rem" }}
                 title="Atualizar lista"
               >
                 🔄
@@ -1290,9 +1301,9 @@ export default function ChatPage() {
             </div>
 
             {/* 1.1 Campo de Busca Instantânea Inteligente */}
-            <div className="chat-search-bar" style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)" }}>
+            <div className="chat-search-bar" style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <span style={{ position: "absolute", left: "10px", fontSize: "0.85rem", color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
+                <span style={{ position: "absolute", left: "10px", fontSize: "0.8rem", color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
                 <input
                   type="text"
                   placeholder="Buscar nome, número ou mensagem..."
@@ -1300,11 +1311,11 @@ export default function ChatPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="form-control chat-search-input"
                   style={{
-                    paddingLeft: "32px",
-                    paddingRight: searchQuery ? "28px" : "10px",
-                    fontSize: "0.8rem",
-                    height: "36px",
-                    borderRadius: "var(--radius-md)"
+                    paddingLeft: "30px",
+                    paddingRight: searchQuery ? "26px" : "8px",
+                    fontSize: "0.78rem",
+                    height: "32px",
+                    borderRadius: "var(--radius-sm)"
                   }}
                 />
                 {searchQuery && (
@@ -1330,61 +1341,39 @@ export default function ChatPage() {
             </div>
 
             {/* Filtro por período + exportação de leads */}
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "8px" }}>
-              <select
-                value={period}
-                onChange={(e) => applyPeriod(e.target.value)}
-                className="field-input"
-                style={{ fontSize: "0.78rem", padding: "6px 8px", cursor: "pointer" }}
-                title="Filtrar conversas por período"
-              >
-                <option value="">Todos os períodos</option>
-                <option value="today">Hoje</option>
-                <option value="yesterday">Ontem</option>
-                <option value="3days">Últimos 3 dias</option>
-                <option value="7days">Últimos 7 dias</option>
-                <option value="custom">Personalizado</option>
-              </select>
-              {period === "custom" && (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <input
-                    type="date"
-                    value={startDate}
-                    max={endDate || undefined}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="field-input"
-                    style={{ fontSize: "0.75rem", padding: "5px 8px", flex: 1, minWidth: 0 }}
-                    title="Data inicial"
-                  />
-                  <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>até</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    min={startDate || undefined}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="field-input"
-                    style={{ fontSize: "0.75rem", padding: "5px 8px", flex: 1, minWidth: 0 }}
-                    title="Data final"
-                  />
-                </div>
-              )}
+            <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "6px", flexShrink: 0 }}>
               <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                <select
+                  value={period}
+                  onChange={(e) => applyPeriod(e.target.value)}
+                  className="field-input"
+                  style={{ fontSize: "0.74rem", padding: "4px 6px", cursor: "pointer", height: "28px", flex: 1, minWidth: 0 }}
+                  title="Filtrar conversas por período"
+                >
+                  <option value="">Todos os períodos</option>
+                  <option value="today">Hoje</option>
+                  <option value="yesterday">Ontem</option>
+                  <option value="3days">Últimos 3 dias</option>
+                  <option value="7days">Últimos 7 dias</option>
+                  <option value="custom">Personalizado...</option>
+                </select>
                 <button
                   type="button"
                   onClick={exportCsv}
                   disabled={isExporting}
-                  style={{ fontSize: "0.75rem", padding: "6px 10px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600, flex: 1 }}
+                  style={{ fontSize: "0.72rem", padding: "3px 8px", height: "28px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}
                   title="Exportar os contatos filtrados para CSV"
                 >
-                  {isExporting ? "Exportando..." : "⬇️ Exportar CSV"}
+                  {isExporting ? "..." : "⬇️ CSV"}
                 </button>
                 {convFilter === "UNANSWERED" && filteredConversations.length > 0 && (
                   <button
                     type="button"
                     onClick={markAllFilteredAsHandled}
                     style={{
-                      fontSize: "0.75rem",
-                      padding: "6px 10px",
+                      fontSize: "0.72rem",
+                      padding: "3px 8px",
+                      height: "28px",
                       background: "rgba(16, 185, 129, 0.15)",
                       border: "1px solid rgba(16, 185, 129, 0.4)",
                       borderRadius: "6px",
@@ -1393,19 +1382,42 @@ export default function ChatPage() {
                       fontWeight: 600,
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: "4px",
+                      gap: "3px",
                       whiteSpace: "nowrap"
                     }}
                     title="Marcar todas as conversas desta fila como atendidas/concluídas"
                   >
-                    ✓✓ Concluir Todas ({filteredConversations.length})
+                    ✓✓ Limpar ({filteredConversations.length})
                   </button>
                 )}
               </div>
+              {period === "custom" && (
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <input
+                    type="date"
+                    value={startDate}
+                    max={endDate || undefined}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="field-input"
+                    style={{ fontSize: "0.72rem", padding: "3px 6px", flex: 1, minWidth: 0, height: "26px" }}
+                    title="Data inicial"
+                  />
+                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>até</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    min={startDate || undefined}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="field-input"
+                    style={{ fontSize: "0.72rem", padding: "3px 6px", flex: 1, minWidth: 0, height: "26px" }}
+                    title="Data final"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Filtros de conversas (chats) */}
-            <div style={{ display: "flex", gap: "6px", padding: "10px 12px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap" }}>
+            <div style={{ display: "flex", gap: "4px", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
               {CONV_FILTERS.map(f => {
                 const isActive = convFilter === f.key;
                 const count = f.key === "ALL"
@@ -1418,9 +1430,9 @@ export default function ChatPage() {
                     title={f.title}
                     onClick={() => setConvFilter(f.key)}
                     style={{
-                      padding: "4px 10px",
-                      borderRadius: "20px",
-                      fontSize: "0.72rem",
+                      padding: "3px 8px",
+                      borderRadius: "14px",
+                      fontSize: "0.68rem",
                       fontWeight: 600,
                       whiteSpace: "nowrap",
                       cursor: "pointer",
@@ -1449,7 +1461,7 @@ export default function ChatPage() {
               })}
             </div>
 
-            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", minHeight: 0 }}>
               {isConversationsLoading ? (
                 <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
                   <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
@@ -1626,19 +1638,19 @@ export default function ChatPage() {
             ) : (
               <>
                 {/* Header da conversa */}
-                <div className="chat-header-bar" style={{ padding: "12px 18px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                <div className="chat-header-bar" style={{ padding: "8px 14px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap", flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => setSelectedPhone("")}
                     className="btn btn-secondary"
-                    style={{ padding: "6px 10px", fontSize: "0.8rem", flexShrink: 0, display: "none" }}
+                    style={{ padding: "4px 8px", fontSize: "0.76rem", flexShrink: 0, display: "none" }}
                     id="chat-back-btn"
                   >
                     ← Voltar
                   </button>
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: "180px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                      <span style={{ fontWeight: "700", fontSize: "1.05rem" }}>
+                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: "160px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: "700", fontSize: "0.95rem" }}>
                         {conversations.find(c => c.phone === selectedPhone)?.profileName
                           ? `👤 ${conversations.find(c => c.phone === selectedPhone)?.profileName}`
                           : `📱 ${selectedPhone}`}
@@ -1650,9 +1662,9 @@ export default function ChatPage() {
                         onChange={(e) => updateCrm(prev => ({ ...prev, stage: e.target.value as FunnelStage }))}
                         className="funnel-stage-select"
                         style={{
-                          fontSize: "0.72rem",
+                          fontSize: "0.7rem",
                           fontWeight: 700,
-                          padding: "3px 10px",
+                          padding: "2px 8px",
                           borderRadius: "12px",
                           cursor: "pointer",
                           color: FUNNEL_STAGES[crmData.stage]?.color || "var(--text-primary)",
@@ -1678,9 +1690,9 @@ export default function ChatPage() {
                         if (!sla) return null;
                         return (
                           <span style={{
-                            fontSize: "0.7rem",
+                            fontSize: "0.68rem",
                             fontWeight: 700,
-                            padding: "2px 8px",
+                            padding: "1px 7px",
                             borderRadius: "10px",
                             color: sla.color,
                             background: sla.bg,
@@ -1692,7 +1704,7 @@ export default function ChatPage() {
                       })()}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.76rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "1px" }}>
                       <span>{selectedPhone}</span>
                       <a
                         href={`https://wa.me/${selectedPhone}`}
@@ -1706,20 +1718,20 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {/* Botão de Concluir / Reabrir Atendimento */}
                     <button
                       type="button"
                       onClick={() => toggleHandled(selectedPhone)}
                       className="btn"
                       style={{
-                        padding: "6px 12px",
-                        fontSize: "0.78rem",
+                        padding: "5px 10px",
+                        fontSize: "0.75rem",
                         fontWeight: 600,
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: "5px",
-                        borderRadius: "8px",
+                        gap: "4px",
+                        borderRadius: "6px",
                         background: isConversationHandled(selectedPhone) ? "rgba(56, 189, 248, 0.12)" : "rgba(16, 185, 129, 0.14)",
                         border: isConversationHandled(selectedPhone) ? "1px solid rgba(56, 189, 248, 0.35)" : "1px solid rgba(16, 185, 129, 0.35)",
                         color: isConversationHandled(selectedPhone) ? "#38bdf8" : "#10b981",
@@ -1728,7 +1740,7 @@ export default function ChatPage() {
                       }}
                       title={isConversationHandled(selectedPhone) ? "Reabrir atendimento (retorna para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila de espera)"}
                     >
-                      <span>{isConversationHandled(selectedPhone) ? "↩️ Reabrir Atendimento" : "✅ Marcar como Atendido"}</span>
+                      <span>{isConversationHandled(selectedPhone) ? "↩️ Reabrir" : "✅ Atendido"}</span>
                     </button>
 
                     {/* Botão de Abrir/Fechar Mini-CRM */}
@@ -1737,28 +1749,30 @@ export default function ChatPage() {
                       onClick={() => setShowCrmDrawer(!showCrmDrawer)}
                       className="chat-crm-toggle-btn"
                       style={{
+                        padding: "5px 10px",
+                        fontSize: "0.75rem",
                         background: showCrmDrawer ? "rgba(16, 185, 129, 0.2)" : undefined,
                         borderColor: showCrmDrawer ? "var(--primary)" : undefined,
                         color: showCrmDrawer ? "var(--primary)" : undefined
                       }}
                       title="Abrir painel lateral com histórico, tags e anotações deste lead"
                     >
-                      <span>👤</span> Ficha do Lead
+                      <span>👤</span> Ficha
                     </button>
 
                     <button
                       type="button"
                       onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)}
                       className="btn btn-secondary"
-                      style={{ padding: "6px 12px", fontSize: "0.78rem" }}
+                      style={{ padding: "5px 10px", fontSize: "0.75rem" }}
                     >
-                      🔄 Atualizar
+                      🔄
                     </button>
                   </div>
                 </div>
 
                 {/* Barra de filtros por status */}
-                <div className="chat-templates-bar" style={{ display: "flex", gap: "6px", padding: "10px 20px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap" }}>
+                <div className="chat-templates-bar" style={{ display: "flex", gap: "4px", padding: "4px 14px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
                   {FILTERS.map(f => {
                     const isActive = statusFilter === f.key;
                     const count = f.key === "ALL"
@@ -1772,9 +1786,9 @@ export default function ChatPage() {
                         type="button"
                         onClick={() => setStatusFilter(f.key)}
                         style={{
-                          padding: "5px 12px",
-                          borderRadius: "20px",
-                          fontSize: "0.76rem",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          fontSize: "0.7rem",
                           fontWeight: 600,
                           whiteSpace: "nowrap",
                           cursor: "pointer",
@@ -1791,7 +1805,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Mensagens do chat */}
-                <div style={{ flex: 1, padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div style={{ flex: 1, minHeight: 0, padding: "12px 16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
                   {isChatLoading ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", height: "100%", justifyContent: "center", alignItems: "center", color: "var(--text-muted)" }}>
                       <div className="skeleton" style={{ width: "60%", height: "40px", borderRadius: "12px", alignSelf: "flex-start" }} />
@@ -1955,62 +1969,63 @@ export default function ChatPage() {
                   }
 
                   return (
-                    <div className="chat-input-container" style={{ padding: "16px 20px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "10px" }}>
+                    <div className="chat-input-container" style={{ padding: "8px 14px", borderTop: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "5px", flexShrink: 0 }}>
                       
                       {lastInc ? (
                         isWindowActive ? (
                           <div style={{
-                            background: "rgba(16, 185, 129, 0.1)",
-                            border: "1px solid rgba(16, 185, 129, 0.25)",
+                            background: "rgba(16, 185, 129, 0.08)",
+                            border: "1px solid rgba(16, 185, 129, 0.22)",
                             borderRadius: "6px",
-                            padding: "8px 12px",
-                            fontSize: "0.82rem",
+                            padding: "3px 8px",
+                            fontSize: "0.74rem",
                             color: "var(--success)",
                             fontWeight: "500",
-                            display: "flex",
+                            display: "inline-flex",
                             alignItems: "center",
-                            gap: "8px"
+                            gap: "6px",
+                            width: "fit-content"
                           }}>
-                            <span className="window-badge" style={{ fontSize: "0.78rem" }}><span className="dot" />Janela aberta</span>
-                            <span style={{ fontSize: "0.8rem" }}>Responda livremente · Expira em <strong>{timeRemainingStr}</strong></span>
+                            <span className="window-badge" style={{ fontSize: "0.68rem", padding: "1px 6px" }}><span className="dot" />Janela aberta</span>
+                            <span style={{ fontSize: "0.72rem" }}>Responda livremente · Expira em <strong>{timeRemainingStr}</strong></span>
                           </div>
                         ) : (
                           <div style={{
-                            background: "rgba(245, 158, 11, 0.1)",
-                            border: "1px solid rgba(245, 158, 11, 0.25)",
+                            background: "rgba(245, 158, 11, 0.08)",
+                            border: "1px solid rgba(245, 158, 11, 0.22)",
                             borderRadius: "6px",
-                            padding: "8px 12px",
-                            fontSize: "0.82rem",
+                            padding: "4px 8px",
+                            fontSize: "0.73rem",
                             color: "#f59e0b",
                             fontWeight: "500",
-                            display: "flex",
+                            display: "inline-flex",
                             alignItems: "center",
-                            gap: "8px"
+                            gap: "6px"
                           }}>
-                            <span>⚠️ <strong>Janela de Atendimento Expirada:</strong> Mais de 24h se passaram desde a última resposta do cliente. Para enviar uma mensagem, use a opção de disparar um Template de reabertura.</span>
+                            <span>⚠️ <strong>Janela Expirada:</strong> Envie um Template para reabrir.</span>
                           </div>
                         )
                       ) : (
                         <div style={{
-                          background: "rgba(255, 255, 255, 0.03)",
+                          background: "rgba(255, 255, 255, 0.02)",
                           border: "1px solid var(--border-color)",
                           borderRadius: "6px",
-                          padding: "8px 12px",
-                          fontSize: "0.82rem",
+                          padding: "4px 8px",
+                          fontSize: "0.73rem",
                           color: "var(--text-secondary)",
-                          display: "flex",
+                          display: "inline-flex",
                           alignItems: "center",
-                          gap: "8px"
+                          gap: "6px"
                         }}>
-                          <span>ℹ️ O cliente ainda não respondeu a esta conversa. Você só poderá enviar respostas de texto livre após a primeira interação dele.</span>
+                          <span>ℹ️ O cliente ainda não respondeu ao disparo. Respostas de texto livre disponíveis após interação dele.</span>
                         </div>
                       )}
 
                       {/* Barra de Respostas Rápidas (1-Clique / Canned Responses) */}
                       {(!lastInc || isWindowActive) && (
-                        <div className="quick-replies-toolbar">
-                          <div className="quick-replies-scroll-area">
-                            <span className="quick-replies-label">
+                        <div className="quick-replies-toolbar" style={{ padding: "0", gap: "4px" }}>
+                          <div className="quick-replies-scroll-area" style={{ gap: "4px" }}>
+                            <span className="quick-replies-label" style={{ fontSize: "0.7rem" }}>
                               <span>⚡</span> Rápidas:
                             </span>
                             {quickReplies.map((qr) => (
@@ -2023,24 +2038,24 @@ export default function ChatPage() {
                                     if (replyTextareaRef.current) {
                                       replyTextareaRef.current.focus();
                                       replyTextareaRef.current.style.height = "auto";
-                                      replyTextareaRef.current.style.height = `${Math.min(replyTextareaRef.current.scrollHeight, 140)}px`;
+                                      replyTextareaRef.current.style.height = `${Math.min(replyTextareaRef.current.scrollHeight, 120)}px`;
                                     }
                                   }, 10);
                                 }}
                                 className="quick-reply-chip"
+                                style={{ fontSize: "0.7rem", padding: "2px 7px" }}
                                 title={qr.text.slice(0, 120) + (qr.text.length > 120 ? "..." : "")}
                               >
                                 {qr.title}
                               </button>
                             ))}
                             {quickReplies.length === 0 && (
-                              <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                                Nenhuma resposta rápida cadastrada.
+                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                                Nenhuma resposta cadastrada.
                               </span>
                             )}
                           </div>
 
-                          {/* Botão Gerenciar sempre fixo na direita, destacado e visível em ambos os temas */}
                           <button
                             type="button"
                             onClick={() => {
@@ -2050,23 +2065,24 @@ export default function ChatPage() {
                               setShowQuickReplyModal(true);
                             }}
                             className="quick-reply-manage-btn"
+                            style={{ fontSize: "0.7rem", padding: "2px 6px" }}
                             title="Gerenciar e criar novas respostas rápidas"
                           >
-                            <span>⚙️</span> Gerenciar
+                            <span>⚙️</span>
                           </button>
                         </div>
                       )}
 
                       {/* Barra de Formatação estilo WhatsApp e Botão de Prévia */}
                       {(!lastInc || isWindowActive) && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px", padding: "0 4px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px", padding: "0 2px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                             <button
                               type="button"
                               onClick={() => insertFormat("*")}
                               title="Negrito (*texto*)"
                               className="chat-fmt-btn"
-                              style={{ fontWeight: "bold" }}
+                              style={{ fontWeight: "bold", padding: "2px 6px", fontSize: "0.7rem" }}
                             >
                               B
                             </button>
@@ -2075,7 +2091,7 @@ export default function ChatPage() {
                               onClick={() => insertFormat("_")}
                               title="Itálico (_texto_)"
                               className="chat-fmt-btn"
-                              style={{ fontStyle: "italic" }}
+                              style={{ fontStyle: "italic", padding: "2px 6px", fontSize: "0.7rem" }}
                             >
                               I
                             </button>
@@ -2084,7 +2100,7 @@ export default function ChatPage() {
                               onClick={() => insertFormat("~")}
                               title="Tachado (~texto~)"
                               className="chat-fmt-btn"
-                              style={{ textDecoration: "line-through" }}
+                              style={{ textDecoration: "line-through", padding: "2px 6px", fontSize: "0.7rem" }}
                             >
                               S
                             </button>
@@ -2093,12 +2109,13 @@ export default function ChatPage() {
                               onClick={() => insertFormat("• ")}
                               title="Marcador de Lista"
                               className="chat-fmt-btn"
+                              style={{ padding: "2px 6px", fontSize: "0.7rem" }}
                             >
                               • Lista
                             </button>
                           </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                             {replyBody.trim() && (
                               <button
                                 type="button"
@@ -2108,15 +2125,15 @@ export default function ChatPage() {
                                   background: showPreview ? "rgba(16, 185, 129, 0.2)" : undefined,
                                   borderColor: showPreview ? "var(--primary, #10b981)" : undefined,
                                   color: showPreview ? "var(--primary, #10b981)" : undefined,
-                                  fontSize: "0.74rem",
-                                  padding: "3px 10px",
+                                  fontSize: "0.7rem",
+                                  padding: "2px 7px",
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: "4px"
+                                  gap: "3px"
                                 }}
                                 title="Ver como o cliente receberá no WhatsApp"
                               >
-                                <span>📱</span> {showPreview ? "Ocultar Prévia" : "Prévia WhatsApp"}
+                                <span>📱</span> {showPreview ? "Ocultar" : "Prévia"}
                               </button>
                             )}
                           </div>

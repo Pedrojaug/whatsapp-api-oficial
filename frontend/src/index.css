@@ -898,9 +898,9 @@ body.light-theme .msg-bubble-in {
 .conv-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: var(--radius-md);
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background 0.15s ease;
   border: 1px solid transparent;
@@ -983,11 +983,12 @@ body.light-theme .msg-bubble-in {
   }
 }
 .conv-avatar {
-  width: 40px; height: 40px;
+  width: 36px; height: 36px;
   border-radius: 50%;
   background: rgba(255,255,255,0.07);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
   flex-shrink: 0;
   border: 1px solid rgba(255,255,255,0.08);
 }
@@ -1510,6 +1511,26 @@ body.light-theme .data-table tbody tr:hover { background: #f8fafc !important; }
 .app-main { flex: 1; overflow-y: auto; min-width: 0; scroll-behavior: smooth; }
 .app-main-inner { padding: 40px; }
 
+/* Otimização de tela cheia para o Live Chat (estilo WhatsApp Web) */
+.app-main--chat {
+  overflow: hidden !important;
+  display: flex;
+  flex-direction: column;
+}
+.app-main-inner--chat {
+  padding: 12px 18px !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  box-sizing: border-box;
+}
+@media (max-width: 767px) {
+  .app-main-inner--chat {
+    padding: 6px 8px !important;
+  }
+}
+
 /* ─── MOBILE HEADER (hidden on desktop) ─── */
 .mobile-header {
   display: none;
@@ -1842,9 +1863,9 @@ body.light-theme .funnel-stage-option {
 }
 
 /* ─── CHAT PANELS ─── */
-.chat-panel-list { width: 320px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: rgba(0,0,0,0.15); flex-shrink: 0; }
-.chat-panel-msg { flex: 1; display: flex; flex-direction: column; background: rgba(255,255,255,0.01); min-width: 0; }
-.chat-panel-crm { width: 320px; border-left: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); display: flex; flex-direction: column; overflow-y: auto; padding: 16px; gap: 16px; flex-shrink: 0; }
+.chat-panel-list { width: 350px; min-width: 320px; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; background: rgba(0,0,0,0.15); flex-shrink: 0; height: 100%; min-height: 0; }
+.chat-panel-msg { flex: 1; display: flex; flex-direction: column; background: rgba(255,255,255,0.01); min-width: 0; height: 100%; min-height: 0; }
+.chat-panel-crm { width: 320px; border-left: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(16px); display: flex; flex-direction: column; overflow-y: auto; padding: 16px; gap: 16px; flex-shrink: 0; height: 100%; min-height: 0; }
 
 /* ─── PAGE HEADING ─── */
 .page-heading { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }

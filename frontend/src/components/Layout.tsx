@@ -432,8 +432,8 @@ export default function Layout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className="app-main" ref={mainRef}>
-          <div className="app-main-inner">
+        <main className={`app-main${location.pathname.startsWith("/chat") ? " app-main--chat" : ""}`} ref={mainRef}>
+          <div className={`app-main-inner${location.pathname.startsWith("/chat") ? " app-main-inner--chat" : ""}`}>
             <Outlet />
           </div>
         </main>
