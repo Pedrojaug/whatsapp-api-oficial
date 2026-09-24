@@ -1186,6 +1186,8 @@ export default function ChatPage() {
             createdAt: data.updatedAt || new Date().toISOString(),
           }];
         });
+      }
+
       // Se o cliente enviar uma nova mensagem recebida (INCOMING), retira automaticamente do status atendido para reabrir na fila
       if (data.direction === "INCOMING") {
         setHandledPhones(prev => {
