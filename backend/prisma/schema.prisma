@@ -127,6 +127,7 @@ model Message {
 
   @@index([accountId, to, createdAt])
   @@index([accountId, status, createdAt])
+  @@index([accountId, direction, createdAt])
   @@index([status, scheduledAt, nextRetryAt, createdAt])
 }
 
@@ -152,6 +153,9 @@ model Contact {
   contactList   ContactList @relation(fields: [contactListId], references: [id], onDelete: Cascade)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([contactListId])
+  @@index([phone])
 }
 
 model WhatsAppContact {

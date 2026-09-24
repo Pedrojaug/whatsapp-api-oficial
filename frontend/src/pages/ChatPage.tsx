@@ -919,26 +919,54 @@ export default function ChatPage() {
     }
   }, [chatMessages, isChatLoading]);
 
-  // Polling de fallback: atualiza conversas a cada 15s e o chat ativo a cada 10s
-  // Garante sincronização mesmo quando o SSE cair (Render free tier)
+  // Polling de fallback inteligente (Event-driven + Visibility aware):
+  // 1. Pausa o timer quando a aba está em segundo plano (document.hidden), economizando 100% de I/O
+  // 2. Quando a aba volta ao foco (visibilitychange), sincroniza imediatamente
+  // 3. Intervalo suave de 60s (conversas) e 30s (chat ativo) como rede de segurança para o SSE
   useEffect(() => {
     if (!selectedAccount) return;
 
-    const convInterval = setInterval(() => {
-      fetchConversations(selectedAccount.id, true); // silent = sem loading spinner
-    }, 15000);
+    const runSync = () => {
+      if (document.hidden) return; // Não faz queries com aba em segundo plano
+      fetchConversations(selectedAccount.id, true);
+    };
 
-    return () => clearInterval(convInterval);
+    const convInterval = setInterval(runSync, 60000);
+
+    const handleVisibility = () => {
+      if (!document.hidden) {
+        runSync();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(convInterval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [selectedAccount]);
 
   useEffect(() => {
     if (!selectedAccount || !selectedPhone) return;
 
-    const chatInterval = setInterval(() => {
-      fetchChatMessages(selectedAccount.id, selectedPhoneRef.current, true); // silent
-    }, 10000);
+    const runChatSync = () => {
+      if (document.hidden) return;
+      fetchChatMessages(selectedAccount.id, selectedPhoneRef.current, true);
+    };
 
-    return () => clearInterval(chatInterval);
+    const chatInterval = setInterval(runChatSync, 30000);
+
+    const handleVisibility = () => {
+      if (!document.hidden && selectedPhoneRef.current) {
+        runChatSync();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(chatInterval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [selectedAccount, selectedPhone]);
 
   // Se inscreve no SSE de eventos para atualizar conversas e chat em tempo real

@@ -326,10 +326,46 @@ async function checkAndDispatch() {
     console.error("[Worker] Erro crítico no loop do dispatcher:", err.message);
   } finally {
     isProcessing = false;
-    // Se há mais mensagens no lote atual (50/50), re-executa imediatamente (100ms).
-    // Caso contrário, aguarda 60s em repouso. Se uma mensagem for enfileirada,
-    // triggerDispatcher() cancela o timer e executa instantaneamente.
-    const idleDelay = hasMore ? 100 : 60_000;
-    dispatchTimer = setTimeout(checkAndDispatch, idleDelay);
+    let nextDelay = 100;
+
+    if (!hasMore) {
+      // Padrão de repouso: 10 minutos (permite que a Neon hiberne após 5 min sem queries).
+      // Se novas mensagens forem criadas pelo usuário, triggerDispatcher() acorda o worker na hora!
+      nextDelay = 10 * 60_000;
+
+      try {
+        const now = new Date();
+        // Verificar se há mensagens PENDING agendadas para o futuro próximo
+        const nextPending = await prisma.message.findFirst({
+          where: {
+            status: "PENDING",
+            OR: [
+              { scheduledAt: { gt: now } },
+              { nextRetryAt: { gt: now } },
+            ]
+          },
+          orderBy: [
+            { scheduledAt: "asc" }
+          ],
+          select: { scheduledAt: true, nextRetryAt: true }
+        });
+
+        if (nextPending) {
+          const sTime = nextPending.scheduledAt?.getTime() ?? Infinity;
+          const rTime = nextPending.nextRetryAt?.getTime() ?? Infinity;
+          const earliest = Math.min(sTime, rTime);
+          if (earliest !== Infinity) {
+            const diffMs = earliest - Date.now();
+            // Acorda no momento exato do agendamento (mínimo 5s, teto 10 min)
+            nextDelay = Math.max(5_000, Math.min(diffMs, 10 * 60_000));
+          }
+        }
+      } catch (err: any) {
+        // Fallback defensivo em caso de erro na consulta
+        nextDelay = 5 * 60_000;
+      }
+    }
+
+    dispatchTimer = setTimeout(checkAndDispatch, nextDelay);
   }
 }

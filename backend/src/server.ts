@@ -134,7 +134,12 @@ app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api", whatsappRouter);
 
-// Rota de Status
+// Rota leve de Liveness / Keep-alive (ZERO chamadas ao banco para permitir que a Neon hiberne)
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok", time: new Date() });
+});
+
+// Rota de Status profunda (verifica conectividade com o banco sob demanda)
 app.get("/status", async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -188,12 +193,12 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando em http://localhost:${PORT}`);
 
   // Keep-alive: previne hibernação do Render free tier (timeout de 15 min sem tráfego)
-  // Faz um self-ping a cada 13 minutos para manter o servidor acordado
+  // Faz um self-ping a cada 13 minutos batendo no /health (SEM tocar no banco Neon)
   const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${PORT}`;
   if (process.env.NODE_ENV !== "test") {
     setInterval(async () => {
       try {
-        const pingUrl = `${BACKEND_URL}/status`;
+        const pingUrl = `${BACKEND_URL}/health`;
         const protocol = pingUrl.startsWith("https") ? await import("https") : await import("http");
         protocol.get(pingUrl, (res) => {
           res.resume(); // Consumir a resposta para não vazar memória
@@ -204,6 +209,6 @@ app.listen(PORT, () => {
         console.warn("[KeepAlive] Erro no keep-alive:", err.message);
       }
     }, 13 * 60 * 1000); // 13 minutos
-    console.log("[KeepAlive] Self-ping ativado para prevenir hibernação do servidor.");
+    console.log("[KeepAlive] Self-ping ativado para /health (zero consumo de banco Neon).");
   }
 });

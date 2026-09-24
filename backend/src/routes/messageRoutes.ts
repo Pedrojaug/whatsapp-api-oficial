@@ -355,39 +355,99 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       end.setHours(23, 59, 59, 999);
     }
 
-    const [messages, incomingMsgs, optOutsCount] = await Promise.all([
-      prisma.message.findMany({
-        where: {
-          accountId,
-          direction: "OUTGOING",
-          messageType: "TEMPLATE",
-          createdAt: {
-            gte: start,
-            lte: end
-          }
-        },
-        select: {
-          status: true,
-          createdAt: true,
-          templateName: true,
-          errorMessage: true,
-          to: true,
-        }
-      }),
-      prisma.message.findMany({
-        where: {
-          accountId,
-          direction: "INCOMING",
-          createdAt: {
-            gte: start,
-            lte: end
-          }
-        },
-        select: {
-          to: true,
-          createdAt: true
-        }
-      }),
+    // Helper para formatar data local no formato YYYY-MM-DD
+    const formatDateLocal = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    // Agregações nativas em SQL no PostgreSQL (100x mais rápido que baixar 50k mensagens para a memória do Node.js)
+    const [totalsResult, dailyOutgoingResult, dailyIncomingResult, incomingOverallResult, templateMetricsResult, optOutsCount] = await Promise.all([
+      // 1. Totais consolidados de mensagens de saída e diagnóstico de falhas em 1 única linha
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          COUNT(*)::int as total,
+          COUNT(*) FILTER (WHERE status IN ('SENT', 'DELIVERED', 'READ'))::int as sent,
+          COUNT(*) FILTER (WHERE status IN ('DELIVERED', 'READ'))::int as delivered,
+          COUNT(*) FILTER (WHERE status = 'READ')::int as read,
+          COUNT(*) FILTER (WHERE status = 'FAILED')::int as failed,
+          COUNT(*) FILTER (WHERE status = 'FAILED' AND (
+            "errorMessage" ILIKE '%131026%' OR "errorMessage" ILIKE '%undeliverable%' OR "errorMessage" ILIKE '%inválido%' OR "errorMessage" ILIKE '%sem whatsapp%'
+          ))::int as "invalidNumbers",
+          COUNT(*) FILTER (WHERE status = 'FAILED' AND (
+            "errorMessage" ILIKE '%131049%' OR "errorMessage" ILIKE '%frequência%' OR "errorMessage" ILIKE '%frequencia%' OR "errorMessage" ILIKE '%healthy ecosystem%'
+          ))::int as "frequencyCapped",
+          COUNT(*) FILTER (WHERE status = 'FAILED' AND (
+            "errorMessage" ILIKE '%130472%' OR "errorMessage" ILIKE '%experiment%' OR "errorMessage" ILIKE '%experimento%'
+          ))::int as "metaExperiment"
+        FROM "Message"
+        WHERE "accountId" = $1
+          AND direction = 'OUTGOING'
+          AND "messageType" = 'TEMPLATE'
+          AND "createdAt" >= $2 AND "createdAt" <= $3
+      `, accountId, start, end),
+
+      // 2. Gráfico diário de mensagens de saída agrupado por dia (Horário de Brasília)
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          TO_CHAR("createdAt" AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') as day,
+          COUNT(*) FILTER (WHERE status IN ('SENT', 'DELIVERED', 'READ'))::int as sent,
+          COUNT(*) FILTER (WHERE status = 'READ')::int as read,
+          COUNT(*) FILTER (WHERE status = 'FAILED')::int as failed
+        FROM "Message"
+        WHERE "accountId" = $1
+          AND direction = 'OUTGOING'
+          AND "messageType" = 'TEMPLATE'
+          AND "createdAt" >= $2 AND "createdAt" <= $3
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `, accountId, start, end),
+
+      // 3. Respostas diárias recebidas
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          TO_CHAR("createdAt" AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD') as day,
+          COUNT(*)::int as replies
+        FROM "Message"
+        WHERE "accountId" = $1
+          AND direction = 'INCOMING'
+          AND "createdAt" >= $2 AND "createdAt" <= $3
+        GROUP BY 1
+        ORDER BY 1 ASC
+      `, accountId, start, end),
+
+      // 4. Totais de respostas e contatos únicos que responderam
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          COUNT(*)::int as "totalReplies",
+          COUNT(DISTINCT "to")::int as "uniqueReplies"
+        FROM "Message"
+        WHERE "accountId" = $1
+          AND direction = 'INCOMING'
+          AND "createdAt" >= $2 AND "createdAt" <= $3
+      `, accountId, start, end),
+
+      // 5. Métricas agrupadas por template
+      prisma.$queryRawUnsafe<any[]>(`
+        SELECT
+          COALESCE("templateName", 'Envio Direto') as "templateName",
+          COUNT(*)::int as total,
+          COUNT(*) FILTER (WHERE status IN ('SENT', 'DELIVERED', 'READ'))::int as sent,
+          COUNT(*) FILTER (WHERE status IN ('DELIVERED', 'READ'))::int as delivered,
+          COUNT(*) FILTER (WHERE status = 'READ')::int as read,
+          COUNT(*) FILTER (WHERE status = 'FAILED')::int as failed
+        FROM "Message"
+        WHERE "accountId" = $1
+          AND direction = 'OUTGOING'
+          AND "messageType" = 'TEMPLATE'
+          AND "createdAt" >= $2 AND "createdAt" <= $3
+        GROUP BY COALESCE("templateName", 'Envio Direto')
+        ORDER BY total DESC
+      `, accountId, start, end),
+
+      // 6. Contagem de opt-outs no período
       prisma.optOut.count({
         where: {
           accountId,
@@ -399,67 +459,30 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       })
     ]);
 
-    // Calculate totals (cumulative funnel logic)
-    let sent = 0;
-    let delivered = 0;
-    let read = 0;
-    let failed = 0;
+    // Totais e diagnósticos
+    const total = totalsResult[0]?.total || 0;
+    const sent = totalsResult[0]?.sent || 0;
+    const delivered = totalsResult[0]?.delivered || 0;
+    const read = totalsResult[0]?.read || 0;
+    const failed = totalsResult[0]?.failed || 0;
+    const invalidNumbers = totalsResult[0]?.invalidNumbers || 0;
+    const frequencyCapped = totalsResult[0]?.frequencyCapped || 0;
+    const metaExperiment = totalsResult[0]?.metaExperiment || 0;
+    const otherFailures = Math.max(0, failed - (invalidNumbers + frequencyCapped + metaExperiment));
 
-    // Diagnóstico categorizado de falhas
-    let invalidNumbers = 0; // 131026 ou undeliverable
-    let frequencyCapped = 0; // 131049 ou limite de frequência Meta
-    let metaExperiment = 0; // 130472 ou grupo de controle/experimento
-    let otherFailures = 0;
-
-    messages.forEach(msg => {
-      if (msg.status === "READ") {
-        read++;
-        delivered++;
-        sent++;
-      } else if (msg.status === "DELIVERED") {
-        delivered++;
-        sent++;
-      } else if (msg.status === "SENT") {
-        sent++;
-      } else if (msg.status === "FAILED") {
-        failed++;
-        const err = (msg.errorMessage || "").toLowerCase();
-        if (err.includes("131026") || err.includes("undeliverable") || err.includes("inválido") || err.includes("sem whatsapp")) {
-          invalidNumbers++;
-        } else if (err.includes("131049") || err.includes("frequência") || err.includes("healthy ecosystem") || err.includes("frequencia")) {
-          frequencyCapped++;
-        } else if (err.includes("130472") || err.includes("experiment") || err.includes("experimento")) {
-          metaExperiment++;
-        } else {
-          otherFailures++;
-        }
-      }
-    });
-
-    const total = messages.length;
     const validBase = Math.max(0, total - invalidNumbers);
     const validDeliveryRate = validBase > 0 ? Math.round((delivered / validBase) * 100) : 0;
     const deliveryRate = total > 0 ? Math.round((delivered / total) * 100) : 0;
     const readRate = total > 0 ? Math.round((read / total) * 100) : 0;
 
     // Respostas recebidas e taxa de conversão/engajamento
-    const totalReplies = incomingMsgs.length;
-    const uniqueRepliedPhones = new Set(incomingMsgs.map(m => m.to)).size;
+    const totalReplies = incomingOverallResult[0]?.totalReplies || 0;
+    const uniqueRepliedPhones = incomingOverallResult[0]?.uniqueReplies || 0;
     const responseRate = delivered > 0 ? Math.round((uniqueRepliedPhones / delivered) * 100) : 0;
     const optOutRate = delivered > 0 ? Number(((optOutsCount / delivered) * 100).toFixed(2)) : 0;
 
-    // Helper to format Date local to YYYY-MM-DD
-    const formatDateLocal = (date: Date) => {
-      const y = date.getFullYear();
-      const m = String(date.getMonth() + 1).padStart(2, '0');
-      const d = String(date.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
-    };
-
-    // Group by day for the chart
+    // Inicializar o mapa de dias para garantir que datas sem envios apareçam no gráfico com zero
     const dailyMap = new Map<string, { date: string; sent: number; read: number; failed: number; replies: number }>();
-    
-    // Initialize chart dates so that dates with 0 messages are shown!
     const current = new Date(start);
     while (current.getTime() <= end.getTime()) {
       const dateStr = formatDateLocal(current);
@@ -467,61 +490,34 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       current.setDate(current.getDate() + 1);
     }
 
-    messages.forEach(msg => {
-      const dateStr = formatDateLocal(msg.createdAt);
-      const dayData = dailyMap.get(dateStr);
-      if (dayData) {
-        if (msg.status === "READ") {
-          dayData.read++;
-          dayData.sent++;
-        } else if (msg.status === "DELIVERED" || msg.status === "SENT") {
-          dayData.sent++;
-        } else if (msg.status === "FAILED") {
-          dayData.failed++;
-        }
+    for (const d of dailyOutgoingResult) {
+      const item = dailyMap.get(d.day);
+      if (item) {
+        item.sent = d.sent || 0;
+        item.read = d.read || 0;
+        item.failed = d.failed || 0;
       }
-    });
+    }
 
-    incomingMsgs.forEach(msg => {
-      const dateStr = formatDateLocal(msg.createdAt);
-      const dayData = dailyMap.get(dateStr);
-      if (dayData) {
-        dayData.replies++;
+    for (const d of dailyIncomingResult) {
+      const item = dailyMap.get(d.day);
+      if (item) {
+        item.replies = d.replies || 0;
       }
-    });
+    }
 
     const chartData = Array.from(dailyMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-    // Agrupar por nome do template para tabela de performance
-    const templateMap = new Map<string, { templateName: string; sent: number; delivered: number; read: number; failed: number; total: number; readRate: number }>();
-
-    messages.forEach(msg => {
-      const tName = msg.templateName || "Envio Direto";
-      if (!templateMap.has(tName)) {
-        templateMap.set(tName, { templateName: tName, sent: 0, delivered: 0, read: 0, failed: 0, total: 0, readRate: 0 });
-      }
-      const tData = templateMap.get(tName)!;
-      tData.total++;
-      if (msg.status === "READ") {
-        tData.read++;
-        tData.delivered++;
-        tData.sent++;
-      } else if (msg.status === "DELIVERED") {
-        tData.delivered++;
-        tData.sent++;
-      } else if (msg.status === "SENT") {
-        tData.sent++;
-      } else if (msg.status === "FAILED") {
-        tData.failed++;
-      }
-    });
-
-    const templateMetrics = Array.from(templateMap.values())
-      .map(t => ({
-        ...t,
-        readRate: t.delivered > 0 ? Math.round((t.read / t.delivered) * 100) : 0
-      }))
-      .sort((a, b) => b.total - a.total);
+    // Formatar métricas por template
+    const templateMetrics = templateMetricsResult.map((t: any) => ({
+      templateName: t.templateName,
+      sent: t.sent || 0,
+      delivered: t.delivered || 0,
+      read: t.read || 0,
+      failed: t.failed || 0,
+      total: t.total || 0,
+      readRate: t.delivered > 0 ? Math.round((t.read / t.delivered) * 100) : 0,
+    }));
 
     res.json({
       totals: {

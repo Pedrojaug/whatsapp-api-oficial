@@ -37,10 +37,10 @@ function resolveVariables(mappings: string[], contact: { name?: string | null; p
 async function runDueCampaigns() {
   const now = new Date();
 
-  // Se não houver NENHUMA campanha ativa cadastrada, descansa por 5 min (300.000ms)
+  // Se não houver NENHUMA campanha ativa cadastrada, descansa por 10 min (permite Neon hibernar em 5 min)
   const activeCount = await prisma.campaign.count({ where: { status: "ACTIVE" } });
   if (activeCount === 0) {
-    scheduleNextCampaignRun(5 * 60_000);
+    scheduleNextCampaignRun(10 * 60_000);
     return;
   }
 
@@ -54,7 +54,22 @@ async function runDueCampaigns() {
     );
   }
 
-  scheduleNextCampaignRun(60_000);
+  // Agendamento adaptativo: calcula o tempo exato até a próxima campanha ativa
+  const nextCampaign = await prisma.campaign.findFirst({
+    where: { status: "ACTIVE", nextRunAt: { gt: now } },
+    orderBy: { nextRunAt: "asc" },
+    select: { nextRunAt: true },
+  });
+
+  if (nextCampaign?.nextRunAt) {
+    const diffMs = nextCampaign.nextRunAt.getTime() - Date.now();
+    // Se a próxima campanha for em breve, acorda no instante planejado (mínimo 5s, teto 10 min)
+    const delay = Math.max(5_000, Math.min(diffMs, 10 * 60_000));
+    scheduleNextCampaignRun(delay);
+  } else {
+    // Nenhuma campanha agendada no horizonte imediato: descansa por 10 minutos
+    scheduleNextCampaignRun(10 * 60_000);
+  }
 }
 
 async function executeCampaign(campaign: {
