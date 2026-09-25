@@ -83,7 +83,11 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
     where: { accountId },
     select: { phone: true, profileName: true, blacklisted: true, isHandled: true }
   });
-  const contactMap = new Map(contacts.map((c: any) => [normalizePhone(c.phone), c]));
+  const contactMap = new Map();
+  for (const c of contacts) {
+    contactMap.set(c.phone, c);
+    contactMap.set(normalizePhone(c.phone), c);
+  }
   const blacklistedSet = new Set(contacts.filter((c: any) => c.blacklisted).map((c: any) => normalizePhone(c.phone)));
 
   // 3. Consolidar por telefone normalizado (unifica variantes de 9º dígito)
@@ -178,10 +182,8 @@ function csvCell(v: any): string {
 router.get("/accounts/:accountId/conversations", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     const dateRange = parseDateWindow(req.query.startDate as string | undefined, req.query.endDate as string | undefined);
@@ -287,6 +289,14 @@ router.patch("/accounts/:accountId/conversations/:phone/handled", async (req: Re
       }
     });
 
+    if (phone !== normalized) {
+      await (prisma as any).whatsAppContact.upsert({
+        where: { accountId_phone: { accountId, phone } },
+        update: { isHandled: Boolean(isHandled) },
+        create: { accountId, phone, isHandled: Boolean(isHandled) },
+      }).catch(() => {});
+    }
+
     // Emitir broadcast SSE para sincronização multi-dispositivo instantânea
     messageEventEmitter.emit("messageUpdated", {
       type: "conversationStatusChanged",
@@ -317,17 +327,28 @@ router.post("/accounts/:accountId/conversations/mark-all-handled", async (req: R
     const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
-    const normalizedPhones: string[] = phones.map((p: string) => normalizePhone(p));
+    const allPhones = new Set<string>();
+    phones.forEach((p: string) => {
+      allPhones.add(p);
+      allPhones.add(normalizePhone(p));
+    });
 
-    await Promise.all(
-      normalizedPhones.map((phone: string) =>
-        (prisma as any).whatsAppContact.upsert({
-          where: { accountId_phone: { accountId, phone } },
-          update: { isHandled: Boolean(isHandled) },
-          create: { accountId, phone, isHandled: Boolean(isHandled) },
-        })
-      )
-    );
+    const phoneList = Array.from(allPhones);
+
+    for (let i = 0; i < phoneList.length; i += 50) {
+      const chunk = phoneList.slice(i, i + 50);
+      await Promise.all(
+        chunk.map((phone: string) =>
+          (prisma as any).whatsAppContact.upsert({
+            where: { accountId_phone: { accountId, phone } },
+            update: { isHandled: Boolean(isHandled) },
+            create: { accountId, phone, isHandled: Boolean(isHandled) },
+          })
+        )
+      );
+    }
+
+    const normalizedPhones: string[] = phones.map((p: string) => normalizePhone(p));
 
     // Emitir broadcast SSE para todos os clientes conectados
     messageEventEmitter.emit("messageUpdated", {
@@ -495,6 +516,22 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       }
     });
 
+    // Marcar contato como atendido no banco (isHandled = true)
+    await (prisma as any).whatsAppContact.upsert({
+      where: {
+        accountId_phone: {
+          accountId,
+          phone: normalizedTo,
+        }
+      },
+      update: { isHandled: true },
+      create: {
+        accountId,
+        phone: normalizedTo,
+        isHandled: true,
+      }
+    }).catch((cErr: any) => console.warn("[Chat] Erro ao marcar contato como atendido no reply:", cErr));
+
     console.log(`[Chat] Resposta enviada com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
 
     // Encaminhar resposta humana manual para o n8n para pausar o robô (takeover humano)
@@ -538,6 +575,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       errorMessage: savedMsg.errorMessage,
       updatedAt: savedMsg.updatedAt,
       variables: savedMsg.variables,
+      isHandled: true,
     });
 
     res.status(201).json(savedMsg);

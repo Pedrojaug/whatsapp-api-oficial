@@ -596,13 +596,28 @@ export default function ChatPage() {
   const [crmData, setCrmData] = useState<LeadCrmData>({ stage: 'NEW', tags: [], notes: '' });
   const [newTagInput, setNewTagInput] = useState("");
 
-  // Verificação de status de atendimento (centralizado via backend)
+  // Verificação de status de atendimento (centralizado via backend + cache/fallback local)
   const isConversationHandled = useCallback((phone: string, conv?: any): boolean => {
-    if (conv && conv.isHandled !== undefined) return Boolean(conv.isHandled);
-    const target = conversations.find(c => normalizePhone(c.phone) === normalizePhone(phone));
-    if (target && target.isHandled !== undefined) return Boolean(target.isHandled);
+    if (conv && conv.isHandled) return true;
+    const norm = normalizePhone(phone);
+    const target = conversations.find(c => normalizePhone(c.phone) === norm);
+    if (target && target.isHandled) return true;
+
+    // Fallback de compatibilidade caso ainda não tenha sincronizado com o banco
+    if (selectedAccount) {
+      try {
+        const raw = localStorage.getItem(`send_handled_chats_${selectedAccount.id}`);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list) && list.some((p: string) => normalizePhone(p) === norm)) {
+            return true;
+          }
+        }
+      } catch {}
+    }
+
     return false;
-  }, [conversations]);
+  }, [conversations, selectedAccount]);
 
   const toggleHandled = useCallback(async (phone: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -610,13 +625,29 @@ export default function ChatPage() {
 
     const normTarget = normalizePhone(phone);
     const currentConv = conversations.find(c => normalizePhone(c.phone) === normTarget);
-    const currentHandled = currentConv ? Boolean(currentConv.isHandled) : false;
+    const currentHandled = isConversationHandled(phone, currentConv);
     const newHandled = !currentHandled;
 
     // Atualização otimista imediata na UI
     setConversations(prev =>
       prev.map(c => normalizePhone(c.phone) === normTarget ? { ...c, isHandled: newHandled } : c)
     );
+
+    // Mantém cache local do navegador sincronizado
+    const localKey = `send_handled_chats_${selectedAccount.id}`;
+    try {
+      const raw = localStorage.getItem(localKey);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      let updatedList: string[];
+      if (newHandled) {
+        updatedList = Array.from(new Set([...list, phone, normTarget]));
+      } else {
+        updatedList = list.filter(p => normalizePhone(p) !== normTarget && p !== phone);
+      }
+      localStorage.setItem(localKey, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn("Falha ao salvar no cache local:", e);
+    }
 
     try {
       await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/${phone}/handled`, {
@@ -656,7 +687,7 @@ export default function ChatPage() {
       );
       showAlert(err.response?.data?.error || "Erro ao atualizar status da conversa.", "error");
     }
-  }, [selectedAccount, conversations, selectedPhone, showAlert]);
+  }, [selectedAccount, conversations, selectedPhone, showAlert, isConversationHandled]);
 
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
@@ -852,13 +883,67 @@ export default function ChatPage() {
       const { startDate: sd, endDate: ed } = dateFilterRef.current;
       const qs = sd && ed ? `?startDate=${sd}&endDate=${ed}` : "";
       const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations${qs}`);
-      setConversations(res.data);
+      
+      // Lê cache local para cobrir qualquer delay de sincronização
+      let localHandledSet = new Set<string>();
+      try {
+        const raw = localStorage.getItem(`send_handled_chats_${accountId}`);
+        if (raw) {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            list.forEach((p: string) => localHandledSet.add(normalizePhone(p)));
+          }
+        }
+      } catch {}
+
+      const merged = (res.data || []).map((c: any) => {
+        if (c.isHandled) return c;
+        if (localHandledSet.has(normalizePhone(c.phone))) {
+          return { ...c, isHandled: true };
+        }
+        return c;
+      });
+
+      setConversations(merged);
     } catch (err) {
       console.error("Erro ao buscar conversas:", err);
     } finally {
       if (!silent) setIsConversationsLoading(false);
     }
   };
+
+  // Auto-sincronização transparente do histórico de atendimentos locais com o Banco de Dados centralizado
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const accountId = selectedAccount.id;
+    const key = `send_handled_chats_${accountId}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const storedPhones: string[] = JSON.parse(raw);
+        if (Array.isArray(storedPhones) && storedPhones.length > 0) {
+          const phoneSet = new Set(storedPhones.map(p => normalizePhone(p)));
+
+          // Aplica no estado imediatamente para a fila não mostrar chats já respondidos/limpos
+          setConversations(prev =>
+            prev.map(c => phoneSet.has(normalizePhone(c.phone)) ? { ...c, isHandled: true } : c)
+          );
+
+          // Persiste no banco de dados centralizado via API
+          axios.post(`${API_BASE_URL}/accounts/${accountId}/conversations/mark-all-handled`, {
+            phones: storedPhones,
+            isHandled: true
+          }).then(() => {
+            console.log(`[ChatPage] ${storedPhones.length} conversas sincronizadas com o banco com sucesso!`);
+          }).catch(err => {
+            console.warn("[ChatPage] Falha na auto-sincronização de conversas atendidas com o banco:", err);
+          });
+        }
+      }
+    } catch (e) {
+      console.warn("[ChatPage] Erro ao sincronizar atendimentos locais:", e);
+    }
+  }, [selectedAccount?.id]);
 
   // Refaz a busca (e mantém o ref em dia para o polling) quando o período muda
   useEffect(() => {
@@ -1033,6 +1118,17 @@ export default function ChatPage() {
       prev.map(c => phoneSet.has(normalizePhone(c.phone)) ? { ...c, isHandled: true } : c)
     );
 
+    // Mantém cache local sincronizado
+    const localKey = `send_handled_chats_${selectedAccount.id}`;
+    try {
+      const raw = localStorage.getItem(localKey);
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      const updatedList = Array.from(new Set([...list, ...phonesToMark, ...Array.from(phoneSet)]));
+      localStorage.setItem(localKey, JSON.stringify(updatedList));
+    } catch (e) {
+      console.warn("Falha ao salvar no cache local:", e);
+    }
+
     try {
       await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/mark-all-handled`, {
         phones: phonesToMark,
@@ -1076,11 +1172,22 @@ export default function ChatPage() {
             updatedAt: new Date().toISOString(),
             status: "SENT",
             direction: "OUTGOING",
+            isHandled: true,
           };
           return updated;
         }
         return prevConv;
       });
+
+      // Atualiza cache local de atendidos
+      if (selectedAccount) {
+        const localKey = `send_handled_chats_${selectedAccount.id}`;
+        try {
+          const raw = localStorage.getItem(localKey);
+          const list: string[] = raw ? JSON.parse(raw) : [];
+          localStorage.setItem(localKey, JSON.stringify(Array.from(new Set([...list, selectedPhone, normalizePhone(selectedPhone)]))));
+        } catch {}
+      }
     } catch (err: any) {
       const details = err.response?.data?.error || "Erro desconhecido";
       showAlert(`Falha ao enviar resposta: ${details}`, "error");
@@ -1177,15 +1284,43 @@ export default function ChatPage() {
       setConversations(prev =>
         prev.map(c => normalizePhone(c.phone) === targetPhone ? { ...c, isHandled: data.isHandled } : c)
       );
+      if (selectedAccount) {
+        const localKey = `send_handled_chats_${selectedAccount.id}`;
+        try {
+          const raw = localStorage.getItem(localKey);
+          const list: string[] = raw ? JSON.parse(raw) : [];
+          let updatedList: string[];
+          if (data.isHandled) {
+            updatedList = Array.from(new Set([...list, targetPhone]));
+          } else {
+            updatedList = list.filter(p => normalizePhone(p) !== targetPhone);
+          }
+          localStorage.setItem(localKey, JSON.stringify(updatedList));
+        } catch {}
+      }
       return;
     }
 
     // 2. Mudança de status de atendimento em lote via broadcast
     if (data.type === "batchConversationsHandled" && Array.isArray(data.phones)) {
-      const phoneSet = new Set(data.phones.map((p: string) => normalizePhone(p)));
+      const phoneSet = new Set<string>(data.phones.map((p: string) => normalizePhone(p)));
       setConversations(prev =>
         prev.map(c => phoneSet.has(normalizePhone(c.phone)) ? { ...c, isHandled: data.isHandled } : c)
       );
+      if (selectedAccount) {
+        const localKey = `send_handled_chats_${selectedAccount.id}`;
+        try {
+          const raw = localStorage.getItem(localKey);
+          const list: string[] = raw ? JSON.parse(raw) : [];
+          let updatedList: string[];
+          if (data.isHandled) {
+            updatedList = Array.from(new Set<string>([...list, ...Array.from(phoneSet)]));
+          } else {
+            updatedList = list.filter(p => !phoneSet.has(normalizePhone(p)));
+          }
+          localStorage.setItem(localKey, JSON.stringify(updatedList));
+        } catch {}
+      }
       return;
     }
 
@@ -1193,6 +1328,24 @@ export default function ChatPage() {
     if (data.type === "messageUpdated") {
       const activePhone = selectedPhoneRef.current;
       const incomingPhone = normalizePhone(data.to);
+
+      // Sincroniza cache local caso seja uma nova mensagem recebida ou resposta
+      if (selectedAccount) {
+        const localKey = `send_handled_chats_${selectedAccount.id}`;
+        try {
+          const raw = localStorage.getItem(localKey);
+          if (data.direction === "INCOMING") {
+            if (raw) {
+              const list: string[] = JSON.parse(raw);
+              const filtered = list.filter(p => normalizePhone(p) !== incomingPhone);
+              localStorage.setItem(localKey, JSON.stringify(filtered));
+            }
+          } else if (data.isHandled) {
+            const list: string[] = raw ? JSON.parse(raw) : [];
+            localStorage.setItem(localKey, JSON.stringify(Array.from(new Set([...list, incomingPhone]))));
+          }
+        } catch {}
+      }
 
       // A. Atualizar histórico se o chat com esse telefone estiver aberto no operador
       if (activePhone && normalizePhone(activePhone) === incomingPhone) {
