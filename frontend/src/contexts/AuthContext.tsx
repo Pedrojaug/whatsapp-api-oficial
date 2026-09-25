@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import axios from "axios";
+import { chatCache } from "../utils/chatCache";
 
 export const getApiUrl = () => {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -112,6 +113,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_user");
     delete axios.defaults.headers.common["Authorization"];
+    chatCache.clear();
     setToken(null);
     setUser(null);
   };

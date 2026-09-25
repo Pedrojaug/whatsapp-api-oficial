@@ -4,6 +4,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL, useAuth } from "../contexts/AuthContext";
+import { chatCache } from "../utils/chatCache";
 
 // 30 amplitudes pré-definidas simulando a curva harmônica de voz do WhatsApp
 const WAVEFORM_HEIGHTS = [
@@ -564,17 +565,27 @@ export default function ChatPage() {
   const { showAlert } = useAlert();
   const { token: authToken } = useAuth();
 
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [selectedPhone, setSelectedPhone] = useState<string>("");
+  const [conversations, setConversations] = useState<any[]>(() => {
+    return selectedAccount ? (chatCache.getConversations(selectedAccount.id) || []) : [];
+  });
+  const [selectedPhone, setSelectedPhone] = useState<string>(() => {
+    return selectedAccount ? chatCache.getSelectedPhone(selectedAccount.id) : "";
+  });
   const selectedPhoneRef = useRef(selectedPhone);
 
   useEffect(() => {
     selectedPhoneRef.current = selectedPhone;
   }, [selectedPhone]);
 
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [chatMessages, setChatMessages] = useState<any[]>(() => {
+    if (!selectedAccount) return [];
+    const phone = chatCache.getSelectedPhone(selectedAccount.id);
+    return phone ? (chatCache.getMessages(selectedAccount.id, phone) || []) : [];
+  });
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [convFilter, setConvFilter] = useState<string>("ALL");
+  const [convFilter, setConvFilter] = useState<string>(() => {
+    return selectedAccount ? chatCache.getFilter(selectedAccount.id) : "ALL";
+  });
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [period, setPeriod] = useState<string>("");
@@ -582,15 +593,21 @@ export default function ChatPage() {
   const dateFilterRef = useRef({ startDate: "", endDate: "" });
   const [replyBody, setReplyBody] = useState("");
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const [isConversationsLoading, setIsConversationsLoading] = useState(false);
+  const [isConversationsLoading, setIsConversationsLoading] = useState<boolean>(() => {
+    return selectedAccount ? !chatCache.hasConversations(selectedAccount.id) : false;
+  });
+  const [isBackgroundSyncing, setIsBackgroundSyncing] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>(() => {
+    return selectedAccount ? (chatCache.getQuickReplies(selectedAccount.id) || []) : [];
+  });
   const [showQuickReplyModal, setShowQuickReplyModal] = useState(false);
   const [editingQrId, setEditingQrId] = useState<string | null>(null);
   const [qrTitleInput, setQrTitleInput] = useState("");
   const [qrTextInput, setQrTextInput] = useState("");
+  const lastAccountIdRef = useRef<string | null>(selectedAccount?.id || null);
 
   // Mini-CRM states
   const [showCrmDrawer, setShowCrmDrawer] = useState(false);
@@ -722,6 +739,7 @@ export default function ChatPage() {
     try {
       const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/quick-replies`);
       setQuickReplies(res.data);
+      chatCache.setQuickReplies(accountId, res.data);
     } catch (err) {
       console.error("Erro ao carregar respostas rápidas:", err);
     }
@@ -877,7 +895,9 @@ export default function ChatPage() {
   };
 
   // Template states for quick sending
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templates, setTemplates] = useState<Template[]>(() => {
+    return selectedAccount ? (chatCache.getTemplates(selectedAccount.id) || []) : [];
+  });
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
 
@@ -895,13 +915,18 @@ export default function ChatPage() {
     try {
       const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/templates`);
       setTemplates(res.data);
+      chatCache.setTemplates(accountId, res.data);
     } catch (err) {
       console.error("Erro ao buscar templates:", err);
     }
   };
 
   const fetchConversations = async (accountId: string, silent = false) => {
-    if (!silent) setIsConversationsLoading(true);
+    if (!silent) {
+      setIsConversationsLoading(true);
+    } else {
+      setIsBackgroundSyncing(true);
+    }
     try {
       const { startDate: sd, endDate: ed } = dateFilterRef.current;
       const qs = sd && ed ? `?startDate=${sd}&endDate=${ed}` : "";
@@ -928,10 +953,12 @@ export default function ChatPage() {
       });
 
       setConversations(merged);
+      chatCache.setConversations(accountId, merged);
     } catch (err) {
       console.error("Erro ao buscar conversas:", err);
     } finally {
       if (!silent) setIsConversationsLoading(false);
+      else setIsBackgroundSyncing(false);
     }
   };
 
@@ -1042,6 +1069,7 @@ export default function ChatPage() {
     try {
       const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/conversations/${phone}/messages`);
       setChatMessages(res.data);
+      chatCache.setMessages(accountId, phone, res.data);
     } catch (err) {
       console.error("Erro ao buscar mensagens do chat:", err);
     } finally {
@@ -1308,19 +1336,122 @@ export default function ChatPage() {
     }
   };
 
+  // Sincronização contínua do estado local com o cache em memória (SWR)
   useEffect(() => {
-    if (selectedAccount) {
-      fetchTemplates(selectedAccount.id);
-      fetchConversations(selectedAccount.id);
-      setSelectedPhone("");
-      setChatMessages([]);
-    } else {
+    if (selectedAccount?.id && conversations.length > 0) {
+      chatCache.setConversations(selectedAccount.id, conversations);
+    }
+  }, [selectedAccount?.id, conversations]);
+
+  useEffect(() => {
+    if (selectedAccount?.id && selectedPhone && chatMessages.length > 0) {
+      chatCache.setMessages(selectedAccount.id, selectedPhone, chatMessages);
+    }
+  }, [selectedAccount?.id, selectedPhone, chatMessages]);
+
+  useEffect(() => {
+    if (selectedAccount?.id) {
+      chatCache.setSelectedPhone(selectedAccount.id, selectedPhone);
+    }
+  }, [selectedAccount?.id, selectedPhone]);
+
+  useEffect(() => {
+    if (selectedAccount?.id) {
+      chatCache.setFilter(selectedAccount.id, convFilter);
+    }
+  }, [selectedAccount?.id, convFilter]);
+
+  useEffect(() => {
+    if (selectedAccount?.id && quickReplies.length > 0) {
+      chatCache.setQuickReplies(selectedAccount.id, quickReplies);
+    }
+  }, [selectedAccount?.id, quickReplies]);
+
+  useEffect(() => {
+    if (selectedAccount?.id && templates.length > 0) {
+      chatCache.setTemplates(selectedAccount.id, templates);
+    }
+  }, [selectedAccount?.id, templates]);
+
+  // Montagem, troca de abas e troca de conta com suporte a Stale-While-Revalidate (0ms de espera ao alternar menus)
+  useEffect(() => {
+    if (!selectedAccount) {
       setTemplates([]);
       setConversations([]);
       setSelectedPhone("");
       setChatMessages([]);
+      lastAccountIdRef.current = null;
+      return;
     }
-  }, [selectedAccount]);
+
+    const accountId = selectedAccount.id;
+    const isAccountSwitched = lastAccountIdRef.current !== null && lastAccountIdRef.current !== accountId;
+    lastAccountIdRef.current = accountId;
+
+    const hasCache = chatCache.hasConversations(accountId);
+
+    if (isAccountSwitched) {
+      // O operador trocou de conta do WhatsApp no seletor de topo
+      if (hasCache) {
+        const cachedConv = chatCache.getConversations(accountId) || [];
+        const cachedPhone = chatCache.getSelectedPhone(accountId);
+        const cachedMsgs = cachedPhone ? (chatCache.getMessages(accountId, cachedPhone) || []) : [];
+        const cachedFilter = chatCache.getFilter(accountId);
+        const cachedTemplates = chatCache.getTemplates(accountId) || [];
+        const cachedQr = chatCache.getQuickReplies(accountId) || [];
+
+        setConversations(cachedConv);
+        setSelectedPhone(cachedPhone);
+        setChatMessages(cachedMsgs);
+        setConvFilter(cachedFilter);
+        if (cachedTemplates.length > 0) setTemplates(cachedTemplates);
+        if (cachedQr.length > 0) setQuickReplies(cachedQr);
+        setIsConversationsLoading(false);
+
+        // Revalidação silenciosa em segundo plano
+        fetchConversations(accountId, true);
+        fetchTemplates(accountId);
+        fetchQuickReplies(accountId);
+        if (cachedPhone) fetchChatMessages(accountId, cachedPhone, true);
+      } else {
+        // Nova conta sem histórico em cache
+        setConversations([]);
+        setSelectedPhone("");
+        setChatMessages([]);
+        setConvFilter("ALL");
+        setIsConversationsLoading(true);
+        fetchConversations(accountId, false);
+        fetchTemplates(accountId);
+        fetchQuickReplies(accountId);
+      }
+    } else {
+      // Montagem inicial ou retorno da navegação entre menus (Dashboard <-> Live Chat <-> Campanhas)
+      if (hasCache) {
+        const cachedConv = chatCache.getConversations(accountId) || [];
+        if (conversations.length === 0 && cachedConv.length > 0) {
+          setConversations(cachedConv);
+        }
+        const cachedPhone = chatCache.getSelectedPhone(accountId);
+        if (!selectedPhone && cachedPhone) {
+          setSelectedPhone(cachedPhone);
+          const cachedMsgs = chatCache.getMessages(accountId, cachedPhone) || [];
+          if (cachedMsgs.length > 0) setChatMessages(cachedMsgs);
+          fetchChatMessages(accountId, cachedPhone, true);
+        }
+        setIsConversationsLoading(false);
+
+        // Revalidação em segundo plano sem travar tela (0ms)
+        fetchConversations(accountId, true);
+        fetchTemplates(accountId);
+        fetchQuickReplies(accountId);
+      } else {
+        fetchConversations(accountId, false);
+        fetchTemplates(accountId);
+        fetchQuickReplies(accountId);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAccount?.id]);
 
   // Auto-scroll para a última mensagem quando as mensagens carregam ou chegam novas
   useEffect(() => {
@@ -1581,6 +1712,24 @@ export default function ChatPage() {
                 <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: "8px" }}>
                   {conversations.length}
                 </span>
+                {isBackgroundSyncing && (
+                  <span
+                    title="Sincronizando atualizações em segundo plano..."
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      fontSize: "0.68rem",
+                      color: "var(--primary, #10b981)",
+                      background: "rgba(16, 185, 129, 0.12)",
+                      padding: "1px 6px",
+                      borderRadius: "6px"
+                    }}
+                  >
+                    <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--primary, #10b981)", display: "inline-block" }} />
+                    Sincronizando
+                  </span>
+                )}
               </div>
               <button
                 type="button"
@@ -1782,8 +1931,15 @@ export default function ChatPage() {
                         key={c.phone}
                         onClick={() => {
                           setSelectedPhone(c.phone);
+                          chatCache.setSelectedPhone(selectedAccount.id, c.phone);
                           setStatusFilter("ALL");
-                          fetchChatMessages(selectedAccount.id, c.phone);
+                          const cached = chatCache.getMessages(selectedAccount.id, c.phone);
+                          if (cached && cached.length > 0) {
+                            setChatMessages(cached);
+                            fetchChatMessages(selectedAccount.id, c.phone, true);
+                          } else {
+                            fetchChatMessages(selectedAccount.id, c.phone, false);
+                          }
                         }}
                         className={`conv-item${isActive ? " active" : ""}`}
                       >
