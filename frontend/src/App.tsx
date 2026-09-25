@@ -26,6 +26,7 @@ const OptOutPage = lazy(() => import("./pages/OptOutPage"));
 const LinkTrackingPage = lazy(() => import("./pages/LinkTrackingPage"));
 const ApiKeysPage = lazy(() => import("./pages/ApiKeysPage"));
 const CampaignsPage = lazy(() => import("./pages/CampaignsPage"));
+const TeamPage = lazy(() => import("./pages/TeamPage"));
 const LandingPage = lazy(() => import("./pages/LandingPage"));
 
 // Public auth pages (outside Layout — no sidebar/header)
@@ -101,6 +102,7 @@ export default function App() {
                   <Route path="link-tracking" element={<LinkTrackingPage />} />
                   <Route path="api-keys" element={<ApiKeysPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
+                  <Route path="team" element={<TeamPage />} />
                   <Route path="accounts" element={<AccountsPage />} />
                   <Route path="subscription" element={<Navigate to="/metrics" replace />} />
                   <Route path="billing" element={<Navigate to="/metrics" replace />} />

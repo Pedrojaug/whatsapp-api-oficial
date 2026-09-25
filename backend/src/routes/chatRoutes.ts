@@ -4,7 +4,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { normalizePhone, phoneVariants } from "../services/phoneService";
 import { metaService } from "../services/metaService";
-import { findAccountForUser } from "../utils/accountAccess";
+import { findAccountForUser, canSendMessages } from "../utils/accountAccess";
 import { messageEventEmitter } from "../utils/emitter";
 import axios from "axios";
 
@@ -199,8 +199,8 @@ router.get("/accounts/:accountId/conversations/export", async (req: Request, res
   const { accountId } = req.params;
   const { startDate, endDate, filter = "ALL" } = req.query;
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     const dateRange = parseDateWindow(startDate as string | undefined, endDate as string | undefined);
@@ -232,8 +232,8 @@ router.patch("/accounts/:accountId/conversations/:phone/blacklist", async (req: 
   const { accountId, phone } = req.params;
   const { blacklisted = true } = req.body;
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     const normalized = normalizePhone(phone);
@@ -370,10 +370,8 @@ router.post("/accounts/:accountId/conversations/mark-all-handled", async (req: R
 router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Request, res: Response) => {
   const { accountId, phone } = req.params;
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
     const messages = await prisma.message.findMany({
@@ -479,11 +477,19 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
   const normalizedTo = normalizePhone(to);
 
   try {
-    const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    if (!canSendMessages(account.accountRole)) {
+      return res.status(403).json({ error: "Seu cargo possui permissão apenas de visualização." });
+    }
+
+    const senderUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true }
+    });
+    const senderName = senderUser?.name || "Atendente";
 
     // Descriptografar o token de acesso da Meta
     const decryptedToken = decryptToken(account.accessToken);
@@ -502,7 +508,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
 
     const wamid = response.data.messages?.[0]?.id;
 
-    // Gravar no banco de dados local como OUTGOING
+    // Gravar no banco de dados local como OUTGOING com auditoria de operador
     const savedMsg = await prisma.message.create({
       data: {
         accountId,
@@ -513,6 +519,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
         messageType: "TEXT",
         body,
         variables: variables || null,
+        sentByUserName: senderName,
       }
     });
 
@@ -532,7 +539,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       }
     }).catch((cErr: any) => console.warn("[Chat] Erro ao marcar contato como atendido no reply:", cErr));
 
-    console.log(`[Chat] Resposta enviada com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
+    console.log(`[Chat] Resposta enviada por ${senderName} com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
 
     // Encaminhar resposta humana manual para o n8n para pausar o robô (takeover humano)
     const n8nWebhookUrl = process.env.N8N_SDR_WEBHOOK_URL;
@@ -552,10 +559,10 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
           fromMe: true,
           id: wamid,
           content: body,
-          login_atendente: "human", // sinaliza atendimento humano
+          login_atendente: senderName, // nome do atendente humano
         };
 
-        console.log(`[Webhook Forward Outgoing] Encaminhando resposta de atendente humana para n8n: ${n8nWebhookUrl}`);
+        console.log(`[Webhook Forward Outgoing] Encaminhando resposta de ${senderName} para n8n: ${n8nWebhookUrl}`);
         axios.post(n8nWebhookUrl, n8nPayload).catch(err => {
           console.error("[Webhook Forward Outgoing] Falha ao encaminhar resposta para n8n:", err.message);
         });
@@ -575,6 +582,7 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
       errorMessage: savedMsg.errorMessage,
       updatedAt: savedMsg.updatedAt,
       variables: savedMsg.variables,
+      sentByUserName: senderName,
       isHandled: true,
     });
 

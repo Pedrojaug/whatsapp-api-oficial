@@ -9,6 +9,7 @@ export interface Account {
   phoneNumberId: string;
   accessToken: string;
   isShared?: boolean;
+  accountRole?: "OWNER" | "ADMIN" | "MANAGER" | "ATTENDANT" | "VIEWER" | string;
 }
 
 interface AccountContextType {

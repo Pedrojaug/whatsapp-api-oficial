@@ -21,7 +21,8 @@ import {
   ShieldOff,
   Link2,
   Megaphone,
-  KeyRound
+  KeyRound,
+  UserCog
 } from "lucide-react";
 
 const SUPPORT_WHATSAPP = "5583920017106";
@@ -83,6 +84,37 @@ export default function Layout() {
   }, [navigate]);
 
   const closeSidebar = () => setIsSidebarOpen(false);
+
+  // RBAC Role Resolution for Current Selected Account
+  const accountRole = (selectedAccount?.accountRole || "OWNER").toUpperCase();
+  const isOwnerOrAdmin = accountRole === "OWNER" || accountRole === "ADMIN";
+  const isManager = accountRole === "MANAGER";
+  const isAttendant = accountRole === "ATTENDANT";
+  const isViewer = accountRole === "VIEWER";
+
+  // RBAC Automatic Route Protection
+  useEffect(() => {
+    if (!selectedAccount) return;
+    const currentPath = location.pathname;
+    if (currentPath === "/login" || currentPath === "/register") return;
+
+    if (isAttendant) {
+      const allowedPaths = ["/chat", "/lists"];
+      if (!allowedPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
+        navigate("/chat", { replace: true });
+      }
+    } else if (isViewer) {
+      const allowedPaths = ["/metrics", "/chat", "/lists", "/messages"];
+      if (!allowedPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
+        navigate("/metrics", { replace: true });
+      }
+    } else if (isManager) {
+      const forbiddenPaths = ["/accounts", "/api-keys"];
+      if (forbiddenPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
+        navigate("/metrics", { replace: true });
+      }
+    }
+  }, [isAttendant, isViewer, isManager, selectedAccount, location.pathname, navigate]);
 
   // Unauthenticated -> Render Modern Auth Form
   if (!token) {
@@ -286,33 +318,43 @@ export default function Layout() {
           <nav className="sidebar-nav">
             <span className="sidebar-section-label">Comunicação</span>
 
-            <NavLink
-              to="/metrics"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <BarChart3 size={18} className="nav-icon" />
-              <span>Painel de Métricas</span>
-            </NavLink>
+            {/* Painel de Métricas: Visível para Dono, Admin, Gerente e Visualizador */}
+            {!isAttendant && (
+              <NavLink
+                to="/metrics"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <BarChart3 size={18} className="nav-icon" />
+                <span>Painel de Métricas</span>
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/campaigns"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <Megaphone size={18} className="nav-icon" />
-              <span>Campanhas</span>
-            </NavLink>
+            {/* Campanhas: Dono, Admin, Gerente */}
+            {(isOwnerOrAdmin || isManager) && (
+              <NavLink
+                to="/campaigns"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <Megaphone size={18} className="nav-icon" />
+                <span>Campanhas</span>
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/templates"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <FileText size={18} className="nav-icon" />
-              <span>Modelos (Templates)</span>
-            </NavLink>
+            {/* Modelos (Templates): Dono, Admin, Gerente */}
+            {(isOwnerOrAdmin || isManager) && (
+              <NavLink
+                to="/templates"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <FileText size={18} className="nav-icon" />
+                <span>Modelos (Templates)</span>
+              </NavLink>
+            )}
 
+            {/* Listas de Contatos: Todos os perfis */}
             <NavLink
               to="/lists"
               className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -322,15 +364,19 @@ export default function Layout() {
               <span>Listas de Contatos</span>
             </NavLink>
 
-            <NavLink
-              to="/messages"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <Send size={18} className="nav-icon" />
-              <span>Disparos & Logs</span>
-            </NavLink>
+            {/* Disparos & Logs: Todos exceto Atendente */}
+            {!isAttendant && (
+              <NavLink
+                to="/messages"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <Send size={18} className="nav-icon" />
+                <span>Disparos & Logs</span>
+              </NavLink>
+            )}
 
+            {/* Live Chat: Todos os perfis */}
             <NavLink
               to="/chat"
               className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -340,53 +386,81 @@ export default function Layout() {
               <span>Live Chat</span>
             </NavLink>
 
-            <NavLink
-              to="/link-tracking"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <Link2 size={18} className="nav-icon" />
-              <span>Links Rastreáveis</span>
-            </NavLink>
+            {/* Links Rastreáveis: Dono, Admin, Gerente */}
+            {(isOwnerOrAdmin || isManager) && (
+              <NavLink
+                to="/link-tracking"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <Link2 size={18} className="nav-icon" />
+                <span>Links Rastreáveis</span>
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/media"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <ImageIcon size={18} className="nav-icon" />
-              <span>Galeria de Mídia</span>
-            </NavLink>
+            {/* Galeria de Mídia: Dono, Admin, Gerente */}
+            {(isOwnerOrAdmin || isManager) && (
+              <NavLink
+                to="/media"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <ImageIcon size={18} className="nav-icon" />
+                <span>Galeria de Mídia</span>
+              </NavLink>
+            )}
 
-            <NavLink
-              to="/optouts"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <ShieldOff size={18} className="nav-icon" />
-              <span>Descadastros</span>
-            </NavLink>
+            {/* Descadastros: Dono, Admin, Gerente */}
+            {(isOwnerOrAdmin || isManager) && (
+              <NavLink
+                to="/optouts"
+                className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                onClick={closeSidebar}
+              >
+                <ShieldOff size={18} className="nav-icon" />
+                <span>Descadastros</span>
+              </NavLink>
+            )}
 
-            <span className="sidebar-section-label" style={{ marginTop: "12px" }}>Configurações</span>
+            {/* Configurações (exibido apenas se tiver itens com permissão) */}
+            {(isOwnerOrAdmin || isManager) && (
+              <>
+                <span className="sidebar-section-label" style={{ marginTop: "12px" }}>Configurações</span>
 
-            <NavLink
-              to="/accounts"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <Settings2 size={18} className="nav-icon" />
-              <span>Contas WhatsApp</span>
-            </NavLink>
+                {/* Equipe & Acessos: Dono, Admin, Gerente */}
+                <NavLink
+                  to="/team"
+                  className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                  onClick={closeSidebar}
+                >
+                  <UserCog size={18} className="nav-icon" />
+                  <span>Equipe & Acessos</span>
+                </NavLink>
+              </>
+            )}
 
-            <NavLink
-              to="/api-keys"
-              className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
-              onClick={closeSidebar}
-            >
-              <KeyRound size={18} className="nav-icon" />
-              <span>Chaves de API</span>
-            </NavLink>
+            {/* Configurações sensíveis: Apenas Dono e Administrador da conta */}
+            {isOwnerOrAdmin && (
+              <>
+                <NavLink
+                  to="/accounts"
+                  className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                  onClick={closeSidebar}
+                >
+                  <Settings2 size={18} className="nav-icon" />
+                  <span>Contas WhatsApp</span>
+                </NavLink>
 
+                <NavLink
+                  to="/api-keys"
+                  className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
+                  onClick={closeSidebar}
+                >
+                  <KeyRound size={18} className="nav-icon" />
+                  <span>Chaves de API</span>
+                </NavLink>
+              </>
+            )}
 
             {user?.role === "SUPERUSER" && (
               <NavLink
@@ -412,8 +486,35 @@ export default function Layout() {
                     <div style={{ fontSize: "0.82rem", fontWeight: "600", color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {user.name || user.email}
                     </div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {user.email}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                      <span style={{
+                        fontSize: "0.68rem",
+                        padding: "1px 6px",
+                        borderRadius: "4px",
+                        fontWeight: 600,
+                        background:
+                          accountRole === "OWNER" || accountRole === "ADMIN" ? "rgba(245, 158, 11, 0.15)" :
+                          accountRole === "MANAGER" ? "rgba(59, 130, 246, 0.15)" :
+                          accountRole === "ATTENDANT" ? "rgba(16, 185, 129, 0.15)" :
+                          "rgba(148, 163, 184, 0.15)",
+                        color:
+                          accountRole === "OWNER" || accountRole === "ADMIN" ? "#f59e0b" :
+                          accountRole === "MANAGER" ? "#60a5fa" :
+                          accountRole === "ATTENDANT" ? "#34d399" :
+                          "#94a3b8",
+                        border: `1px solid ${
+                          accountRole === "OWNER" || accountRole === "ADMIN" ? "rgba(245, 158, 11, 0.3)" :
+                          accountRole === "MANAGER" ? "rgba(59, 130, 246, 0.3)" :
+                          accountRole === "ATTENDANT" ? "rgba(16, 185, 129, 0.3)" :
+                          "rgba(148, 163, 184, 0.3)"
+                        }`
+                      }}>
+                        {accountRole === "OWNER" ? "👑 Dono" :
+                         accountRole === "ADMIN" ? "👑 Admin" :
+                         accountRole === "MANAGER" ? "👔 Gerente" :
+                         accountRole === "ATTENDANT" ? "🎧 Atendente" :
+                         accountRole === "VIEWER" ? "📊 Visualizador" : accountRole}
+                      </span>
                     </div>
                   </div>
                 </div>

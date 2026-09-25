@@ -36,6 +36,17 @@ declare module "lucide-react" {
   export const Zap: React.FC<any>;
   export const ShieldCheck: React.FC<any>;
   export const UserCheck: React.FC<any>;
+  export const UserCog: React.FC<any>;
+  export const UserPlus: React.FC<any>;
+  export const Shield: React.FC<any>;
+  export const Headphones: React.FC<any>;
+  export const Briefcase: React.FC<any>;
+  export const Edit2: React.FC<any>;
+  export const CheckCircle2: React.FC<any>;
+  export const AlertCircle: React.FC<any>;
+  export const Lock: React.FC<any>;
+  export const Mail: React.FC<any>;
+  export const User: React.FC<any>;
   const content: any;
   export default content;
 }

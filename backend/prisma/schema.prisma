@@ -29,6 +29,7 @@ model User {
   maxMonthlyMessages        Int       @default(5000)
   paymentMethod             String?   // PIX, CREDIT_CARD, BOLETO, MANUAL
   notes                     String?
+  createdById               String?   // ID do admin que cadastrou este colaborador
   accounts       Account[]
   sharedAccounts AccountShare[]
   payments       PaymentRecord[]
@@ -82,7 +83,7 @@ model AccountShare {
   account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      String   @default("MEMBER") // MEMBER = acesso total exceto excluir conta/gerenciar shares
+  role      String   @default("ATTENDANT") // ADMIN, MANAGER, ATTENDANT, VIEWER
   createdAt DateTime @default(now())
 
   @@unique([accountId, userId])
@@ -107,19 +108,20 @@ model Template {
 }
 
 model Message {
-  id           String   @id @default(uuid())
-  wamid        String?  @unique // WhatsApp Message ID (e.g. wamid.HBgNNTUxM...)
-  to           String   // Recipient phone number (e.g. 5511999999999)
-  status       String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED, RECEIVED
-  direction    String   @default("OUTGOING") // OUTGOING (nós enviamos) ou INCOMING (cliente enviou)
-  messageType  String   @default("TEMPLATE") // TEMPLATE, TEXT, IMAGE, VIDEO, DOCUMENT
-  body         String?  // Conteúdo textual livre da mensagem
-  mediaUrl     String?  // URL de mídias enviadas/recebidas
-  errorMessage String?
-  templateName String?  // Agora opcional para suportar mensagens de texto livre
-  variables    Json?    // Sent parameters (variables arrays/objects)
-  accountId    String
-  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id             String   @id @default(uuid())
+  wamid          String?  @unique // WhatsApp Message ID (e.g. wamid.HBgNNTUxM...)
+  to             String   // Recipient phone number (e.g. 5511999999999)
+  status         String   @default("PENDING") // PENDING, SENT, DELIVERED, READ, FAILED, RECEIVED
+  direction      String   @default("OUTGOING") // OUTGOING (nós enviamos) ou INCOMING (cliente enviou)
+  messageType    String   @default("TEMPLATE") // TEMPLATE, TEXT, IMAGE, VIDEO, DOCUMENT
+  body           String?  // Conteúdo textual livre da mensagem
+  mediaUrl       String?  // URL de mídias enviadas/recebidas
+  errorMessage   String?
+  templateName   String?  // Agora opcional para suportar mensagens de texto livre
+  variables      Json?    // Sent parameters (variables arrays/objects)
+  sentByUserName String?  // Nome do atendente/colaborador que enviou a mensagem
+  accountId      String
+  account        Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   scheduledAt  DateTime?
   retryCount   Int      @default(0)
   nextRetryAt  DateTime?

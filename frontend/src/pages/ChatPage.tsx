@@ -564,6 +564,7 @@ export default function ChatPage() {
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
   const { token: authToken } = useAuth();
+  const isViewer = selectedAccount?.accountRole === "VIEWER";
 
   const [conversations, setConversations] = useState<any[]>(() => {
     return selectedAccount ? (chatCache.getConversations(selectedAccount.id) || []) : [];
@@ -1283,7 +1284,7 @@ export default function ChatPage() {
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!selectedAccount || !selectedPhone || !replyBody.trim()) return;
+    if (isViewer || !selectedAccount || !selectedPhone || !replyBody.trim()) return;
 
     setIsSendingReply(true);
     // Preservar quebras de linha e converter negrito de Markdown (**texto**) para padrão WhatsApp (*texto*)
@@ -2404,7 +2405,25 @@ export default function ChatPage() {
                                 return renderWhatsAppFormatted(rawText);
                               })()}
                             </div>
-                            <div className="msg-time" style={{ display: "flex", gap: "6px" }}>
+                            <div className="msg-time" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: isIncoming ? "flex-start" : "flex-end" }}>
+                              {!isIncoming && msg.sentByUserName && (
+                                <span
+                                  style={{
+                                    fontSize: "0.68rem",
+                                    color: "var(--text-muted, #94a3b8)",
+                                    background: "rgba(255, 255, 255, 0.08)",
+                                    padding: "1px 6px",
+                                    borderRadius: "4px",
+                                    fontWeight: 500,
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "3px"
+                                  }}
+                                  title={`Enviado pelo operador ${msg.sentByUserName}`}
+                                >
+                                  <span style={{ opacity: 0.8, fontSize: "0.75rem" }}>👤</span> {msg.sentByUserName}
+                                </span>
+                              )}
                               <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               {!isIncoming && (
                                 <span style={{
@@ -2685,17 +2704,21 @@ export default function ChatPage() {
                         <textarea
                           ref={replyTextareaRef}
                           placeholder={
-                            !lastInc || isWindowActive 
-                              ? "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)" 
-                              : "Janela expirada — envie um template para reabrir..."
+                            isViewer
+                              ? "Acesso em modo somente leitura (Visualizador). Respostas desabilitadas."
+                              : !lastInc || isWindowActive 
+                                ? "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)" 
+                                : "Janela expirada — envie um template para reabrir..."
                           }
                           value={replyBody}
                           onChange={(e) => {
+                            if (isViewer) return;
                             setReplyBody(e.target.value);
                             e.target.style.height = "auto";
                             e.target.style.height = `${Math.min(e.target.scrollHeight, 140)}px`;
                           }}
                           onPaste={(e) => {
+                            if (isViewer) return;
                             const text = e.clipboardData.getData("text/plain");
                             if (!text) return;
                             e.preventDefault();
@@ -2721,10 +2744,10 @@ export default function ChatPage() {
                           onKeyDown={(e) => {
                             if (e.key === "Enter" && !e.shiftKey) {
                               e.preventDefault();
-                              sendReply();
+                              if (!isViewer) sendReply();
                             }
                           }}
-                          disabled={lastInc ? !isWindowActive : true}
+                          disabled={isViewer || (lastInc ? !isWindowActive : true)}
                           className="chat-textarea form-control"
                           rows={1}
                           style={{
@@ -2737,24 +2760,29 @@ export default function ChatPage() {
                             lineHeight: "1.4",
                             overflowY: "auto",
                             fontFamily: "inherit",
-                            fontSize: "0.86rem"
+                            fontSize: "0.86rem",
+                            opacity: isViewer ? 0.7 : 1,
+                            cursor: isViewer ? "not-allowed" : "text"
                           }}
                         />
                         <button
                           type="submit"
                           className="chat-send-btn btn btn-primary"
-                          style={{ height: "40px", flexShrink: 0 }}
-                          disabled={isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
+                          style={{ height: "40px", flexShrink: 0, opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
+                          disabled={isViewer || isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
                         >
                           {isSendingReply ? "Enviando..." : "Enviar ✈️"}
                         </button>
                         
                         <button
                           type="button"
-                          onClick={() => setShowChatTemplateModal(true)}
+                          onClick={() => {
+                            if (!isViewer) setShowChatTemplateModal(true);
+                          }}
                           className="btn btn-secondary"
-                          style={{ padding: "0 14px", borderRadius: "var(--radius-md)", whiteSpace: "nowrap", height: "40px", flexShrink: 0, fontSize: "0.82rem" }}
-                          title="Enviar Template de Mensagem"
+                          style={{ padding: "0 14px", borderRadius: "var(--radius-md)", whiteSpace: "nowrap", height: "40px", flexShrink: 0, fontSize: "0.82rem", opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
+                          disabled={isViewer}
+                          title={isViewer ? "Somente leitura" : "Enviar Template de Mensagem"}
                         >
                           📝 Reabrir
                         </button>

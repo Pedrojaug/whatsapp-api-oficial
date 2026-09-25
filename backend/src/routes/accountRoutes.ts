@@ -1,9 +1,11 @@
 import { Router, Request, Response } from "express";
+import bcrypt from "bcryptjs";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { checkSubscriptionActive, checkAccountLimit } from "../middlewares/planLimits";
 import { encryptToken, decryptToken } from "../utils/crypto";
 import { metaService } from "../services/metaService";
+import { findAccountForUser, canManageTeam } from "../utils/accountAccess";
 
 const router = Router();
 
@@ -23,18 +25,19 @@ router.get("/accounts", async (req: Request, res: Response) => {
       }),
     ]);
 
-    const mask = (acc: any, isShared: boolean) => {
+    const mask = (acc: any, isShared: boolean, role: string = "OWNER") => {
       const raw = decryptToken(acc.accessToken);
       return {
         ...acc,
         accessToken: "[ENCRYPTED]",
         maskedToken: raw ? `${raw.slice(0, 6)}...${raw.slice(-4)}` : "",
         isShared,
+        accountRole: role,
       };
     };
 
-    const owned = ownedRaw.map(a => mask(a, false));
-    const shared = shares.map(s => mask(s.account, true));
+    const owned = ownedRaw.map(a => mask(a, false, "OWNER"));
+    const shared = shares.map(s => mask(s.account, true, s.role || "ATTENDANT"));
 
     res.json([...owned, ...shared]);
   } catch (error: any) {
@@ -122,65 +125,214 @@ router.delete("/accounts/:id", async (req: Request, res: Response) => {
   }
 });
 
-// ── Share management ──────────────────────────────────────────────────────────
+// ── Team & Member RBAC Management ──────────────────────────────────────────
 
-// List members with access to an account (only owner)
-router.get("/accounts/:accountId/shares", async (req: Request, res: Response) => {
+// List members with access to an account (Owner & Admin)
+router.get(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const userId = (req as AuthenticatedRequest).userId;
+  const userId = (req as AuthenticatedRequest).userId!;
   try {
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(403).json({ error: "Apenas o dono da conta pode gerenciar acessos." });
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    if (!canManageTeam(account.accountRole)) {
+      return res.status(403).json({ error: "Apenas administradores e proprietários podem gerenciar a equipe." });
+    }
 
-    const shares = await prisma.accountShare.findMany({
-      where: { accountId },
-      include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
-      orderBy: { createdAt: "asc" },
+    const [ownerUser, shares] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: account.userId },
+        select: { id: true, email: true, name: true, avatarUrl: true },
+      }),
+      prisma.accountShare.findMany({
+        where: { accountId },
+        include: { user: { select: { id: true, email: true, name: true, avatarUrl: true, createdAt: true } } },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
+
+    const members = [
+      ...(ownerUser ? [{
+        id: "owner",
+        userId: ownerUser.id,
+        name: ownerUser.name || "Proprietário",
+        email: ownerUser.email,
+        avatarUrl: ownerUser.avatarUrl,
+        role: "OWNER",
+        isOwner: true,
+        createdAt: account.createdAt,
+      }] : []),
+      ...shares.map(s => ({
+        id: s.id,
+        userId: s.user.id,
+        name: s.user.name || "Colaborador",
+        email: s.user.email,
+        avatarUrl: s.user.avatarUrl,
+        role: s.role || "ATTENDANT",
+        isOwner: false,
+        createdAt: s.createdAt,
+      })),
+    ];
+
+    res.json({
+      accountId,
+      accountName: account.name,
+      myRole: account.accountRole,
+      members,
     });
-    res.json(shares);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Invite user to account by email (only owner)
-router.post("/accounts/:accountId/shares", async (req: Request, res: Response) => {
+// Create new collaborator directly with password or link existing user (Owner & Admin)
+router.post(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async (req: Request, res: Response) => {
   const { accountId } = req.params;
-  const { email } = req.body;
-  const userId = (req as AuthenticatedRequest).userId;
+  const { name, email, password, role } = req.body;
+  const userId = (req as AuthenticatedRequest).userId!;
 
-  if (!email) return res.status(400).json({ error: "E-mail obrigatório." });
+  if (!email || !email.includes("@")) {
+    return res.status(400).json({ error: "E-mail corporativo válido é obrigatório." });
+  }
+
+  const assignedRole = ["ADMIN", "MANAGER", "ATTENDANT", "VIEWER"].includes(role?.toUpperCase())
+    ? role.toUpperCase()
+    : "ATTENDANT";
 
   try {
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(403).json({ error: "Apenas o dono da conta pode convidar membros." });
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    if (!canManageTeam(account.accountRole)) {
+      return res.status(403).json({ error: "Apenas administradores e proprietários podem gerenciar a equipe." });
+    }
 
-    const target = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
-    if (!target) return res.status(404).json({ error: "Nenhum usuário encontrado com esse e-mail." });
-    if (target.id === userId) return res.status(400).json({ error: "Você já é o dono desta conta." });
+    const cleanEmail = email.toLowerCase().trim();
+    let target = await prisma.user.findUnique({ where: { email: cleanEmail } });
+
+    if (!target) {
+      // Cria novo usuário diretamente com credenciais definidas pelo admin
+      const defaultPassword = password && password.trim().length >= 6 ? password.trim() : "Send123456!";
+      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+
+      target = await prisma.user.create({
+        data: {
+          email: cleanEmail,
+          name: name ? name.trim() : cleanEmail.split("@")[0],
+          password: hashedPassword,
+          createdById: userId,
+          emailVerified: true,
+          onboardingCompleted: true,
+          planTier: "team_member",
+        }
+      });
+    } else {
+      if (target.id === account.userId) {
+        return res.status(400).json({ error: "Este usuário já é o proprietário desta conta." });
+      }
+      // Se já existia e forneceu nome/senha para atualizar
+      if (password && password.trim().length >= 6) {
+        const hashedPassword = await bcrypt.hash(password.trim(), 10);
+        await prisma.user.update({
+          where: { id: target.id },
+          data: {
+            password: hashedPassword,
+            ...(name ? { name: name.trim() } : {}),
+          },
+        });
+      }
+    }
 
     const share = await prisma.accountShare.upsert({
       where: { accountId_userId: { accountId, userId: target.id } },
-      update: {},
-      create: { accountId, userId: target.id },
+      update: { role: assignedRole },
+      create: { accountId, userId: target.id, role: assignedRole },
       include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
     });
-    res.status(201).json(share);
+
+    res.status(201).json({
+      id: share.id,
+      userId: share.user.id,
+      name: share.user.name,
+      email: share.user.email,
+      avatarUrl: share.user.avatarUrl,
+      role: share.role,
+      isOwner: false,
+      createdAt: share.createdAt,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Remove access (only owner)
-router.delete("/accounts/:accountId/shares/:shareId", async (req: Request, res: Response) => {
+// Update collaborator role or password (Owner & Admin)
+router.patch(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/team/:shareId"], async (req: Request, res: Response) => {
   const { accountId, shareId } = req.params;
-  const userId = (req as AuthenticatedRequest).userId;
+  const { role, name, password } = req.body;
+  const userId = (req as AuthenticatedRequest).userId!;
+
   try {
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(403).json({ error: "Apenas o dono da conta pode remover acessos." });
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    if (!canManageTeam(account.accountRole)) {
+      return res.status(403).json({ error: "Apenas administradores e proprietários podem gerenciar a equipe." });
+    }
+
+    const share = await prisma.accountShare.findUnique({
+      where: { id: shareId },
+      include: { user: true },
+    });
+
+    if (!share || share.accountId !== accountId) {
+      return res.status(404).json({ error: "Colaborador não encontrado nesta conta." });
+    }
+
+    let updatedRole = share.role;
+    if (role && ["ADMIN", "MANAGER", "ATTENDANT", "VIEWER"].includes(role.toUpperCase())) {
+      updatedRole = role.toUpperCase();
+      await prisma.accountShare.update({
+        where: { id: shareId },
+        data: { role: updatedRole },
+      });
+    }
+
+    const userUpdateData: any = {};
+    if (name && name.trim()) userUpdateData.name = name.trim();
+    if (password && password.trim().length >= 6) {
+      userUpdateData.password = await bcrypt.hash(password.trim(), 10);
+    }
+
+    if (Object.keys(userUpdateData).length > 0) {
+      await prisma.user.update({
+        where: { id: share.userId },
+        data: userUpdateData,
+      });
+    }
+
+    res.json({
+      id: share.id,
+      userId: share.userId,
+      name: userUpdateData.name || share.user.name,
+      email: share.user.email,
+      role: updatedRole,
+      isOwner: false,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove access (Owner & Admin)
+router.delete(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/team/:shareId"], async (req: Request, res: Response) => {
+  const { accountId, shareId } = req.params;
+  const userId = (req as AuthenticatedRequest).userId!;
+  try {
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    if (!canManageTeam(account.accountRole)) {
+      return res.status(403).json({ error: "Apenas administradores e proprietários podem remover membros da equipe." });
+    }
 
     await prisma.accountShare.delete({ where: { id: shareId } });
-    res.json({ success: true });
+    res.json({ success: true, message: "Acesso do colaborador revogado com sucesso." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
