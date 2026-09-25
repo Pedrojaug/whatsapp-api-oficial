@@ -17,7 +17,11 @@ import {
   Flame,
   KeyRound,
   GitCommit,
-  Settings2
+  Settings2,
+  FileText,
+  Copy,
+  Download,
+  Check
 } from "lucide-react";
 
 interface MonitoredProject {
@@ -219,6 +223,58 @@ export default function OpsDashboardPage() {
     }
   };
 
+  // Estados e Ações para o Relatório Consolidado de Diagnóstico
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportMarkdown, setReportMarkdown] = useState("");
+  const [isLoadingReport, setIsLoadingReport] = useState(false);
+  const [isReportCopied, setIsReportCopied] = useState(false);
+
+  const handleOpenReport = async () => {
+    setIsLoadingReport(true);
+    setShowReportModal(true);
+    setIsReportCopied(false);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE_URL}/admin/ops/report`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data && res.data.markdown) {
+        setReportMarkdown(res.data.markdown);
+      }
+    } catch (err: any) {
+      showAlert("Erro ao gerar relatório: " + (err.response?.data?.error || err.message), "error");
+    } finally {
+      setIsLoadingReport(false);
+    }
+  };
+
+  const handleCopyReport = async () => {
+    if (!reportMarkdown) return;
+    try {
+      await navigator.clipboard.writeText(reportMarkdown);
+      setIsReportCopied(true);
+      showAlert("Relatório copiado para a área de transferência! Cole aqui na conversa.", "success");
+      setTimeout(() => setIsReportCopied(false), 3000);
+    } catch {
+      showAlert("Erro ao copiar automaticamente para a área de transferência.", "error");
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!reportMarkdown) return;
+    const blob = new Blob([reportMarkdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `relatorio-saude-send-${dateStr}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showAlert("Download do relatório concluído!", "success");
+  };
+
   const fetchOpsData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -393,6 +449,28 @@ export default function OpsDashboardPage() {
           >
             <RefreshCw size={14} className={isProbing ? "spin" : ""} />
             {isProbing ? "Testando Serviços..." : "Executar Ping Geral"}
+          </button>
+
+          {/* Botão Gerar Relatório de Diagnóstico */}
+          <button
+            type="button"
+            onClick={handleOpenReport}
+            className="btn btn-secondary"
+            style={{
+              fontSize: "0.82rem",
+              padding: "7px 14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              borderColor: "rgba(99, 102, 241, 0.4)",
+              background: "linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(168, 85, 247, 0.15))",
+              color: "#c7d2fe",
+              fontWeight: 600
+            }}
+            title="Gerar relatório consolidado de saúde em Markdown para enviar à IA ou equipe"
+          >
+            <FileText size={15} color="#818cf8" />
+            Gerar Relatório Técnico
           </button>
 
           {/* Última atualização */}
@@ -1558,6 +1636,166 @@ export default function OpsDashboardPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Relatório Técnico de Saúde */}
+      {showReportModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "20px"
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowReportModal(false);
+          }}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: "850px",
+              width: "100%",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              padding: "24px",
+              borderRadius: "16px",
+              boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6)",
+              border: "1px solid rgba(255, 255, 255, 0.12)",
+              background: "var(--card-bg, #161b22)"
+            }}
+          >
+            {/* Header do Modal */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div style={{ width: "36px", height: "36px", borderRadius: "10px", background: "rgba(99, 102, 241, 0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <FileText size={20} color="#818cf8" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: "1.2rem", fontWeight: 700, margin: 0, color: "var(--text)" }}>
+                    Relatório de Diagnóstico & Saúde do Ecossistema
+                  </h3>
+                  <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", margin: "2px 0 0 0" }}>
+                    Consolidado em Markdown pronto para copiar e fornecer à IA ou ao time técnico.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="btn btn-secondary"
+                style={{ padding: "4px 8px", fontSize: "0.85rem", lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Banner de Dica */}
+            <div
+              style={{
+                background: "rgba(99, 102, 241, 0.1)",
+                border: "1px solid rgba(99, 102, 241, 0.25)",
+                padding: "10px 14px",
+                borderRadius: "8px",
+                fontSize: "0.8rem",
+                color: "#c7d2fe",
+                marginBottom: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px"
+              }}
+            >
+              <span>💡</span>
+              <span>
+                <strong>Como usar:</strong> Clique em <em>"Copiar Relatório Completo"</em> e cole (Ctrl+V) diretamente no chat da IA. Todas as métricas de rotas, banco Neon, deploys e erros serão analisadas de imediato!
+              </span>
+            </div>
+
+            {/* Conteúdo do Relatório */}
+            <div style={{ flex: 1, minHeight: "260px", maxHeight: "450px", overflowY: "auto", position: "relative", marginBottom: "16px" }}>
+              {isLoadingReport ? (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "260px", gap: "12px", color: "var(--text-muted)" }}>
+                  <RefreshCw size={24} className="spin" color="var(--primary)" />
+                  <span style={{ fontSize: "0.85rem" }}>Coletando telemetria, sondando banco e deploys...</span>
+                </div>
+              ) : (
+                <pre
+                  style={{
+                    background: "#0d1117",
+                    color: "#e6edf3",
+                    padding: "16px",
+                    borderRadius: "8px",
+                    fontSize: "0.78rem",
+                    lineHeight: "1.5",
+                    fontFamily: "'Fira Code', 'Consolas', monospace",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    margin: 0,
+                    border: "1px solid rgba(255, 255, 255, 0.08)",
+                    height: "100%",
+                    boxSizing: "border-box"
+                  }}
+                >
+                  {reportMarkdown || "Nenhum dado retornado."}
+                </pre>
+              )}
+            </div>
+
+            {/* Ações do Rodapé */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)" }}>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={handleCopyReport}
+                  disabled={isLoadingReport || !reportMarkdown}
+                  className="btn btn-primary"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    fontSize: "0.85rem",
+                    padding: "8px 16px",
+                    backgroundColor: isReportCopied ? "#059669" : undefined,
+                    borderColor: isReportCopied ? "#10b981" : undefined
+                  }}
+                >
+                  {isReportCopied ? <Check size={16} /> : <Copy size={16} />}
+                  {isReportCopied ? "✓ Copiado com Sucesso!" : "Copiar Relatório Completo"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadReport}
+                  disabled={isLoadingReport || !reportMarkdown}
+                  className="btn btn-secondary"
+                  style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.85rem", padding: "8px 14px" }}
+                  title="Baixar arquivo markdown .md"
+                >
+                  <Download size={15} />
+                  Baixar Arquivo (.md)
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowReportModal(false)}
+                className="btn btn-secondary"
+                style={{ fontSize: "0.85rem", padding: "8px 16px" }}
+              >
+                Fechar
+              </button>
+            </div>
           </div>
         </div>
       )}

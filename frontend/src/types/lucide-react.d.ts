@@ -62,6 +62,7 @@ declare module "lucide-react" {
   export const GitCommit: React.FC<any>;
   export const GitBranch: React.FC<any>;
   export const GitPullRequest: React.FC<any>;
+  export const Download: React.FC<any>;
   const content: any;
   export default content;
 }

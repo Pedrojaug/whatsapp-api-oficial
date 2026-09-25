@@ -207,4 +207,116 @@ router.post("/ci-cd/config", authMiddleware, requireSuperUser, (req: Authenticat
   }
 });
 
+// 12. GERAR RELATÓRIO CONSOLIDADO DE SAÚDE (Markdown ou JSON)
+router.get("/report", authMiddleware, requireSuperUser, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const [dbHealth, projects, commits, renderData, vercelData] = await Promise.all([
+      infraHealth.probeDatabase(),
+      infraHealth.probeAllProjects(),
+      deployService.getGitHubCommits(5),
+      deployService.getRenderDeploys(3),
+      deployService.getVercelDeployments(3)
+    ]);
+
+    const telemetryData = telemetry.getSummary();
+    const processStats = infraHealth.getProcessStats();
+
+    // Calcular índice geral
+    let healthScore = 100;
+    if (dbHealth.status === "DEGRADED") healthScore -= 15;
+    if (dbHealth.status === "DOWN") healthScore -= 50;
+    const offlineProjects = projects.filter((p) => p.status === "OFFLINE").length;
+    healthScore -= offlineProjects * 15;
+    const errorRate = telemetryData.overview.errorRatePercent;
+    if (errorRate > 5) healthScore -= 15;
+    else if (errorRate > 1) healthScore -= 5;
+    healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
+
+    const statusBadge = healthScore >= 90 ? "🟢 EXCELENTE" : healthScore >= 70 ? "🟡 ESTÁVEL" : "🔴 ATENÇÃO";
+
+    const nowFormatted = new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+
+    // Format Markdown
+    const markdown = `# 🩺 Relatório de Diagnóstico & Saúde do Ecossistema
+**Projeto:** Send Inteligentte (WhatsApp API Oficial)
+**Gerado em:** ${nowFormatted} (Horário de Brasília)
+**Score Geral de Saúde:** **${healthScore}/100 (${statusBadge})**
+
+---
+
+## 1. 🗄️ Banco de Dados (Neon PostgreSQL)
+- **Status:** ${dbHealth.status === "HEALTHY" ? "🟢 Saudável" : dbHealth.status === "DEGRADED" ? "🟡 Lento / Degradado" : "🔴 Fora do Ar"}
+- **Latência SQL (Ping):** ${dbHealth.latencyMs} ms
+- **Base:** ${dbHealth.connectionPool.databaseName || "Conectado"}
+- **Tabelas & Registros Estimados:**
+${dbHealth.tables.length > 0 ? dbHealth.tables.map(t => `  - \`${t.name}\`: ~${t.estimatedRows.toLocaleString("pt-BR")} registros`).join("\n") : "  - (Nenhuma contagem de tabela disponível)"}
+
+---
+
+## 2. ⚡ APM & Telemetria de Requisições
+- **Total de Requisições:** ${telemetryData.overview.totalRequests.toLocaleString("pt-BR")}
+- **Requisições / Minuto (RPM):** ${telemetryData.overview.rpm}
+- **Tempo Médio de Resposta:** ${telemetryData.overview.latencies.avgMs} ms
+- **Percentil 95 (p95):** ${telemetryData.overview.latencies.p95Ms} ms
+- **Taxa de Erro:** ${telemetryData.overview.errorRatePercent}% (${telemetryData.overview.totalErrors} erros)
+- **Status Codes:** 2xx: ${telemetryData.overview.statusCodes["2xx"] || 0} | 4xx: ${telemetryData.overview.statusCodes["4xx"] || 0} | 5xx: ${telemetryData.overview.statusCodes["5xx"] || 0}
+
+### ⏱️ Top Rotas Mais Lentas
+${telemetryData.slowestRoutes.length > 0 
+  ? telemetryData.slowestRoutes.slice(0, 5).map((r, i) => `${i + 1}. \`[${r.method}] ${r.route}\` — Média: **${r.avgDurationMs} ms** | p95: ${r.p95DurationMs} ms | Chamadas: ${r.totalCalls} | Erros: ${r.errorCalls}`).join("\n")
+  : "_Nenhuma rota lenta registrada._"}
+
+### 🔥 Rotas Mais Requisitadas
+${telemetryData.mostCalledRoutes.length > 0
+  ? telemetryData.mostCalledRoutes.slice(0, 5).map((r, i) => `${i + 1}. \`[${r.method}] ${r.route}\` — ${r.totalCalls} chamadas | Média: ${r.avgDurationMs} ms`).join("\n")
+  : "_Nenhuma rota registrada ainda._"}
+
+---
+
+## 3. 🌐 Endpoints & Infraestrutura Monitorada
+${projects.map(p => {
+  const statusIcon = p.status === "ONLINE" ? "🟢" : p.status === "DEGRADED" ? "🟡" : "🔴";
+  const sslInfo = p.ssl?.valid ? ` | SSL: Válido (${p.ssl.daysRemaining} dias)` : (p.ssl ? " | SSL: Inválido" : "");
+  return `- ${statusIcon} **${p.name}** (\`${p.category}\`): ${p.status} | Latência: ${p.latencyMs} ms | HTTP ${p.statusCode || "N/A"}${sslInfo}\n  URL: \`${p.url}\``;
+}).join("\n")}
+
+---
+
+## 4. 🚀 CI/CD & Últimos Deploys
+- **GitHub:** ${commits.length > 0 ? `Branch \`main\` — Último commit: \`${commits[0].shortSha}\` (${commits[0].message}) por ${commits[0].authorName}` : "Não conectado"}
+- **Render Backend:** ${renderData.connected ? (renderData.deploys[0] ? `Status: **${renderData.deploys[0].status}** | Commit: \`${(renderData.deploys[0].commitHash || "").slice(0, 7)}\` | Gatilho: ${renderData.deploys[0].trigger} | Duração: ${renderData.deploys[0].durationSeconds || "?"}s` : "Conectado") : "Não conectado via API Key"}
+- **Vercel Frontend:** ${vercelData.connected ? (vercelData.deployments[0] ? `Status: **${vercelData.deployments[0].state}** | Commit: \`${(vercelData.deployments[0].commitHash || "").slice(0, 7)}\` | URL: ${vercelData.deployments[0].url}` : "Conectado") : "Não conectado via Vercel Token"}
+
+---
+
+## 5. 💻 Recursos do Processo Node.js
+- **Tempo de Atividade (Uptime):** ${Math.floor(processStats.uptimeSeconds / 3600)}h ${Math.floor((processStats.uptimeSeconds % 3600) / 60)}m
+- **Memória RSS:** ${processStats.memory.rssMb} MB
+- **Heap Usado:** ${processStats.memory.heapUsedMb} MB / ${processStats.memory.heapTotalMb} MB
+- **Versão Node.js:** ${processStats.nodeVersion} (${processStats.platform})
+`;
+
+    if (req.query.format === "text" || req.query.format === "markdown") {
+      res.setHeader("Content-Type", "text/markdown; charset=utf-8");
+      return res.send(markdown);
+    }
+
+    res.json({
+      healthScore,
+      markdown,
+      data: {
+        database: dbHealth,
+        projects,
+        telemetry: telemetryData,
+        process: processStats,
+        ciCd: { commits, render: renderData, vercel: vercelData }
+      },
+      generatedAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error("[Ops Report] Erro ao gerar relatório:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;
