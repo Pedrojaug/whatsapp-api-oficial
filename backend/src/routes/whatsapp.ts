@@ -11,6 +11,7 @@ import reportRouter from "./reportRoutes";
 import trackingRouter from "./trackingRoutes";
 import apiKeyRouter from "./apiKeyRoutes";
 import campaignRouter from "./campaignRoutes";
+import quickReplyRouter from "./quickReplyRoutes";
 
 const router = Router();
 
@@ -27,5 +28,6 @@ router.use(reportRouter);
 router.use(trackingRouter);
 router.use(apiKeyRouter);
 router.use(campaignRouter);
+router.use(quickReplyRouter);
 
 export default router;

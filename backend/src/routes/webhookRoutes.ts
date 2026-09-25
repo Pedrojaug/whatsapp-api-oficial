@@ -285,13 +285,23 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                       }
                     }
 
-                    // Salvar/atualizar nome de perfil do contato
-                    if (profileName) {
+                    // Salvar/atualizar contato e reabrir atendimento (isHandled = false)
+                    try {
                       await (prisma as any).whatsAppContact.upsert({
                         where: { accountId_phone: { accountId: account.id, phone: from } },
-                        update: { profileName },
-                        create: { accountId: account.id, phone: from, profileName },
+                        update: {
+                          ...(profileName ? { profileName } : {}),
+                          isHandled: false,
+                        },
+                        create: {
+                          accountId: account.id,
+                          phone: from,
+                          profileName: profileName || null,
+                          isHandled: false,
+                        },
                       });
+                    } catch (contactErr) {
+                      console.warn("[Webhook] Erro ao atualizar status de atendimento do contato:", contactErr);
                     }
 
                     // Evitar duplicações caso a Meta reenvie o webhook
@@ -327,6 +337,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         errorMessage: savedMsg.errorMessage,
                         updatedAt: savedMsg.updatedAt,
                         profileName,
+                        isHandled: false,
                       });
 
                       // Encaminhar webhook para o n8n do SDR se configurado

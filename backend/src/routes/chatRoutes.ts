@@ -46,6 +46,7 @@ interface ConversationRow {
   hasFailed: boolean;
   hasDelivered: boolean;
   hasRead: boolean;
+  isHandled: boolean;
 }
 
 // Monta a lista de conversas (última mensagem por contato + agregados de status),
@@ -77,12 +78,12 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
     GROUP BY "to"
   `, ...params);
 
-  // 2. Buscar contatos para resolver profileName e blacklist (apenas colunas necessárias)
+  // 2. Buscar contatos para resolver profileName, blacklist e status de atendimento (isHandled)
   const contacts = await prisma.whatsAppContact.findMany({
     where: { accountId },
-    select: { phone: true, profileName: true, blacklisted: true }
+    select: { phone: true, profileName: true, blacklisted: true, isHandled: true }
   });
-  const contactMap = new Map(contacts.map((c: any) => [c.phone, c.profileName]));
+  const contactMap = new Map(contacts.map((c: any) => [normalizePhone(c.phone), c]));
   const blacklistedSet = new Set(contacts.filter((c: any) => c.blacklisted).map((c: any) => normalizePhone(c.phone)));
 
   // 3. Consolidar por telefone normalizado (unifica variantes de 9º dígito)
@@ -92,11 +93,12 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
     const normalizedKey = normalizePhone(row.phone);
     const existing = convMap.get(normalizedKey);
     const isNewer = !existing || new Date(row.createdAt).getTime() > new Date(existing.updatedAt).getTime();
+    const contactInfo = contactMap.get(normalizedKey);
 
     if (!existing) {
       convMap.set(normalizedKey, {
         phone: normalizedKey,
-        profileName: (contactMap.get(normalizedKey) as string | null) || null,
+        profileName: contactInfo?.profileName || null,
         lastMessage: row.body || (row.templateName ? `Template: ${row.templateName}` : "Mídia"),
         updatedAt: row.createdAt,
         status: row.status,
@@ -106,6 +108,7 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
         hasFailed: Boolean(row.hasFailed),
         hasDelivered: Boolean(row.hasDelivered),
         hasRead: Boolean(row.hasRead),
+        isHandled: Boolean(contactInfo?.isHandled),
       });
     } else {
       if (isNewer) {
@@ -119,6 +122,9 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
       existing.hasFailed = existing.hasFailed || Boolean(row.hasFailed);
       existing.hasDelivered = existing.hasDelivered || Boolean(row.hasDelivered);
       existing.hasRead = existing.hasRead || Boolean(row.hasRead);
+      if (contactInfo?.isHandled !== undefined) {
+        existing.isHandled = Boolean(contactInfo.isHandled);
+      }
     }
   }
 
@@ -134,9 +140,11 @@ function matchesConvFilter(c: ConversationRow, filter: string): boolean {
     case "UNANSWERED":
     case "PENDING":
     case "UNREAD":
-      return c.direction === "INCOMING";
+      return c.direction === "INCOMING" && !c.isHandled;
     case "ANSWERED":
-      return !!c.hasIncoming && c.direction === "OUTGOING";
+      return (!!c.hasIncoming && c.direction === "OUTGOING") || (c.direction === "INCOMING" && c.isHandled);
+    case "HANDLED":
+      return c.isHandled;
     case "REPLIED": return !!c.hasIncoming;
     case "READ": return !!c.hasRead;
     case "DELIVERED": return !!c.hasDelivered || !!c.hasRead || !!c.hasIncoming;
@@ -147,7 +155,8 @@ function matchesConvFilter(c: ConversationRow, filter: string): boolean {
 }
 
 function conversationStatusLabel(c: ConversationRow): string {
-  if (c.direction === "INCOMING") return "Aguardando Resposta";
+  if (c.direction === "INCOMING" && !c.isHandled) return "Aguardando Resposta";
+  if (c.isHandled) return "Concluída / Atendida";
   if (c.hasIncoming && c.direction === "OUTGOING") return "Atendida";
   if (c.hasIncoming) return "Respondeu";
   if (c.hasRead) return "Lida";
@@ -246,6 +255,92 @@ router.patch("/accounts/:accountId/conversations/:phone/blacklist", async (req: 
 
     res.json({ success: true, phone: normalized, blacklisted: isBlack });
   } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Alterar status de atendimento (Atendida/Concluída vs Aguardando) e emitir broadcast SSE
+router.patch("/accounts/:accountId/conversations/:phone/handled", async (req: Request, res: Response) => {
+  const { accountId, phone } = req.params;
+  const { isHandled } = req.body;
+  const userId = (req as AuthenticatedRequest).userId!;
+
+  try {
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const normalized = normalizePhone(phone);
+    const updated = await (prisma as any).whatsAppContact.upsert({
+      where: {
+        accountId_phone: {
+          accountId,
+          phone: normalized,
+        }
+      },
+      update: {
+        isHandled: Boolean(isHandled),
+      },
+      create: {
+        accountId,
+        phone: normalized,
+        isHandled: Boolean(isHandled),
+      }
+    });
+
+    // Emitir broadcast SSE para sincronização multi-dispositivo instantânea
+    messageEventEmitter.emit("messageUpdated", {
+      type: "conversationStatusChanged",
+      accountId,
+      to: normalized,
+      isHandled: updated.isHandled,
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, phone: normalized, isHandled: updated.isHandled });
+  } catch (error: any) {
+    console.error("[Chat] Erro ao alterar status de atendimento:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Marcar múltiplas conversas como atendidas/concluídas em lote e emitir broadcast SSE
+router.post("/accounts/:accountId/conversations/mark-all-handled", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { phones, isHandled = true } = req.body;
+  const userId = (req as AuthenticatedRequest).userId!;
+
+  if (!Array.isArray(phones) || phones.length === 0) {
+    return res.status(400).json({ error: "Lista de telefones inválida ou vazia." });
+  }
+
+  try {
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+
+    const normalizedPhones: string[] = phones.map((p: string) => normalizePhone(p));
+
+    await Promise.all(
+      normalizedPhones.map((phone: string) =>
+        (prisma as any).whatsAppContact.upsert({
+          where: { accountId_phone: { accountId, phone } },
+          update: { isHandled: Boolean(isHandled) },
+          create: { accountId, phone, isHandled: Boolean(isHandled) },
+        })
+      )
+    );
+
+    // Emitir broadcast SSE para todos os clientes conectados
+    messageEventEmitter.emit("messageUpdated", {
+      type: "batchConversationsHandled",
+      accountId,
+      phones: normalizedPhones,
+      isHandled: Boolean(isHandled),
+      updatedAt: new Date().toISOString(),
+    });
+
+    res.json({ success: true, count: normalizedPhones.length, isHandled: Boolean(isHandled) });
+  } catch (error: any) {
+    console.error("[Chat] Erro ao marcar lote como atendido:", error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -70,6 +70,50 @@ export const AccountProvider: React.FC<{ children: React.ReactNode }> = ({ child
     fetchAccounts();
   }, [token]);
 
+  // Conexão Server-Sent Events (SSE) em tempo real para sincronização multi-dispositivo
+  useEffect(() => {
+    if (!token || !selectedAccount) return;
+
+    let eventSource: EventSource | null = null;
+    let isCancelled = false;
+
+    const connectSSE = () => {
+      if (isCancelled) return;
+      const sseUrl = `${API_BASE_URL}/accounts/${selectedAccount.id}/messages/events?token=${encodeURIComponent(token)}`;
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.onopen = () => {
+        window.dispatchEvent(new CustomEvent("sseConnected"));
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "connected") {
+            window.dispatchEvent(new CustomEvent("sseConnected"));
+          } else {
+            window.dispatchEvent(new CustomEvent("messageUpdated", { detail: data }));
+          }
+        } catch {
+          // Ignora frames vazios ou heartbeats
+        }
+      };
+
+      eventSource.onerror = () => {
+        // EventSource nativo do browser reconecta automaticamente
+      };
+    };
+
+    connectSSE();
+
+    return () => {
+      isCancelled = true;
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [token, selectedAccount?.id]);
+
   const selectAccount = (account: Account | null) => {
     setSelectedAccount(account);
   };

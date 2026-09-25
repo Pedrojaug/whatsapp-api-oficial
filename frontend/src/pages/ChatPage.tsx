@@ -497,47 +497,12 @@ function formatDateDivider(dateStr: string): string {
   return d.toLocaleDateString("pt-BR", { day: "numeric", month: "short", year: d.getFullYear() !== today.getFullYear() ? "numeric" : undefined });
 }
 
-function loadInitialHandledPhones(accountId: string): Set<string> {
-  const set = new Set<string>();
-  try {
-    const raw = localStorage.getItem(`send_handled_chats_${accountId}`);
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) {
-        arr.forEach((p: string) => set.add(p));
-      }
-    }
-  } catch (e) {
-    console.warn("Erro ao ler handled chats do localStorage:", e);
-  }
-
-  // Auto-arquiva leads que já estão marcados no CRM como Sem Retorno (LOST) ou Venda Concluída (WON)
-  try {
-    const prefix = `send_crm_${accountId}_`;
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith(prefix)) {
-        const phone = k.slice(prefix.length);
-        const raw = localStorage.getItem(k);
-        if (raw) {
-          const crm = JSON.parse(raw);
-          if (crm && (crm.stage === 'LOST' || crm.stage === 'WON')) {
-            set.add(phone);
-          }
-        }
-      }
-    }
-  } catch (e) {
-    console.warn("Erro ao indexar leads LOST/WON do CRM:", e);
-  }
-
-  return set;
-}
-
 export interface QuickReply {
   id: string;
   title: string;
   text: string;
+  message?: string;
+  accountId?: string;
 }
 
 export const DEFAULT_QUICK_REPLIES: QuickReply[] = [
@@ -630,60 +595,36 @@ export default function ChatPage() {
   const [showCrmDrawer, setShowCrmDrawer] = useState(false);
   const [crmData, setCrmData] = useState<LeadCrmData>({ stage: 'NEW', tags: [], notes: '' });
   const [newTagInput, setNewTagInput] = useState("");
-  const [crmUpdateTick, setCrmUpdateTick] = useState(0);
 
-  // Estado de conversas atendidas/concluídas/arquivadas (por conta)
-  const [handledPhones, setHandledPhones] = useState<Set<string>>(() =>
-    selectedAccount ? loadInitialHandledPhones(selectedAccount.id) : new Set<string>()
-  );
-
-  useEffect(() => {
-    if (selectedAccount) {
-      setHandledPhones(loadInitialHandledPhones(selectedAccount.id));
-    } else {
-      setHandledPhones(new Set());
-    }
-  }, [selectedAccount?.id]);
-
-  const persistHandledPhones = useCallback((accountId: string, set: Set<string>) => {
-    try {
-      localStorage.setItem(`send_handled_chats_${accountId}`, JSON.stringify(Array.from(set)));
-    } catch (e) {
-      console.warn("Falha ao salvar conversas atendidas no localStorage:", e);
-    }
-  }, []);
-
-  const isConversationHandled = useCallback((phone: string, _conv?: any): boolean => {
-    if (handledPhones.has(phone)) return true;
-    if (!selectedAccount) return false;
-    try {
-      const raw = localStorage.getItem(`send_crm_${selectedAccount.id}_${phone}`);
-      if (raw) {
-        const crm = JSON.parse(raw);
-        if (crm && (crm.stage === 'LOST' || crm.stage === 'WON')) {
-          return true;
-        }
-      }
-    } catch {
-      // ignore
-    }
+  // Verificação de status de atendimento (centralizado via backend)
+  const isConversationHandled = useCallback((phone: string, conv?: any): boolean => {
+    if (conv && conv.isHandled !== undefined) return Boolean(conv.isHandled);
+    const target = conversations.find(c => normalizePhone(c.phone) === normalizePhone(phone));
+    if (target && target.isHandled !== undefined) return Boolean(target.isHandled);
     return false;
-  }, [handledPhones, selectedAccount, crmUpdateTick]);
+  }, [conversations]);
 
-  const toggleHandled = useCallback((phone: string, e?: React.MouseEvent) => {
+  const toggleHandled = useCallback(async (phone: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     if (!selectedAccount || !phone) return;
 
-    setHandledPhones(prev => {
-      const next = new Set(prev);
-      const isCurrentlyHandled = isConversationHandled(phone);
+    const normTarget = normalizePhone(phone);
+    const currentConv = conversations.find(c => normalizePhone(c.phone) === normTarget);
+    const currentHandled = currentConv ? Boolean(currentConv.isHandled) : false;
+    const newHandled = !currentHandled;
 
-      if (isCurrentlyHandled) {
-        // Reabrir conversa (retira do arquivo / atendido)
-        next.delete(phone);
-        persistHandledPhones(selectedAccount.id, next);
+    // Atualização otimista imediata na UI
+    setConversations(prev =>
+      prev.map(c => normalizePhone(c.phone) === normTarget ? { ...c, isHandled: newHandled } : c)
+    );
 
-        // Se no CRM constava como LOST, reverter para NEGOTIATING para não re-fechar imediatamente
+    try {
+      await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/${phone}/handled`, {
+        isHandled: newHandled
+      });
+
+      // Se no CRM constava como LOST e reabriu, reverter para NEGOTIATING
+      if (!newHandled) {
         const crmKey = `send_crm_${selectedAccount.id}_${phone}`;
         try {
           const raw = localStorage.getItem(crmKey);
@@ -700,55 +641,107 @@ export default function ChatPage() {
         } catch (err) {
           console.warn("Erro ao reverter estágio do CRM:", err);
         }
-
-        setCrmUpdateTick(t => t + 1);
-        showAlert("Atendimento reaberto! Lead voltou para a fila de espera.", "info");
-      } else {
-        // Concluir / arquivar atendimento
-        next.add(phone);
-        persistHandledPhones(selectedAccount.id, next);
-        showAlert("Conversa concluída / arquivada com sucesso!", "success");
       }
 
-      return next;
-    });
-  }, [selectedAccount, isConversationHandled, persistHandledPhones, selectedPhone, showAlert]);
+      showAlert(
+        newHandled
+          ? "Conversa concluída / arquivada com sucesso!"
+          : "Atendimento reaberto! Lead voltou para a fila de espera.",
+        newHandled ? "success" : "info"
+      );
+    } catch (err: any) {
+      // Reverte estado local se a API falhar
+      setConversations(prev =>
+        prev.map(c => normalizePhone(c.phone) === normTarget ? { ...c, isHandled: currentHandled } : c)
+      );
+      showAlert(err.response?.data?.error || "Erro ao atualizar status da conversa.", "error");
+    }
+  }, [selectedAccount, conversations, selectedPhone, showAlert]);
 
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [showChatTemplateModal, setShowChatTemplateModal] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Carregar e persistir Respostas Rápidas isoladas por accountId
+  // Carregar e persistir Respostas Rápidas centralizadas no Banco de Dados
+  const fetchQuickReplies = useCallback(async (accountId: string) => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/accounts/${accountId}/quick-replies`);
+      setQuickReplies(res.data);
+    } catch (err) {
+      console.error("Erro ao carregar respostas rápidas:", err);
+    }
+  }, []);
+
   useEffect(() => {
     if (!selectedAccount) {
       setQuickReplies([]);
       return;
     }
-    const key = `send_quick_replies_${selectedAccount.id}`;
-    try {
-      const stored = localStorage.getItem(key);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setQuickReplies(parsed);
-          return;
-        }
-      }
-      setQuickReplies(DEFAULT_QUICK_REPLIES);
-      localStorage.setItem(key, JSON.stringify(DEFAULT_QUICK_REPLIES));
-    } catch {
-      setQuickReplies(DEFAULT_QUICK_REPLIES);
-    }
-  }, [selectedAccount?.id]);
+    fetchQuickReplies(selectedAccount.id);
+  }, [selectedAccount?.id, fetchQuickReplies]);
 
-  const saveQuickReplies = (replies: QuickReply[]) => {
+  const handleSaveQuickReply = async () => {
     if (!selectedAccount) return;
-    setQuickReplies(replies);
+    const title = qrTitleInput.trim();
+    const text = qrTextInput.trim();
+
+    if (!title || !text) {
+      showAlert("Preencha o título e o texto da resposta rápida.", "error");
+      return;
+    }
+
     try {
-      localStorage.setItem(`send_quick_replies_${selectedAccount.id}`, JSON.stringify(replies));
-    } catch (e) {
-      console.warn("Falha ao salvar respostas rápidas no localStorage:", e);
+      if (editingQrId) {
+        const res = await axios.put(`${API_BASE_URL}/accounts/${selectedAccount.id}/quick-replies/${editingQrId}`, {
+          title,
+          message: text,
+        });
+        setQuickReplies(prev => prev.map(q => q.id === editingQrId ? res.data : q));
+        showAlert("Resposta rápida atualizada com sucesso! ✅", "success");
+      } else {
+        const res = await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/quick-replies`, {
+          title,
+          message: text,
+        });
+        setQuickReplies(prev => [...prev, res.data]);
+        showAlert("Nova resposta rápida criada com sucesso! 🚀", "success");
+      }
+      setEditingQrId(null);
+      setQrTitleInput("");
+      setQrTextInput("");
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao salvar resposta rápida.", "error");
+    }
+  };
+
+  const handleDeleteQuickReply = async (id: string) => {
+    if (!selectedAccount) return;
+    try {
+      await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/quick-replies/${id}`);
+      setQuickReplies(prev => prev.filter(q => q.id !== id));
+      if (editingQrId === id) {
+        setEditingQrId(null);
+        setQrTitleInput("");
+        setQrTextInput("");
+      }
+      showAlert("Resposta rápida excluída.", "info");
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao excluir resposta rápida.", "error");
+    }
+  };
+
+  const handleResetQuickReplies = async () => {
+    if (!selectedAccount) return;
+    if (!window.confirm("Deseja restaurar as respostas rápidas originais (Body Splash, PIX, Endereço, etc) no banco de dados?")) {
+      return;
+    }
+    try {
+      const res = await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/quick-replies/reset-defaults`);
+      setQuickReplies(res.data);
+      showAlert("Respostas padrões restauradas com sucesso!", "success");
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao restaurar respostas padrões.", "error");
     }
   };
 
@@ -782,31 +775,21 @@ export default function ChatPage() {
         console.warn("Falha ao salvar dados de CRM no localStorage:", e);
       }
 
-      // Sincroniza estado de arquivamento/atendimento com o estágio do CRM
+      // Sincroniza estado de arquivamento/atendimento centralizado no backend com o estágio do CRM
+      const normPhone = normalizePhone(selectedPhone);
       if (next.stage === 'LOST' || next.stage === 'WON') {
-        setHandledPhones(prevHandled => {
-          if (!prevHandled.has(selectedPhone)) {
-            const nextSet = new Set(prevHandled);
-            nextSet.add(selectedPhone);
-            persistHandledPhones(selectedAccount.id, nextSet);
-            return nextSet;
-          }
-          return prevHandled;
-        });
+        setConversations(prevConv =>
+          prevConv.map(c => normalizePhone(c.phone) === normPhone ? { ...c, isHandled: true } : c)
+        );
+        axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/${selectedPhone}/handled`, { isHandled: true }).catch(() => {});
       } else if (prev.stage === 'LOST' || prev.stage === 'WON') {
         // Lead reaberto para negociação ativa
-        setHandledPhones(prevHandled => {
-          if (prevHandled.has(selectedPhone)) {
-            const nextSet = new Set(prevHandled);
-            nextSet.delete(selectedPhone);
-            persistHandledPhones(selectedAccount.id, nextSet);
-            return nextSet;
-          }
-          return prevHandled;
-        });
+        setConversations(prevConv =>
+          prevConv.map(c => normalizePhone(c.phone) === normPhone ? { ...c, isHandled: false } : c)
+        );
+        axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/${selectedPhone}/handled`, { isHandled: false }).catch(() => {});
       }
 
-      setCrmUpdateTick(t => t + 1);
       return next;
     });
   };
@@ -1035,23 +1018,32 @@ export default function ChatPage() {
     return list;
   }, [conversations, matchesConvFilter, searchQuery, convFilter]);
 
-  const markAllFilteredAsHandled = useCallback(() => {
+  const markAllFilteredAsHandled = useCallback(async () => {
     if (!selectedAccount || filteredConversations.length === 0) return;
     const count = filteredConversations.length;
     if (!window.confirm(`Deseja marcar todas as ${count} conversas desta lista como atendidas/concluídas?`)) {
       return;
     }
 
-    setHandledPhones(prev => {
-      const next = new Set(prev);
-      filteredConversations.forEach(c => {
-        next.add(c.phone);
+    const phonesToMark = filteredConversations.map(c => c.phone);
+    const phoneSet = new Set(phonesToMark.map(p => normalizePhone(p)));
+
+    // Atualização otimista imediata na UI
+    setConversations(prev =>
+      prev.map(c => phoneSet.has(normalizePhone(c.phone)) ? { ...c, isHandled: true } : c)
+    );
+
+    try {
+      await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/mark-all-handled`, {
+        phones: phonesToMark,
+        isHandled: true
       });
-      persistHandledPhones(selectedAccount.id, next);
       showAlert(`${count} conversas foram marcadas como atendidas!`, "success");
-      return next;
-    });
-  }, [selectedAccount, filteredConversations, persistHandledPhones, showAlert]);
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || "Erro ao marcar conversas no servidor.", "error");
+      fetchConversations(selectedAccount.id, true);
+    }
+  }, [selectedAccount, filteredConversations, showAlert]);
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1118,29 +1110,31 @@ export default function ChatPage() {
     }
   }, [chatMessages, isChatLoading]);
 
-  // Polling de fallback inteligente (Event-driven + Visibility aware):
-  // 1. Pausa o timer quando a aba está em segundo plano (document.hidden), economizando 100% de I/O
-  // 2. Quando a aba volta ao foco (visibilitychange), sincroniza imediatamente
-  // 3. Intervalo suave de 60s (conversas) e 30s (chat ativo) como rede de segurança para o SSE
+  // Sincronização inteligente com revalidação imediata no foco da janela (refetchOnWindowFocus)
   useEffect(() => {
     if (!selectedAccount) return;
 
     const runSync = () => {
-      if (document.hidden) return; // Não faz queries com aba em segundo plano
       fetchConversations(selectedAccount.id, true);
     };
 
-    const convInterval = setInterval(runSync, 60000);
+    const convInterval = setInterval(() => {
+      if (!document.hidden) runSync();
+    }, 60000);
 
-    const handleVisibility = () => {
-      if (!document.hidden) {
-        runSync();
-      }
+    const handleFocus = () => {
+      runSync();
     };
+    const handleVisibility = () => {
+      if (!document.hidden) runSync();
+    };
+
+    window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       clearInterval(convInterval);
+      window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [selectedAccount]);
@@ -1149,34 +1143,58 @@ export default function ChatPage() {
     if (!selectedAccount || !selectedPhone) return;
 
     const runChatSync = () => {
-      if (document.hidden) return;
       fetchChatMessages(selectedAccount.id, selectedPhoneRef.current, true);
     };
 
-    const chatInterval = setInterval(runChatSync, 30000);
+    const chatInterval = setInterval(() => {
+      if (!document.hidden && selectedPhoneRef.current) runChatSync();
+    }, 30000);
 
-    const handleVisibility = () => {
-      if (!document.hidden && selectedPhoneRef.current) {
-        runChatSync();
-      }
+    const handleFocus = () => {
+      if (selectedPhoneRef.current) runChatSync();
     };
+    const handleVisibility = () => {
+      if (!document.hidden && selectedPhoneRef.current) runChatSync();
+    };
+
+    window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
       clearInterval(chatInterval);
+      window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [selectedAccount, selectedPhone]);
 
-  // Se inscreve no SSE de eventos para atualizar conversas e chat em tempo real
+  // Se inscreve no SSE de eventos para atualizar conversas, chat e contadores em tempo real
   useSSE((data: any) => {
     if (!selectedAccount) return;
 
+    // 1. Mudança de status de atendimento de conversa individual via broadcast
+    if (data.type === "conversationStatusChanged") {
+      const targetPhone = normalizePhone(data.to);
+      setConversations(prev =>
+        prev.map(c => normalizePhone(c.phone) === targetPhone ? { ...c, isHandled: data.isHandled } : c)
+      );
+      return;
+    }
+
+    // 2. Mudança de status de atendimento em lote via broadcast
+    if (data.type === "batchConversationsHandled" && Array.isArray(data.phones)) {
+      const phoneSet = new Set(data.phones.map((p: string) => normalizePhone(p)));
+      setConversations(prev =>
+        prev.map(c => phoneSet.has(normalizePhone(c.phone)) ? { ...c, isHandled: data.isHandled } : c)
+      );
+      return;
+    }
+
+    // 3. Atualização de mensagem (enviada, entregue, lida, falha ou nova mensagem recebida)
     if (data.type === "messageUpdated") {
       const activePhone = selectedPhoneRef.current;
       const incomingPhone = normalizePhone(data.to);
 
-      // 1. Atualizar histórico se o chat com esse telefone estiver ativo
+      // A. Atualizar histórico se o chat com esse telefone estiver aberto no operador
       if (activePhone && normalizePhone(activePhone) === incomingPhone) {
         setChatMessages((prevMsgs) => {
           const idx = prevMsgs.findIndex((m) =>
@@ -1194,7 +1212,7 @@ export default function ChatPage() {
             return updated;
           }
 
-          // Se não estiver na lista, adiciona (cobre mensagens recebidas e enviadas por outros meios como campanhas, API, n8n/SDR, etc.)
+          // Se não estiver na lista, adiciona (mensagens recebidas/enviadas)
           return [...prevMsgs, {
             id: data.messageId,
             wamid: data.wamid,
@@ -1209,32 +1227,16 @@ export default function ChatPage() {
         });
       }
 
-      // Se o cliente enviar uma nova mensagem recebida (INCOMING), retira automaticamente do status atendido para reabrir na fila
-      if (data.direction === "INCOMING") {
-        setHandledPhones(prev => {
-          let foundPhone: string | null = null;
-          for (const p of prev) {
-            if (normalizePhone(p) === incomingPhone || p === data.to) {
-              foundPhone = p;
-              break;
-            }
-          }
-          if (foundPhone) {
-            const next = new Set(prev);
-            next.delete(foundPhone);
-            if (selectedAccount) persistHandledPhones(selectedAccount.id, next);
-            return next;
-          }
-          return prev;
-        });
-      }
-
-      // 2. Atualizar lista de conversas ativas
+      // B. Atualizar lista de conversas ativas
       setConversations((prevConv) => {
         const idx = prevConv.findIndex((c) => normalizePhone(c.phone) === incomingPhone);
         const msgPreview = data.body || "Mídia";
 
-        // Atualização dos agregados do chat em tempo real
+        // Nova mensagem recebida (INCOMING) automaticamente reabre atendimento (isHandled = false)
+        const newIsHandled = data.direction === "INCOMING"
+          ? false
+          : (data.isHandled !== undefined ? data.isHandled : undefined);
+
         const flagPatch = (c: any) => ({
           hasIncoming: c?.hasIncoming || data.direction === "INCOMING",
           hasFailed: c?.hasFailed || data.status === "FAILED",
@@ -1252,6 +1254,7 @@ export default function ChatPage() {
             direction: data.direction,
             ...flagPatch(updated[idx]),
             ...(data.profileName ? { profileName: data.profileName } : {}),
+            ...(newIsHandled !== undefined ? { isHandled: newIsHandled } : {}),
           };
           const item = updated.splice(idx, 1)[0];
           updated.unshift(item);
@@ -1265,6 +1268,7 @@ export default function ChatPage() {
             status: data.status,
             direction: data.direction,
             messageType: data.messageType,
+            isHandled: newIsHandled !== undefined ? newIsHandled : false,
             ...flagPatch(null),
           }, ...prevConv];
         }
@@ -2724,28 +2728,7 @@ export default function ChatPage() {
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!qrTitleInput.trim() || !qrTextInput.trim()) {
-                      showAlert("Preencha o título e o texto da resposta rápida.", "error");
-                      return;
-                    }
-                    if (editingQrId) {
-                      const updated = quickReplies.map(qr => qr.id === editingQrId ? { ...qr, title: qrTitleInput.trim(), text: qrTextInput } : qr);
-                      saveQuickReplies(updated);
-                      showAlert("Resposta rápida atualizada com sucesso! ✅", "success");
-                    } else {
-                      const newQr: QuickReply = {
-                        id: `qr_${Date.now()}`,
-                        title: qrTitleInput.trim(),
-                        text: qrTextInput
-                      };
-                      saveQuickReplies([...quickReplies, newQr]);
-                      showAlert("Nova resposta rápida criada com sucesso! 🚀", "success");
-                    }
-                    setEditingQrId(null);
-                    setQrTitleInput("");
-                    setQrTextInput("");
-                  }}
+                  onClick={handleSaveQuickReply}
                   className="btn btn-primary"
                   style={{ fontSize: "0.78rem", padding: "6px 14px" }}
                 >
@@ -2797,15 +2780,7 @@ export default function ChatPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        const updated = quickReplies.filter(item => item.id !== qr.id);
-                        saveQuickReplies(updated);
-                        if (editingQrId === qr.id) {
-                          setEditingQrId(null);
-                          setQrTitleInput("");
-                          setQrTextInput("");
-                        }
-                      }}
+                      onClick={() => handleDeleteQuickReply(qr.id)}
                       className="btn btn-secondary"
                       style={{ padding: "4px 8px", fontSize: "0.72rem", color: "var(--error)" }}
                       title="Excluir"
@@ -2821,12 +2796,7 @@ export default function ChatPage() {
             <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <button
                 type="button"
-                onClick={() => {
-                  if (window.confirm("Deseja restaurar as respostas rápidas originais (Body Splash, PIX, Endereço, etc)?")) {
-                    saveQuickReplies(DEFAULT_QUICK_REPLIES);
-                    showAlert("Respostas padrões restauradas com sucesso!", "success");
-                  }
-                }}
+                onClick={handleResetQuickReplies}
                 style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}
               >
                 🔄 Restaurar modelos de fábrica

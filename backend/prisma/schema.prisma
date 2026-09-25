@@ -71,6 +71,7 @@ model Account {
   apiKeys          ApiKey[]
   campaigns        Campaign[]
   shares           AccountShare[]
+  quickReplies     QuickReply[]
 
   @@unique([userId, name])
 }
@@ -163,6 +164,7 @@ model WhatsAppContact {
   phone       String   // Número normalizado (13 dígitos BR)
   profileName String?  // Nome de perfil do WhatsApp (contacts[].profile.name)
   blacklisted Boolean  @default(false) // Contato movido para a Lista Negra
+  isHandled   Boolean  @default(false) // Conversa concluída/atendida
   accountId   String
   account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
@@ -258,5 +260,17 @@ model OptOut {
   createdAt DateTime @default(now())
 
   @@unique([phone, accountId])
+  @@index([accountId])
+}
+
+model QuickReply {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([accountId])
 }
