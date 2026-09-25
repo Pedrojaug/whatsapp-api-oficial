@@ -455,7 +455,7 @@ export default function ExecutiveReportModal({
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", fontSize: "0.75rem" }}>
                 <div style={{ background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
-                  <div style={{ color: "#64748b", fontSize: "0.68rem" }}>Gasto no Período</div>
+                  <div style={{ color: "#64748b", fontSize: "0.68rem" }}>Investimento no Período</div>
                   <div style={{ fontSize: "1.1rem", fontWeight: "800", color: "#0f172a" }}>
                     R$ {(costs?.period?.totalSpentBrl ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </div>
@@ -495,7 +495,7 @@ export default function ExecutiveReportModal({
           {templateMetrics.length > 0 && (
             <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", background: "#fff", marginBottom: "14px" }}>
               <h3 style={{ margin: "0 0 8px 0", fontSize: "0.88rem", fontWeight: "700", color: "#1e1b4b" }}>
-                📋 Performance Comparativa & Custos por Template
+                📋 Performance Comparativa & Investimento por Template
               </h3>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem", textAlign: "left" }}>
                 <thead>

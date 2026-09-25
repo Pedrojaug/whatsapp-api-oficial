@@ -95,7 +95,7 @@ export default function FinancialMetricsSection({
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "1.4rem" }}>💰</span>
             <h3 style={{ fontSize: "1.3rem", fontWeight: "700", margin: 0, color: "var(--text-primary)" }}>
-              Prévia Financeira & Custos da Meta API
+              Prévia Financeira & Investimento Meta API
             </h3>
             <span
               style={{
@@ -157,7 +157,7 @@ export default function FinancialMetricsSection({
 
       {/* Grid de 4 Cards Financeiros Principais */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-        {/* Card 1: Gasto no Período Selecionado */}
+        {/* Card 1: Investimento no Período Selecionado */}
         <div
           className="glass-interactive"
           style={{
@@ -170,7 +170,7 @@ export default function FinancialMetricsSection({
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
             <span style={{ fontSize: "0.82rem", color: "var(--text-muted)", fontWeight: "600", textTransform: "uppercase" }}>
-              Gasto no Período
+              Investimento no Período
             </span>
             <span style={{ fontSize: "0.72rem", color: "var(--text-secondary)" }}>{periodLabel}</span>
           </div>
@@ -422,7 +422,7 @@ export default function FinancialMetricsSection({
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h4 style={{ margin: 0, fontSize: "0.98rem", fontWeight: "700", color: "var(--text-primary)" }}>
-              🧮 Simulador de Custos de Disparo
+              🧮 Simulador de Investimento em Disparos
             </h4>
             <span style={{ fontSize: "0.72rem", padding: "2px 8px", background: "rgba(37, 211, 102, 0.1)", color: "var(--primary)", borderRadius: "10px", fontWeight: "600" }}>
               Cálculo em Tempo Real
@@ -534,15 +534,15 @@ export default function FinancialMetricsSection({
         </div>
       </div>
 
-      {/* Tabela de Custos Detalhada por Template */}
+      {/* Tabela de Investimento Detalhada por Template */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
           <div>
             <h4 style={{ margin: 0, fontSize: "1.05rem", fontWeight: "700", color: "var(--text-primary)" }}>
-              📊 Custos Consolidados por Template
+              📊 Investimento Consolidado por Template
             </h4>
             <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              Apenas mensagens entregues no aparelho geram custo. Números sem WhatsApp e falhas custam R$ 0,00.
+              Apenas mensagens entregues no aparelho contabilizam investimento. Números sem WhatsApp e falhas custam R$ 0,00.
             </span>
           </div>
         </div>
@@ -571,7 +571,7 @@ export default function FinancialMetricsSection({
                   <th>Entregues (Cobrados)</th>
                   <th>Falhas (R$ 0,00)</th>
                   <th>Total Faturado</th>
-                  <th style={{ width: "120px" }}>% do Gasto</th>
+                  <th style={{ width: "120px" }}>% do Investimento</th>
                 </tr>
               </thead>
               <tbody>
