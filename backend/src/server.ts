@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
@@ -35,6 +36,16 @@ import { storageService } from "./services/storageService";
 const app = express();
 app.set("trust proxy", true);
 const PORT = process.env.PORT || 3001;
+
+// Compressão Gzip para acelerar respostas JSON pesadas (reduz tráfego em até 90%)
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers.accept === "text/event-stream" || req.url.includes("/messages/events")) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
 
 // Garantir a existência do diretório de uploads
 const uploadsDir = path.join(__dirname, "../uploads");

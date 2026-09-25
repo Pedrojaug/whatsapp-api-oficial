@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue } from "react";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
@@ -585,6 +585,7 @@ export default function ChatPage() {
   const [isConversationsLoading, setIsConversationsLoading] = useState(false);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [showQuickReplyModal, setShowQuickReplyModal] = useState(false);
   const [editingQrId, setEditingQrId] = useState<string | null>(null);
@@ -1058,6 +1059,33 @@ export default function ChatPage() {
     { key: "FAILED", label: "⚠️ Falhas" },
   ];
 
+  // Contadores memoizados das mensagens do chat ativo (evita recalcular a cada tecla digitada na resposta)
+  const messageFilterCounts = useMemo(() => {
+    let incoming = 0;
+    let sent = 0;
+    let delivered = 0;
+    let read = 0;
+    let failed = 0;
+    for (let i = 0; i < chatMessages.length; i++) {
+      const m = chatMessages[i];
+      if (m.direction === "INCOMING") incoming++;
+      else {
+        if (m.status === "SENT") sent++;
+        else if (m.status === "DELIVERED") delivered++;
+        else if (m.status === "READ") read++;
+        else if (m.status === "FAILED") failed++;
+      }
+    }
+    return {
+      ALL: chatMessages.length,
+      INCOMING: incoming,
+      SENT: sent,
+      DELIVERED: delivered,
+      READ: read,
+      FAILED: failed,
+    };
+  }, [chatMessages]);
+
   const filteredMessages = chatMessages.filter((msg) => {
     if (statusFilter === "ALL") return true;
     if (statusFilter === "INCOMING") return msg.direction === "INCOMING";
@@ -1106,8 +1134,8 @@ export default function ChatPage() {
   const filteredConversations = useMemo(() => {
     let list = conversations.filter(c => matchesConvFilter(c));
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+    if (deferredSearchQuery.trim()) {
+      const q = deferredSearchQuery.toLowerCase().trim();
       const qDigits = q.replace(/\D/g, "");
       list = list.filter((c) => {
         const nameMatch = c.profileName && c.profileName.toLowerCase().includes(q);
@@ -1123,7 +1151,7 @@ export default function ChatPage() {
     }
 
     return list;
-  }, [conversations, matchesConvFilter, searchQuery, convFilter]);
+  }, [conversations, matchesConvFilter, deferredSearchQuery, convFilter]);
 
   // Cálculo O(N) em única passada de todos os contadores dos filtros (elimina 38.000 iterações por render)
   const convFilterCounts = useMemo(() => {
@@ -2060,11 +2088,7 @@ export default function ChatPage() {
                 <div className="chat-templates-bar" style={{ display: "flex", gap: "4px", padding: "4px 14px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
                   {FILTERS.map(f => {
                     const isActive = statusFilter === f.key;
-                    const count = f.key === "ALL"
-                      ? chatMessages.length
-                      : f.key === "INCOMING"
-                        ? chatMessages.filter(m => m.direction === "INCOMING").length
-                        : chatMessages.filter(m => m.direction !== "INCOMING" && m.status === f.key).length;
+                    const count = messageFilterCounts[f.key as keyof typeof messageFilterCounts] ?? 0;
                     return (
                       <button
                         key={f.key}
