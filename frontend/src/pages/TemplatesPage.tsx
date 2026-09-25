@@ -5,6 +5,7 @@ import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../hooks/useAlert";
 import { API_BASE_URL } from "../contexts/AuthContext";
 import { formatTemplateStatus, formatTemplateCategory } from "../utils/formatters";
+import { formatBRL, getTemplateUnitCost } from "../utils/pricing";
 import PhoneSimulator from "../components/PhoneSimulator";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -446,7 +447,12 @@ export default function TemplatesPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "12px", width: "100%" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <h4 style={{ fontSize: "1.1rem", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={tmpl.name}>{tmpl.name}</h4>
-                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{formatTemplateCategory(tmpl.category)} • {tmpl.language}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "2px" }}>
+                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{formatTemplateCategory(tmpl.category)} • {tmpl.language}</span>
+                      <span style={{ fontSize: "0.72rem", color: "var(--primary)", background: "rgba(37, 211, 102, 0.1)", padding: "1px 6px", borderRadius: "10px", fontWeight: "700" }}>
+                        Tarifa Meta: ~{formatBRL(getTemplateUnitCost(tmpl.category).brl)}
+                      </span>
+                    </div>
                   </div>
                   <span className={`badge badge-${tmpl.status.toLowerCase()}`} style={{ flexShrink: 0 }}>
                     {formatTemplateStatus(tmpl.status)}

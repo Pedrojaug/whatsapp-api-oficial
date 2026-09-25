@@ -7,12 +7,14 @@ import { API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useCountup } from "../hooks/useCountup";
 import ExecutiveReportModal from "../components/ExecutiveReportModal";
+import FinancialMetricsSection from "../components/FinancialMetricsSection";
 
 // Dados específicos de Showcase B2B EXCLUSIVAMENTE para a conta de gravação demo.video@sendinteligente.com.br
 const SHOWCASE_METRICS: Record<string, {
   totals: { sent: number; delivered: number; read: number; failed: number; total: number };
   chartData: Array<{ date: string; sent: number; read: number; failed: number }>;
   templateMetrics: Array<{ templateName: string; sent: number; read: number; failed: number; total: number }>;
+  costs?: any;
 }> = {
   today: {
     totals: { sent: 3412, delivered: 3398, read: 2780, failed: 8, total: 3420 },
@@ -27,7 +29,16 @@ const SHOWCASE_METRICS: Record<string, {
       { templateName: "aviso_promocao_vip", total: 1850, sent: 1848, read: 1520, failed: 2 },
       { templateName: "confirmacao_pedido_oficial", total: 1020, sent: 1018, read: 830, failed: 2 },
       { templateName: "recuperacao_carrinho_v2", total: 550, sent: 546, read: 430, failed: 4 }
-    ]
+    ],
+    costs: {
+      period: { totalSpentBrl: 1065.44, totalSpentUsd: 185.30, totalDeliveredBilled: 3398, totalFailedFree: 8, savingsFromFailuresBrl: 2.88 },
+      billingForecast: { currentMonthSpentBrl: 30540.00, currentMonthSpentUsd: 5311.30, dailyRunRateBrl: 985.16, projectedMonthEndCostBrl: 30540.00, projectedMonthEndCostUsd: 5311.30, activeCampaignsProjectedBrl: 1540.00, totalForecastMonthBrl: 32080.00, nextBillingEstimate: "01/10/2026 (ou no limite de faturamento Meta)" },
+      templateCosts: [
+        { templateName: "aviso_promocao_vip", category: "MARKETING", delivered: 1848, failed: 2, total: 1850, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 665.28, totalCostUsd: 115.50, percentageOfTotal: 62 },
+        { templateName: "confirmacao_pedido_oficial", category: "UTILITY", delivered: 1018, failed: 2, total: 1020, unitCostBrl: 0.20, unitCostUsd: 0.0350, totalCostBrl: 203.60, totalCostUsd: 35.63, percentageOfTotal: 19 },
+        { templateName: "recuperacao_carrinho_v2", category: "MARKETING", delivered: 546, failed: 4, total: 550, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 196.56, totalCostUsd: 34.13, percentageOfTotal: 19 }
+      ]
+    }
   },
   yesterday: {
     totals: { sent: 4878, delivered: 4860, read: 3920, failed: 12, total: 4890 },
@@ -42,7 +53,16 @@ const SHOWCASE_METRICS: Record<string, {
       { templateName: "aviso_promocao_vip", total: 2650, sent: 2645, read: 2140, failed: 5 },
       { templateName: "recuperacao_carrinho_v2", total: 1340, sent: 1336, read: 1080, failed: 4 },
       { templateName: "confirmacao_pedido_oficial", total: 900, sent: 897, read: 700, failed: 3 }
-    ]
+    ],
+    costs: {
+      period: { totalSpentBrl: 1612.56, totalSpentUsd: 280.45, totalDeliveredBilled: 4860, totalFailedFree: 12, savingsFromFailuresBrl: 4.32 },
+      billingForecast: { currentMonthSpentBrl: 30540.00, currentMonthSpentUsd: 5311.30, dailyRunRateBrl: 985.16, projectedMonthEndCostBrl: 30540.00, projectedMonthEndCostUsd: 5311.30, activeCampaignsProjectedBrl: 1540.00, totalForecastMonthBrl: 32080.00, nextBillingEstimate: "01/10/2026 (ou no limite de faturamento Meta)" },
+      templateCosts: [
+        { templateName: "aviso_promocao_vip", category: "MARKETING", delivered: 2645, failed: 5, total: 2650, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 952.20, totalCostUsd: 165.31, percentageOfTotal: 59 },
+        { templateName: "recuperacao_carrinho_v2", category: "MARKETING", delivered: 1336, failed: 4, total: 1340, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 480.96, totalCostUsd: 83.50, percentageOfTotal: 30 },
+        { templateName: "confirmacao_pedido_oficial", category: "UTILITY", delivered: 897, failed: 3, total: 900, unitCostBrl: 0.20, unitCostUsd: 0.0350, totalCostBrl: 179.40, totalCostUsd: 31.40, percentageOfTotal: 11 }
+      ]
+    }
   },
   "7days": {
     totals: { sent: 28580, delivered: 28490, read: 22850, failed: 60, total: 28640 },
@@ -60,7 +80,17 @@ const SHOWCASE_METRICS: Record<string, {
       { templateName: "recuperacao_carrinho_v2", total: 8200, sent: 8180, read: 6640, failed: 20 },
       { templateName: "confirmacao_pedido_oficial", total: 4200, sent: 4195, read: 3380, failed: 5 },
       { templateName: "reativacao_inativos_20off", total: 1740, sent: 1735, read: 940, failed: 5 }
-    ]
+    ],
+    costs: {
+      period: { totalSpentBrl: 9453.20, totalSpentUsd: 1644.03, totalDeliveredBilled: 28490, totalFailedFree: 60, savingsFromFailuresBrl: 21.60 },
+      billingForecast: { currentMonthSpentBrl: 30540.00, currentMonthSpentUsd: 5311.30, dailyRunRateBrl: 985.16, projectedMonthEndCostBrl: 30540.00, projectedMonthEndCostUsd: 5311.30, activeCampaignsProjectedBrl: 1540.00, totalForecastMonthBrl: 32080.00, nextBillingEstimate: "01/10/2026 (ou no limite de faturamento Meta)" },
+      templateCosts: [
+        { templateName: "aviso_promocao_vip", category: "MARKETING", delivered: 14470, failed: 30, total: 14500, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 5209.20, totalCostUsd: 904.38, percentageOfTotal: 55 },
+        { templateName: "recuperacao_carrinho_v2", category: "MARKETING", delivered: 8180, failed: 20, total: 8200, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 2944.80, totalCostUsd: 511.25, percentageOfTotal: 31 },
+        { templateName: "confirmacao_pedido_oficial", category: "UTILITY", delivered: 4195, failed: 5, total: 4200, unitCostBrl: 0.20, unitCostUsd: 0.0350, totalCostBrl: 839.00, totalCostUsd: 146.83, percentageOfTotal: 9 },
+        { templateName: "reativacao_inativos_20off", category: "MARKETING", delivered: 1735, failed: 5, total: 1740, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 624.60, totalCostUsd: 108.44, percentageOfTotal: 7 }
+      ]
+    }
   },
   "30days": {
     totals: { sent: 94620, delivered: 94310, read: 75480, failed: 230, total: 94850 },
@@ -82,7 +112,17 @@ const SHOWCASE_METRICS: Record<string, {
       { templateName: "recuperacao_carrinho_v2", total: 26400, sent: 26340, read: 21330, failed: 60 },
       { templateName: "confirmacao_pedido_oficial", total: 15600, sent: 15580, read: 12620, failed: 20 },
       { templateName: "reativacao_inativos_20off", total: 7650, sent: 7620, read: 4570, failed: 30 }
-    ]
+    ],
+    costs: {
+      period: { totalSpentBrl: 31580.40, totalSpentUsd: 5492.24, totalDeliveredBilled: 94310, totalFailedFree: 230, savingsFromFailuresBrl: 82.80 },
+      billingForecast: { currentMonthSpentBrl: 30540.00, currentMonthSpentUsd: 5311.30, dailyRunRateBrl: 985.16, projectedMonthEndCostBrl: 30540.00, projectedMonthEndCostUsd: 5311.30, activeCampaignsProjectedBrl: 1540.00, totalForecastMonthBrl: 32080.00, nextBillingEstimate: "01/10/2026 (ou no limite de faturamento Meta)" },
+      templateCosts: [
+        { templateName: "aviso_promocao_vip", category: "MARKETING", delivered: 45080, failed: 120, total: 45200, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 16228.80, totalCostUsd: 2817.50, percentageOfTotal: 51 },
+        { templateName: "recuperacao_carrinho_v2", category: "MARKETING", delivered: 26340, failed: 60, total: 26400, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 9482.40, totalCostUsd: 1646.25, percentageOfTotal: 30 },
+        { templateName: "confirmacao_pedido_oficial", category: "UTILITY", delivered: 15580, failed: 20, total: 15600, unitCostBrl: 0.20, unitCostUsd: 0.0350, totalCostBrl: 3116.00, totalCostUsd: 545.30, percentageOfTotal: 10 },
+        { templateName: "reativacao_inativos_20off", category: "MARKETING", delivered: 7620, failed: 30, total: 7650, unitCostBrl: 0.36, unitCostUsd: 0.0625, totalCostBrl: 2743.20, totalCostUsd: 476.25, percentageOfTotal: 9 }
+      ]
+    }
   }
 };
 
@@ -115,6 +155,7 @@ export default function DashboardPage() {
     };
     chartData: Array<{ date: string; sent: number; read: number; failed: number; replies?: number }>;
     templateMetrics?: Array<{ templateName: string; sent: number; delivered?: number; read: number; failed: number; total: number; readRate?: number }>;
+    costs?: any;
   }>({
     totals: { sent: 0, delivered: 0, read: 0, failed: 0, total: 0 },
     chartData: [],
@@ -634,6 +675,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Painel Financeiro & Prévia de Cobrança Meta API */}
+      <FinancialMetricsSection
+        costs={metricsData.costs}
+        periodLabel={periodLabel}
+        templateMetrics={metricsData.templateMetrics}
+        isLoading={isLoadingMetrics}
+      />
+
       {/* Quadro de Auditoria & Diagnóstico da Base */}
       <div className="glass" style={{ padding: "26px 30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "16px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
@@ -762,6 +811,7 @@ export default function DashboardPage() {
         totals={metricsData.totals}
         failureDiagnosis={failureDiagnosis}
         templateMetrics={metricsData.templateMetrics}
+        costs={metricsData.costs}
       />
     </div>
   );

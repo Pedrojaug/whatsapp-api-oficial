@@ -36,6 +36,7 @@ interface ExecutiveReportModalProps {
     failed: number;
     readRate?: number;
   }>;
+  costs?: any;
 }
 
 export default function ExecutiveReportModal({
@@ -48,6 +49,7 @@ export default function ExecutiveReportModal({
   totals,
   failureDiagnosis,
   templateMetrics = [],
+  costs,
 }: ExecutiveReportModalProps) {
   if (!isOpen) return null;
 
@@ -440,11 +442,60 @@ export default function ExecutiveReportModal({
             </div>
           </div>
 
+          {/* Section: Auditoria Financeira Meta API */}
+          {costs && (
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", background: "#f8fafc", marginBottom: "14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <h3 style={{ margin: 0, fontSize: "0.88rem", fontWeight: "700", color: "#1e1b4b" }}>
+                  💰 Auditoria Financeira & Meta API (WhatsApp Cloud)
+                </h3>
+                <span style={{ fontSize: "0.72rem", color: "#64748b" }}>
+                  Tarifas Oficiais Meta: Marketing ~R$ 0,36 | Utilidade ~R$ 0,20
+                </span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", fontSize: "0.75rem" }}>
+                <div style={{ background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ color: "#64748b", fontSize: "0.68rem" }}>Gasto no Período</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: "800", color: "#0f172a" }}>
+                    R$ {(costs?.period?.totalSpentBrl ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ color: "#94a3b8", fontSize: "0.65rem" }}>
+                    US$ {(costs?.period?.totalSpentUsd ?? 0).toFixed(2)}
+                  </div>
+                </div>
+
+                <div style={{ background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ color: "#64748b", fontSize: "0.68rem" }}>Disparos Faturados</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: "800", color: "#059669" }}>
+                    {(costs?.period?.totalDeliveredBilled ?? delivered).toLocaleString("pt-BR")}
+                  </div>
+                  <div style={{ color: "#10b981", fontSize: "0.65rem" }}>Apenas entregues</div>
+                </div>
+
+                <div style={{ background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ color: "#64748b", fontSize: "0.68rem" }}>Falhas Isentas</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: "800", color: "#0284c7" }}>
+                    {(costs?.period?.totalFailedFree ?? failed).toLocaleString("pt-BR")}
+                  </div>
+                  <div style={{ color: "#0284c7", fontSize: "0.65rem" }}>Custo R$ 0,00 na Meta</div>
+                </div>
+
+                <div style={{ background: "#fff", padding: "8px", borderRadius: "6px", border: "1px solid #e2e8f0" }}>
+                  <div style={{ color: "#64748b", fontSize: "0.68rem" }}>Previsão Fatura Mês</div>
+                  <div style={{ fontSize: "1.1rem", fontWeight: "800", color: "#7c3aed" }}>
+                    R$ {(costs?.billingForecast?.projectedMonthEndCostBrl ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ color: "#8b5cf6", fontSize: "0.65rem" }}>Projeção mês atual</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Section: Desempenho por Template */}
           {templateMetrics.length > 0 && (
             <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "12px 14px", background: "#fff", marginBottom: "14px" }}>
               <h3 style={{ margin: "0 0 8px 0", fontSize: "0.88rem", fontWeight: "700", color: "#1e1b4b" }}>
-                📋 Performance Comparativa por Template
+                📋 Performance Comparativa & Custos por Template
               </h3>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.78rem", textAlign: "left" }}>
                 <thead>
@@ -454,13 +505,17 @@ export default function ExecutiveReportModal({
                     <th style={{ padding: "5px 8px", color: "#475569" }}>Entregues</th>
                     <th style={{ padding: "5px 8px", color: "#475569" }}>Lidos</th>
                     <th style={{ padding: "5px 8px", color: "#475569" }}>Taxa Leitura</th>
-                    <th style={{ padding: "5px 8px", color: "#475569" }}>Falhas</th>
+                    <th style={{ padding: "5px 8px", color: "#475569" }}>Falhas (R$ 0)</th>
+                    <th style={{ padding: "5px 8px", color: "#475569" }}>Custo Estimado</th>
                   </tr>
                 </thead>
                 <tbody>
                   {templateMetrics.slice(0, 5).map((t, idx) => {
                     const deliveredCount = t.delivered || t.sent || 0;
                     const readRatePct = deliveredCount > 0 ? Math.round((t.read / deliveredCount) * 100) : 0;
+                    const matchedCost = costs?.templateCosts?.find((tc: any) => tc.templateName === t.templateName);
+                    const costBrl = matchedCost ? matchedCost.totalCostBrl : (deliveredCount * 0.36);
+
                     return (
                       <tr key={idx} style={{ borderBottom: "1px solid #f1f5f9" }}>
                         <td style={{ padding: "5px 8px", fontWeight: "600", color: "#0f172a" }}>{t.templateName}</td>
@@ -469,6 +524,9 @@ export default function ExecutiveReportModal({
                         <td style={{ padding: "5px 8px", color: "#15803d" }}>{t.read.toLocaleString("pt-BR")}</td>
                         <td style={{ padding: "5px 8px", fontWeight: "700", color: "#15803d" }}>{readRatePct}%</td>
                         <td style={{ padding: "5px 8px", color: t.failed > 0 ? "#dc2626" : "#64748b" }}>{t.failed}</td>
+                        <td style={{ padding: "5px 8px", fontWeight: "700", color: "#0f172a" }}>
+                          R$ {costBrl.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
                       </tr>
                     );
                   })}

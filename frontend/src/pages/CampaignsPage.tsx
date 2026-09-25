@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { API_BASE_URL } from "../contexts/AuthContext";
+import { formatBRL, getTemplateUnitCost } from "../utils/pricing";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
@@ -35,7 +36,7 @@ function describeSchedule(c: any): string {
   return c.scheduleType;
 }
 
-interface Template { id: string; name: string; status: string; components: any; }
+interface Template { id: string; name: string; status: string; components: any; category?: string; }
 interface ContactList { id: string; name: string; tags: string[]; _count?: { contacts: number }; }
 interface Campaign {
   id: string; name: string; status: string;
@@ -303,12 +304,24 @@ export default function CampaignsPage() {
                         <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                           🕐 {describeSchedule(c)}
                         </span>
-                        <div style={{ display: "flex", gap: "16px", fontSize: "0.78rem", color: "var(--text-muted)", flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: "16px", fontSize: "0.78rem", color: "var(--text-muted)", flexWrap: "wrap", alignItems: "center" }}>
                           <span>📋 {c.templateName}</span>
                           {c.nextRunAt && c.status === "ACTIVE" && (
                             <span>⏭ Próximo: {new Date(c.nextRunAt).toLocaleString("pt-BR")}</span>
                           )}
                           <span>▶ {c.runCount} execuç{c.runCount !== 1 ? "ões" : "ão"}</span>
+                          {(() => {
+                            const list = contactLists.find((l) => l.id === c.contactListId);
+                            const contactsCount = list?._count?.contacts ?? 0;
+                            if (contactsCount === 0) return null;
+                            const tmpl = templates.find((t) => t.name === c.templateName);
+                            const { brl: unitRate } = getTemplateUnitCost(tmpl?.category);
+                            return (
+                              <span style={{ color: "var(--primary)", fontWeight: "700" }}>
+                                💰 ~{formatBRL(contactsCount * unitRate)} / disparo
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                       <div style={{ display: "flex", gap: "6px", flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
@@ -501,6 +514,60 @@ export default function CampaignsPage() {
                       ))}
                     </select>
                   </div>
+
+                  {/* Estimativa de Custo em Tempo Real */}
+                  {form.templateName && form.contactListId && (() => {
+                    const selList = contactLists.find((l) => l.id === form.contactListId);
+                    const contactsCount = selList?._count?.contacts ?? 0;
+                    const selTmpl = templates.find((t) => t.name === form.templateName);
+                    const { brl: unitRate, category } = getTemplateUnitCost(selTmpl?.category);
+                    const costPerRun = contactsCount * unitRate;
+
+                    let monthlyMultiplier = 1;
+                    if (form.scheduleType === "DAILY") monthlyMultiplier = 30;
+                    else if (form.scheduleType === "WEEKLY") monthlyMultiplier = 4;
+                    else if (form.scheduleType === "MONTHLY") monthlyMultiplier = 1;
+                    const monthlyCost = form.scheduleType === "ONCE" ? costPerRun : costPerRun * monthlyMultiplier;
+
+                    return (
+                      <div
+                        style={{
+                          background: "rgba(37, 211, 102, 0.08)",
+                          border: "1px solid rgba(37, 211, 102, 0.25)",
+                          borderRadius: "var(--radius-md)",
+                          padding: "14px 16px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          gap: "12px",
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: "600" }}>
+                            💰 Estimativa de Custo Meta API
+                          </div>
+                          <div style={{ fontSize: "1.2rem", fontWeight: "800", color: "var(--primary)" }}>
+                            {formatBRL(costPerRun)}{" "}
+                            <span style={{ fontSize: "0.78rem", fontWeight: "400", color: "var(--text-secondary)" }}>
+                              por execução
+                            </span>
+                          </div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>
+                            {contactsCount.toLocaleString("pt-BR")} contatos × {formatBRL(unitRate)} ({category}) • Falhas não são cobradas
+                          </div>
+                        </div>
+
+                        {form.scheduleType !== "ONCE" && (
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>Previsão Mensal</div>
+                            <div style={{ fontSize: "1.1rem", fontWeight: "700", color: "#c4b5fd" }}>
+                              {formatBRL(monthlyCost)} / mês
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Schedule */}
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px", padding: "16px", background: "rgba(0,0,0,0.15)", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.05)" }}>

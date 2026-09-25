@@ -10,6 +10,7 @@ import { resolveMetaMediaId } from "../utils/mediaUpload";
 import { normalizePhone } from "../services/phoneService";
 import { triggerDispatcher } from "../workers/dispatcher";
 import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountFinancialMetrics } from "../utils/pricing";
 
 const router = Router();
 
@@ -519,6 +520,12 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       readRate: t.delivered > 0 ? Math.round((t.read / t.delivered) * 100) : 0,
     }));
 
+    // Cálculo detalhado de custos oficiais Meta e projeção de cobrança
+    const financialMetrics = await getAccountFinancialMetrics(accountId, start, end).catch((err) => {
+      console.error("[Pricing] Erro ao calcular métricas financeiras:", err.message);
+      return null;
+    });
+
     res.json({
       totals: {
         sent,
@@ -543,8 +550,31 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
         other: otherFailures,
       },
       chartData,
-      templateMetrics
+      templateMetrics,
+      costs: financialMetrics
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Obter custos e previsão de cobrança detalhada (Meta WhatsApp Cloud API)
+router.get("/accounts/:accountId/costs", async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const { startDate: queryStart, endDate: queryEnd, exchangeRate } = req.query;
+
+  try {
+    const userId = (req as AuthenticatedRequest).userId!;
+    const account = await findAccountForUser(accountId, userId);
+    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    const now = new Date();
+    const start = queryStart ? new Date(queryStart as string) : new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const end = queryEnd ? new Date(queryEnd as string) : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const parsedRate = exchangeRate ? parseFloat(exchangeRate as string) : undefined;
+
+    const costs = await getAccountFinancialMetrics(accountId, start, end, parsedRate);
+    res.json(costs);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

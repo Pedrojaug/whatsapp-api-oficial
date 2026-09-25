@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountFinancialMetrics } from "../utils/pricing";
 
 const router = Router();
 router.use(authMiddleware);
@@ -123,7 +124,7 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
       if (endDate) { end.setTime(new Date(endDate as string).getTime()); end.setHours(23, 59, 59, 999); }
     }
 
-    const [messages, incomingMsgs, optOutsCount] = await Promise.all([
+    const [messages, incomingMsgs, optOutsCount, financialMetrics] = await Promise.all([
       prisma.message.findMany({
         where: { accountId, direction: "OUTGOING", messageType: "TEMPLATE", createdAt: { gte: start, lte: end } },
         select: { status: true, createdAt: true, templateName: true, errorMessage: true, to: true },
@@ -135,6 +136,7 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
       prisma.optOut.count({
         where: { accountId, createdAt: { gte: start, lte: end } },
       }),
+      getAccountFinancialMetrics(accountId, start, end).catch(() => null),
     ]);
 
     const periodLabel = `${start.toLocaleDateString("pt-BR")} – ${end.toLocaleDateString("pt-BR")}`;
@@ -219,13 +221,31 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
     summarySheet.addRow(["🛡️ SAÚDE DA BASE & COMPLIANCE", "VALOR", "AVALIAÇÃO"]);
     summarySheet.addRow(["Pedidos de Descadastro (Opt-Outs)", optOutsCount, "Solicitaram 'SAIR' ou 'PARAR'"]);
     summarySheet.addRow(["Taxa de Rejeição / Descadastro", `${optOutRate}%`, Number(optOutRate) < 1 ? "Excelente saúde da lista (< 1%)" : "Atenção à segmentação"]);
+    summarySheet.addRow(["", "", ""]); // Espaço
+
+    // Seção 4: Auditoria Financeira & Meta API
+    summarySheet.addRow(["💰 AUDITORIA FINANCEIRA & META API (WHATSAPP)", "VALOR", "DETALHE DE COBRANÇA"]);
+    const periodSpentBrl = financialMetrics ? `R$ ${financialMetrics.period.totalSpentBrl.toFixed(2)}` : "R$ 0,00";
+    const periodSpentUsd = financialMetrics ? `US$ ${financialMetrics.period.totalSpentUsd.toFixed(2)}` : "US$ 0.00";
+    const billedCount = financialMetrics ? financialMetrics.period.totalDeliveredBilled : delivered;
+    const freeCount = financialMetrics ? financialMetrics.period.totalFailedFree : failed;
+    const savingsBrl = financialMetrics ? `R$ ${financialMetrics.period.savingsFromFailuresBrl.toFixed(2)}` : "R$ 0,00";
+    const monthSpentBrl = financialMetrics ? `R$ ${financialMetrics.billingForecast.currentMonthSpentBrl.toFixed(2)}` : "–";
+    const monthProjectedBrl = financialMetrics ? `R$ ${financialMetrics.billingForecast.projectedMonthEndCostBrl.toFixed(2)}` : "–";
+
+    summarySheet.addRow(["Gasto Total Estimado no Período", periodSpentBrl, `${periodSpentUsd} tarifados na Meta`]);
+    summarySheet.addRow(["Disparos Cobrados (Entregues)", billedCount, "Apenas mensagens entregues geram custo"]);
+    summarySheet.addRow(["Disparos Isentos (Falhas / Bloqueios)", freeCount, "Custo R$ 0,00 (Meta não cobra falhas)"]);
+    summarySheet.addRow(["Economia Real em Falhas", savingsBrl, "Valor não cobrado pela Meta"]);
+    summarySheet.addRow(["Gasto Acumulado Mês Atual", monthSpentBrl, "Ciclo atual de cobrança"]);
+    summarySheet.addRow(["Previsão de Fechamento do Mês", monthProjectedBrl, "Projeção com base no ritmo diário"]);
 
     // Estilização das linhas do Resumo Executivo
     summarySheet.getRow(1).font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
     summarySheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E1B4B" } };
     summarySheet.getRow(2).font = { size: 10, color: { argb: "FF6366F1" }, italic: true };
 
-    const sectionHeaderRows = [4, 12, 20];
+    const sectionHeaderRows = [4, 12, 20, 25];
     sectionHeaderRows.forEach(r => {
       const row = summarySheet.getRow(r);
       row.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 11 };
@@ -277,11 +297,14 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
     });
     tplSheet.columns = [
       { header: "Template", key: "name", width: 34 },
+      { header: "Categoria", key: "category", width: 18 },
+      { header: "Tarifa Meta", key: "unitRate", width: 16 },
       { header: "Total", key: "total", width: 12 },
       { header: "Entregues", key: "delivered", width: 14 },
       { header: "Lidas", key: "read", width: 12 },
       { header: "Taxa Leitura", key: "rate", width: 16 },
-      { header: "Falharam", key: "failed", width: 12 },
+      { header: "Falharam (R$ 0)", key: "failed", width: 16 },
+      { header: "Total Cobrado (R$)", key: "costBrl", width: 20 },
     ];
     tplSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
     tplSheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E1B4B" } };
@@ -297,16 +320,31 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
       else if (m.status === "FAILED") { row.failed++; }
     });
 
+    const costMap = new Map<string, any>();
+    if (financialMetrics?.templateCosts) {
+      financialMetrics.templateCosts.forEach(tc => costMap.set(tc.templateName, tc));
+    }
+
     Array.from(tplMap.entries())
       .sort(([, a], [, b]) => b.total - a.total)
-      .forEach(([name, v]) => tplSheet.addRow({
-        name,
-        total: v.total,
-        delivered: v.delivered,
-        read: v.read,
-        rate: v.delivered > 0 ? `${Math.round((v.read / v.delivered) * 100)}%` : "0%",
-        failed: v.failed,
-      }));
+      .forEach(([name, v]) => {
+        const costInfo = costMap.get(name);
+        const category = costInfo?.category || "MARKETING";
+        const unitRate = costInfo ? `R$ ${costInfo.unitCostBrl.toFixed(2)}` : "R$ 0,36";
+        const totalBrl = costInfo ? `R$ ${costInfo.totalCostBrl.toFixed(2)}` : `R$ ${(v.delivered * 0.36).toFixed(2)}`;
+
+        tplSheet.addRow({
+          name,
+          category,
+          unitRate,
+          total: v.total,
+          delivered: v.delivered,
+          read: v.read,
+          rate: v.delivered > 0 ? `${Math.round((v.read / v.delivered) * 100)}%` : "0%",
+          failed: v.failed,
+          costBrl: totalBrl,
+        });
+      });
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="relatorio_executivo_${accountId.slice(0, 8)}.xlsx"`);

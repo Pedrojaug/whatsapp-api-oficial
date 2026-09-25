@@ -6,6 +6,7 @@ import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
 import { formatMessageStatus } from "../utils/formatters";
+import { formatBRL, getTemplateUnitCost } from "../utils/pricing";
 import PhoneSimulator from "../components/PhoneSimulator";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
@@ -628,6 +629,45 @@ export default function MessagesPage() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* Prévia de Custo Meta */}
+          {selectedTemplateName && (
+            (() => {
+              const tmpl = templates.find((t) => t.name === selectedTemplateName);
+              const { brl: unitRate, category } = getTemplateUnitCost(tmpl?.category);
+              const selList = recipientType === "list" ? contactLists.find((l) => l.id === selectedListId) : null;
+              const count = recipientType === "single" ? 1 : (selList?.contactCount ?? selList?._count?.contacts ?? 0);
+              const totalCost = count * unitRate;
+
+              return (
+                <div
+                  style={{
+                    background: "rgba(37, 211, 102, 0.08)",
+                    border: "1px solid rgba(37, 211, 102, 0.25)",
+                    borderRadius: "var(--radius-md)",
+                    padding: "12px 14px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginTop: "8px",
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: "600" }}>
+                      💰 Prévia de Custo Meta API ({category})
+                    </div>
+                    <div style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--primary)" }}>
+                      ~{formatBRL(totalCost)}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: "right", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
+                    <div>{count} destinatário{count !== 1 ? "s" : ""} × {formatBRL(unitRate)}</div>
+                    <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Falhas não são cobradas</div>
+                  </div>
+                </div>
+              );
+            })()
           )}
 
           <button type="submit" disabled={loading || !selectedAccount} className="btn btn-primary" style={{ width: "100%", marginTop: "10px" }}>
