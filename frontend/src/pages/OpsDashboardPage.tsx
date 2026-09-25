@@ -1,0 +1,1125 @@
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "../contexts/AuthContext";
+import { useAlert } from "../contexts/AlertContext";
+import {
+  Activity,
+  Server,
+  Database,
+  Globe,
+  Terminal,
+  RefreshCw,
+  Plus,
+  Trash2,
+  ExternalLink,
+  Cpu,
+  CheckCircle,
+  Radio,
+  Flame,
+  KeyRound
+} from "lucide-react";
+
+interface MonitoredProject {
+  id: string;
+  name: string;
+  category: "API" | "FRONTEND" | "DATABASE" | "WORKER" | "WEBHOOK" | "EXTERNAL";
+  url: string;
+  domain?: string;
+  status: "ONLINE" | "DEGRADED" | "OFFLINE" | "CHECKING";
+  latencyMs: number;
+  lastCheckedAt?: string;
+  statusCode?: number;
+  ssl?: {
+    valid: boolean;
+    issuer: string;
+    validTo: string;
+    daysRemaining: number;
+  };
+  details?: string;
+  isCore?: boolean;
+}
+
+interface TelemetryOverview {
+  totalRequests: number;
+  totalErrors: number;
+  errorRatePercent: number;
+  rpm: number;
+  uptimeSeconds: number;
+  latencies: {
+    avgMs: number;
+    p50Ms: number;
+    p95Ms: number;
+    p99Ms: number;
+  };
+  statusCodes: Record<string, number>;
+}
+
+interface RouteStat {
+  route: string;
+  method: string;
+  totalCalls: number;
+  totalDurationMs: number;
+  avgDurationMs: number;
+  minDurationMs: number;
+  maxDurationMs: number;
+  p95DurationMs: number;
+  errorCalls: number;
+  lastCalledAt: string;
+}
+
+interface RequestRecord {
+  id: string;
+  method: string;
+  path: string;
+  route: string;
+  statusCode: number;
+  durationMs: number;
+  timestamp: string;
+  ip: string;
+  userAgent?: string;
+  errorMessage?: string;
+}
+
+interface DbHealth {
+  status: "HEALTHY" | "DEGRADED" | "DOWN";
+  latencyMs: number;
+  serverTime: string;
+  tables: { name: string; estimatedRows: number }[];
+  connectionPool: {
+    status: string;
+    databaseName: string;
+  };
+}
+
+interface DeployRecord {
+  id: string;
+  projectName: string;
+  environment: string;
+  commitHash: string;
+  commitMessage: string;
+  branch: string;
+  status: "SUCCESS" | "BUILDING" | "FAILED";
+  deployedAt: string;
+  durationSeconds?: number;
+  author?: string;
+}
+
+interface ProcessStats {
+  nodeVersion: string;
+  platform: string;
+  arch: string;
+  pid: number;
+  uptimeSeconds: number;
+  memory: {
+    rssMb: number;
+    heapUsedMb: number;
+    heapTotalMb: number;
+    externalMb: number;
+  };
+  env: string;
+}
+
+export default function OpsDashboardPage() {
+  const { showAlert } = useAlert();
+  const [activeTab, setActiveTab] = useState<"projects" | "routes" | "database" | "deploys">("projects");
+  const [loading, setLoading] = useState(true);
+  const [isProbing, setIsProbing] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  // Dados consolidados
+  const [healthScore, setHealthScore] = useState<number>(100);
+  const [projects, setProjects] = useState<MonitoredProject[]>([]);
+  const [dbHealth, setDbHealth] = useState<DbHealth | null>(null);
+  const [telemetry, setTelemetry] = useState<{
+    overview: TelemetryOverview;
+    minuteTimeline: { minute: string; requestCount: number; errorCount: number; avgDurationMs: number }[];
+    slowestRoutes: RouteStat[];
+    mostCalledRoutes: RouteStat[];
+    recentRequests: RequestRecord[];
+    recentErrors: RequestRecord[];
+  } | null>(null);
+  const [processStats, setProcessStats] = useState<ProcessStats | null>(null);
+  const [deploys, setDeploys] = useState<DeployRecord[]>([]);
+
+  // Modal para adicionar projeto
+  const [showAddProjectModal, setShowAddProjectModal] = useState(false);
+  const [newProject, setNewProject] = useState({
+    name: "",
+    category: "API" as const,
+    url: "",
+    domain: ""
+  });
+  const [isSavingProject, setIsSavingProject] = useState(false);
+
+  const fetchOpsData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE_URL}/admin/ops/overview`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.data) {
+        setHealthScore(res.data.systemHealthScore || 100);
+        setProjects(res.data.projects || []);
+        setDbHealth(res.data.database || null);
+        setTelemetry(res.data.telemetry || null);
+        setProcessStats(res.data.process || null);
+        setDeploys(res.data.deploys || []);
+        setLastUpdated(new Date());
+      }
+    } catch (err: any) {
+      if (!silent) {
+        showAlert(`Erro ao carregar telemetria: ${err.response?.data?.error || err.message}`, "error");
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, [showAlert]);
+
+  useEffect(() => {
+    fetchOpsData();
+  }, [fetchOpsData]);
+
+  // Polling automático a cada 6 segundos se autoRefresh estiver ativado
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchOpsData(true);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [autoRefresh, fetchOpsData]);
+
+  // Forçar sondagem e ping imediato
+  const handleProbeAll = async () => {
+    setIsProbing(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API_BASE_URL}/admin/ops/probe`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      await fetchOpsData(true);
+      showAlert("Sondagem completa executada com sucesso!", "success");
+    } catch (err: any) {
+      showAlert(`Falha ao executar sondagem: ${err.message}`, "error");
+    } finally {
+      setIsProbing(false);
+    }
+  };
+
+  // Criar novo projeto monitorado
+  const handleAddProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProject.name.trim() || !newProject.url.trim()) {
+      showAlert("Preencha o nome e a URL do projeto.", "error");
+      return;
+    }
+
+    setIsSavingProject(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API_BASE_URL}/admin/ops/projects`, newProject, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowAddProjectModal(false);
+      setNewProject({ name: "", category: "API", url: "", domain: "" });
+      showAlert("Projeto adicionado ao monitoramento!", "success");
+      fetchOpsData(true);
+    } catch (err: any) {
+      showAlert(`Erro ao adicionar projeto: ${err.response?.data?.error || err.message}`, "error");
+    } finally {
+      setIsSavingProject(false);
+    }
+  };
+
+  // Remover projeto customizado
+  const handleDeleteProject = async (id: string, name: string) => {
+    if (!confirm(`Deseja remover "${name}" do monitoramento de projetos?`)) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_BASE_URL}/admin/ops/projects/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showAlert(`Projeto "${name}" removido.`, "success");
+      fetchOpsData(true);
+    } catch (err: any) {
+      showAlert(err.response?.data?.error || err.message, "error");
+    }
+  };
+
+  // Limpar telemetria
+  const handleClearTelemetry = async () => {
+    if (!confirm("Tem certeza que deseja zerar os contadores e estatísticas de telemetria das rotas?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API_BASE_URL}/admin/ops/clear-telemetry`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      showAlert("Métricas de rotas reiniciadas.", "success");
+      fetchOpsData(true);
+    } catch (err: any) {
+      showAlert(err.message, "error");
+    }
+  };
+
+  const formatUptime = (seconds: number) => {
+    const d = Math.floor(seconds / (3600 * 24));
+    const h = Math.floor((seconds % (3600 * 24)) / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
+  };
+
+  return (
+    <div className="page-container" style={{ maxWidth: "1400px", margin: "0 auto", padding: "20px 24px" }}>
+      {/* Header com Status Global e Controles */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px", marginBottom: "24px" }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
+            <span style={{ fontSize: "1.6rem" }}>⚡</span>
+            <h1 style={{ fontSize: "1.75rem", fontWeight: 800, margin: 0, letterSpacing: "-0.02em" }}>
+              Mission Control <span style={{ color: "var(--primary)", fontWeight: 400 }}>| Dev & Infra Ops</span>
+            </h1>
+          </div>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", margin: 0 }}>
+            Central de Observabilidade, Telemetria APM de Rotas, Banco de Dados, Domínios e Deploys de Projetos.
+          </p>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          {/* Toggle Auto-Refresh */}
+          <button
+            type="button"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className="btn btn-secondary"
+            style={{
+              fontSize: "0.8rem",
+              padding: "7px 12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              borderColor: autoRefresh ? "rgba(16, 185, 129, 0.4)" : undefined,
+              color: autoRefresh ? "var(--primary)" : "var(--text-muted)"
+            }}
+            title={autoRefresh ? "Atualização ao vivo ativa (a cada 6s)" : "Atualização pausada"}
+          >
+            <Radio size={14} className={autoRefresh ? "pulse" : ""} />
+            {autoRefresh ? "Ao Vivo (6s)" : "Pausado"}
+          </button>
+
+          {/* Botão Sondagem / Ping Imediato */}
+          <button
+            type="button"
+            onClick={handleProbeAll}
+            disabled={isProbing || loading}
+            className="btn btn-primary"
+            style={{ fontSize: "0.82rem", padding: "7px 14px", display: "flex", alignItems: "center", gap: "6px" }}
+          >
+            <RefreshCw size={14} className={isProbing ? "spin" : ""} />
+            {isProbing ? "Testando Serviços..." : "Executar Ping Geral"}
+          </button>
+
+          {/* Última atualização */}
+          <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+            Atualizado: {lastUpdated.toLocaleTimeString()}
+          </span>
+        </div>
+      </div>
+
+      {/* 4 Cards de Métricas Principais (Health Score, Neon Ping, APM RPM, Domínios) */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+        gap: "16px",
+        marginBottom: "24px"
+      }}>
+        {/* Card 1: Índice de Saúde Geral */}
+        <div style={{
+          background: "linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(17, 24, 39, 0.6) 100%)",
+          border: `1px solid ${healthScore > 90 ? "rgba(16, 185, 129, 0.3)" : "rgba(245, 158, 11, 0.3)"}`,
+          borderRadius: "14px",
+          padding: "18px 20px",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+              Saúde do Ecossistema
+            </span>
+            <Activity size={18} color={healthScore > 90 ? "var(--primary)" : "#f59e0b"} />
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "10px" }}>
+            <span style={{ fontSize: "2rem", fontWeight: 800, color: healthScore > 90 ? "var(--primary)" : "#f59e0b" }}>
+              {healthScore}%
+            </span>
+            <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+              {healthScore > 90 ? "Todos os sistemas operacionais" : "Atenção a serviços degradados"}
+            </span>
+          </div>
+          {/* Barra de progresso */}
+          <div style={{ width: "100%", height: "6px", background: "rgba(255, 255, 255, 0.1)", borderRadius: "3px", overflow: "hidden" }}>
+            <div style={{
+              width: `${healthScore}%`,
+              height: "100%",
+              background: healthScore > 90 ? "linear-gradient(90deg, #10b981, #059669)" : "linear-gradient(90deg, #f59e0b, #ef4444)",
+              transition: "width 0.4s ease"
+            }} />
+          </div>
+        </div>
+
+        {/* Card 2: Banco de Dados Neon */}
+        <div style={{
+          background: "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(17, 24, 39, 0.6) 100%)",
+          border: `1px solid ${dbHealth?.status === "HEALTHY" ? "rgba(59, 130, 246, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+          borderRadius: "14px",
+          padding: "18px 20px",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+              Neon PostgreSQL Ping
+            </span>
+            <Database size={18} color="#60a5fa" />
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "2rem", fontWeight: 800, color: "#60a5fa" }}>
+              {dbHealth ? `${dbHealth.latencyMs} ms` : "..."}
+            </span>
+            <span style={{
+              fontSize: "0.75rem",
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: "12px",
+              background: dbHealth?.status === "HEALTHY" ? "rgba(16, 185, 129, 0.15)" : "rgba(239, 68, 68, 0.15)",
+              color: dbHealth?.status === "HEALTHY" ? "#34d399" : "#f87171"
+            }}>
+              {dbHealth?.status === "HEALTHY" ? "Excelente" : dbHealth?.status || "Conectando"}
+            </span>
+          </div>
+          <div style={{ fontSize: "0.76rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+            <span>Pool: {dbHealth?.connectionPool.status || "Ativo"}</span>
+            <span>Banco: {dbHealth?.connectionPool.databaseName || "neondb"}</span>
+          </div>
+        </div>
+
+        {/* Card 3: Backend & Throughput (APM) */}
+        <div style={{
+          background: "linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(17, 24, 39, 0.6) 100%)",
+          border: "1px solid rgba(168, 85, 247, 0.3)",
+          borderRadius: "14px",
+          padding: "18px 20px",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+              Requisições / Minuto (RPM)
+            </span>
+            <Flame size={18} color="#c084fc" />
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "2rem", fontWeight: 800, color: "#c084fc" }}>
+              {telemetry ? telemetry.overview.rpm : 0}
+            </span>
+            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+              p95: {telemetry ? `${telemetry.overview.latencies.p95Ms}ms` : "0ms"}
+            </span>
+          </div>
+          <div style={{ fontSize: "0.76rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+            <span>Total: {telemetry?.overview.totalRequests.toLocaleString() || 0} reqs</span>
+            <span style={{ color: (telemetry?.overview.errorRatePercent || 0) > 1 ? "#f87171" : "var(--primary)" }}>
+              Erros: {telemetry?.overview.errorRatePercent || 0}%
+            </span>
+          </div>
+        </div>
+
+        {/* Card 4: Runtime & Host Node.js */}
+        <div style={{
+          background: "linear-gradient(135deg, rgba(234, 179, 8, 0.08) 0%, rgba(17, 24, 39, 0.6) 100%)",
+          border: "1px solid rgba(234, 179, 8, 0.3)",
+          borderRadius: "14px",
+          padding: "18px 20px",
+          boxShadow: "0 8px 24px rgba(0, 0, 0, 0.2)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <span style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
+              Processo / Host Node.js
+            </span>
+            <Cpu size={18} color="#facc15" />
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "10px", marginBottom: "8px" }}>
+            <span style={{ fontSize: "2rem", fontWeight: 800, color: "#facc15" }}>
+              {processStats ? `${processStats.memory.heapUsedMb} MB` : "..."}
+            </span>
+            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+              RSS: {processStats?.memory.rssMb || 0} MB
+            </span>
+          </div>
+          <div style={{ fontSize: "0.76rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between" }}>
+            <span>Uptime: {processStats ? formatUptime(processStats.uptimeSeconds) : "..."}</span>
+            <span>{processStats?.nodeVersion} ({processStats?.platform})</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Navegação por Abas (Projetos & Domínios, Backend & Rotas APM, Banco Neon, Deploys) */}
+      <div style={{
+        display: "flex",
+        gap: "8px",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+        marginBottom: "20px",
+        overflowX: "auto"
+      }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab("projects")}
+          style={{
+            padding: "10px 18px",
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "projects" ? "3px solid var(--primary)" : "3px solid transparent",
+            color: activeTab === "projects" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700,
+            fontSize: "0.88rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          <Globe size={16} /> Projetos & Domínios ({projects.length})
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("routes")}
+          style={{
+            padding: "10px 18px",
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "routes" ? "3px solid var(--primary)" : "3px solid transparent",
+            color: activeTab === "routes" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700,
+            fontSize: "0.88rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          <Terminal size={16} /> Backend & Rotas (APM)
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("database")}
+          style={{
+            padding: "10px 18px",
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "database" ? "3px solid var(--primary)" : "3px solid transparent",
+            color: activeTab === "database" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700,
+            fontSize: "0.88rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          <Database size={16} /> Banco Neon PostgreSQL
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("deploys")}
+          style={{
+            padding: "10px 18px",
+            background: "none",
+            border: "none",
+            borderBottom: activeTab === "deploys" ? "3px solid var(--primary)" : "3px solid transparent",
+            color: activeTab === "deploys" ? "var(--primary)" : "var(--text-secondary)",
+            fontWeight: 700,
+            fontSize: "0.88rem",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px"
+          }}
+        >
+          <Server size={16} /> Deploys & CI/CD ({deploys.length})
+        </button>
+      </div>
+
+      {/* ABA 1: PROJETOS & DOMÍNIOS */}
+      {activeTab === "projects" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div>
+              <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 4px 0" }}>Projetos e Endpoints Monitorados</h2>
+              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
+                Status em tempo real de latência, códigos HTTP e validade dos certificados SSL.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowAddProjectModal(true)}
+              className="btn btn-primary"
+              style={{ fontSize: "0.82rem", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}
+            >
+              <Plus size={15} /> Adicionar Novo Projeto
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px" }}>
+            {projects.map((proj) => {
+              const isOnline = proj.status === "ONLINE";
+              const isDegraded = proj.status === "DEGRADED";
+
+              return (
+                <div
+                  key={proj.id}
+                  style={{
+                    background: "rgba(17, 24, 39, 0.7)",
+                    border: `1px solid ${isOnline ? "rgba(16, 185, 129, 0.25)" : isDegraded ? "rgba(245, 158, 11, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                    borderRadius: "12px",
+                    padding: "16px 18px",
+                    position: "relative",
+                    backdropFilter: "blur(8px)"
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{
+                          width: "9px",
+                          height: "9px",
+                          borderRadius: "50%",
+                          background: isOnline ? "#10b981" : isDegraded ? "#f59e0b" : "#ef4444",
+                          boxShadow: `0 0 10px ${isOnline ? "#10b981" : isDegraded ? "#f59e0b" : "#ef4444"}`
+                        }} />
+                        <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: 0 }}>{proj.name}</h3>
+                      </div>
+                      <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginLeft: "17px" }}>
+                        {proj.category}
+                      </span>
+                    </div>
+
+                    <span style={{
+                      fontSize: "0.72rem",
+                      fontWeight: 700,
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      background: isOnline ? "rgba(16, 185, 129, 0.15)" : isDegraded ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                      color: isOnline ? "#34d399" : isDegraded ? "#fde047" : "#fca5a5"
+                    }}>
+                      {proj.status}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "12px", wordBreak: "break-all" }}>
+                    <a
+                      href={proj.url.startsWith("http") ? proj.url : `https://${proj.url}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "var(--text-secondary)", display: "inline-flex", alignItems: "center", gap: "4px", textDecoration: "none" }}
+                    >
+                      {proj.domain || proj.url} <ExternalLink size={12} />
+                    </a>
+                  </div>
+
+                  {/* Informações de Latência e Detalhes */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "rgba(255, 255, 255, 0.03)", padding: "8px 12px", borderRadius: "8px", marginBottom: "10px", fontSize: "0.76rem" }}>
+                    <span>Latência de Ping:</span>
+                    <strong style={{ color: proj.latencyMs < 150 ? "var(--primary)" : "#f59e0b" }}>
+                      {proj.latencyMs > 0 ? `${proj.latencyMs} ms` : "..."}
+                    </strong>
+                  </div>
+
+                  {/* Certificado SSL */}
+                  {proj.ssl && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.74rem", color: "var(--text-muted)", marginBottom: "10px", padding: "0 4px" }}>
+                      <span>SSL ({proj.ssl.issuer.split(" ")[0]}):</span>
+                      <span style={{ color: proj.ssl.daysRemaining > 15 ? "#34d399" : "#f87171", fontWeight: 600 }}>
+                        🔒 {proj.ssl.daysRemaining} dias restantes
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Rodapé do Card */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "12px", paddingTop: "8px", borderTop: "1px solid rgba(255, 255, 255, 0.06)", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                    <span>{proj.details || "Operação nominal"}</span>
+                    {!proj.isCore && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteProject(proj.id, proj.name)}
+                        style={{ background: "none", border: "none", color: "var(--error)", cursor: "pointer", padding: "2px 6px" }}
+                        title="Remover projeto"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ABA 2: BACKEND & ROTAS (APM TELEMETRY) */}
+      {activeTab === "routes" && (
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <div>
+              <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 4px 0" }}>Desempenho de Rotas & Tráfego (APM)</h2>
+              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
+                Métricas em tempo real de latência por endpoint, percentis P95/P99 e feed de requisições.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearTelemetry}
+              className="btn btn-secondary"
+              style={{ fontSize: "0.8rem", padding: "5px 12px" }}
+            >
+              🧹 Zerar Métricas de Rotas
+            </button>
+          </div>
+
+          {/* Gráfico de Linha do Tempo dos Últimos 30 Minutos */}
+          {telemetry && telemetry.minuteTimeline.length > 0 && (
+            <div style={{
+              background: "rgba(17, 24, 39, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "12px",
+              padding: "16px 20px",
+              marginBottom: "20px"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
+                  Volume de Requisições por Minuto (Últimos 30m)
+                </span>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                  Pico: {Math.max(...telemetry.minuteTimeline.map(m => m.requestCount), 1)} req/min
+                </span>
+              </div>
+
+              {/* Visualização de barras de minutos */}
+              <div style={{ display: "flex", alignItems: "flex-end", height: "80px", gap: "4px", padding: "4px 0" }}>
+                {telemetry.minuteTimeline.map((item, idx) => {
+                  const max = Math.max(...telemetry.minuteTimeline.map(m => m.requestCount), 1);
+                  const heightPercent = Math.max(6, Math.round((item.requestCount / max) * 100));
+                  const hasErrors = item.errorCount > 0;
+
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        flex: 1,
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        height: "100%",
+                        justifyContent: "flex-end"
+                      }}
+                      title={`${item.minute}: ${item.requestCount} requisições (${item.errorCount} erros) | Média: ${item.avgDurationMs}ms`}
+                    >
+                      <div style={{
+                        width: "100%",
+                        height: `${heightPercent}%`,
+                        background: hasErrors
+                          ? "linear-gradient(180deg, #ef4444 0%, rgba(239,68,68,0.3) 100%)"
+                          : item.requestCount > 0
+                            ? "linear-gradient(180deg, #10b981 0%, rgba(16,185,129,0.2) 100%)"
+                            : "rgba(255,255,255,0.05)",
+                        borderRadius: "2px",
+                        transition: "height 0.3s ease"
+                      }} />
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.68rem", color: "var(--text-muted)", marginTop: "4px" }}>
+                <span>-30m</span>
+                <span>-15m</span>
+                <span>Agora</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tabela de Rotas Mais Lentas (Top 10) */}
+          <div style={{
+            background: "rgba(17, 24, 39, 0.7)",
+            border: "1px solid rgba(255, 255, 255, 0.08)",
+            borderRadius: "12px",
+            padding: "16px 20px",
+            marginBottom: "20px"
+          }}>
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 12px 0" }}>
+              Top 10 Rotas Mais Lentas & Frequência
+            </h3>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                <thead>
+                  <tr style={{ color: "var(--text-muted)", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", textAlign: "left" }}>
+                    <th style={{ padding: "8px 10px" }}>Método</th>
+                    <th style={{ padding: "8px 10px" }}>Rota</th>
+                    <th style={{ padding: "8px 10px" }}>Chamadas</th>
+                    <th style={{ padding: "8px 10px" }}>Latência Média</th>
+                    <th style={{ padding: "8px 10px" }}>P95</th>
+                    <th style={{ padding: "8px 10px" }}>Erros</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {telemetry?.slowestRoutes.map((r, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                      <td style={{ padding: "8px 10px" }}>
+                        <span style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          background: r.method === "GET" ? "rgba(16, 185, 129, 0.15)" : r.method === "POST" ? "rgba(59, 130, 246, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                          color: r.method === "GET" ? "#34d399" : r.method === "POST" ? "#60a5fa" : "#fde047"
+                        }}>
+                          {r.method}
+                        </span>
+                      </td>
+                      <td style={{ padding: "8px 10px", fontFamily: "monospace", color: "var(--text-primary)" }}>{r.route}</td>
+                      <td style={{ padding: "8px 10px" }}>{r.totalCalls}</td>
+                      <td style={{ padding: "8px 10px", fontWeight: 600, color: r.avgDurationMs > 300 ? "#f87171" : r.avgDurationMs > 100 ? "#fde047" : "var(--primary)" }}>
+                        {r.avgDurationMs} ms
+                      </td>
+                      <td style={{ padding: "8px 10px", color: "var(--text-secondary)" }}>{r.p95DurationMs} ms</td>
+                      <td style={{ padding: "8px 10px", color: r.errorCalls > 0 ? "#f87171" : "var(--text-muted)" }}>
+                        {r.errorCalls}
+                      </td>
+                    </tr>
+                  ))}
+                  {(!telemetry || telemetry.slowestRoutes.length === 0) && (
+                    <tr>
+                      <td colSpan={6} style={{ padding: "16px", textAlign: "center", color: "var(--text-muted)" }}>
+                        Nenhuma rota registrada ainda.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Terminal / Live Request Feed */}
+          <div style={{
+            background: "#090d16",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            borderRadius: "12px",
+            padding: "16px 20px",
+            fontFamily: "monospace"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#ef4444" }} />
+                <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#f59e0b" }} />
+                <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "#10b981" }} />
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginLeft: "6px" }}>
+                  Live Request Stream ({telemetry?.recentRequests.length || 0} eventos)
+                </span>
+              </div>
+              <span style={{ fontSize: "0.72rem", color: "var(--primary)" }}>● Streaming ativo</span>
+            </div>
+
+            <div style={{ maxHeight: "320px", overflowY: "auto", fontSize: "0.78rem", lineHeight: "1.6" }}>
+              {telemetry?.recentRequests.map((req) => {
+                const is2xx = req.statusCode >= 200 && req.statusCode < 300;
+                const is4xx = req.statusCode >= 400 && req.statusCode < 500;
+                const is5xx = req.statusCode >= 500;
+
+                return (
+                  <div key={req.id} style={{ display: "flex", gap: "10px", padding: "2px 0", borderBottom: "1px solid rgba(255, 255, 255, 0.02)" }}>
+                    <span style={{ color: "rgba(255, 255, 255, 0.4)", minWidth: "75px" }}>
+                      {new Date(req.timestamp).toLocaleTimeString()}
+                    </span>
+                    <span style={{
+                      fontWeight: 700,
+                      color: is2xx ? "#34d399" : is4xx ? "#f59e0b" : is5xx ? "#f87171" : "#94a3b8",
+                      minWidth: "35px"
+                    }}>
+                      {req.statusCode}
+                    </span>
+                    <span style={{ color: req.method === "GET" ? "#38bdf8" : "#a855f7", minWidth: "45px" }}>
+                      {req.method}
+                    </span>
+                    <span style={{ color: "#f8fafc", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {req.path}
+                    </span>
+                    <span style={{ color: req.durationMs > 250 ? "#f59e0b" : "rgba(255, 255, 255, 0.5)", minWidth: "60px", textAlign: "right" }}>
+                      {req.durationMs}ms
+                    </span>
+                  </div>
+                );
+              })}
+              {(!telemetry || telemetry.recentRequests.length === 0) && (
+                <div style={{ color: "var(--text-muted)", padding: "10px 0" }}>Aguardando requisições...</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ABA 3: BANCO DE DADOS NEON */}
+      {activeTab === "database" && (
+        <div>
+          <div style={{ marginBottom: "16px" }}>
+            <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 4px 0" }}>Diagnóstico de Banco de Dados Neon PostgreSQL</h2>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
+              Latência de rede, pool de conexões e volumetria de tabelas.
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px", marginBottom: "20px" }}>
+            {/* Medidor de Latência Neon */}
+            <div style={{ background: "rgba(17, 24, 39, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "18px 20px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }}>Latência de Query (`SELECT NOW()`)</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: "10px", margin: "10px 0" }}>
+                <span style={{ fontSize: "2.2rem", fontWeight: 800, color: "var(--primary)" }}>
+                  {dbHealth?.latencyMs || 0} ms
+                </span>
+                <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                  {dbHealth?.latencyMs && dbHealth.latencyMs < 100 ? "Excelente (Baixa Latência)" : "Normal"}
+                </span>
+              </div>
+              <p style={{ fontSize: "0.78rem", color: "var(--text-muted)", margin: 0 }}>
+                Conectado ao cluster serverless Neon com pooling gerenciado.
+              </p>
+            </div>
+
+            {/* Status do Pool & Host */}
+            <div style={{ background: "rgba(17, 24, 39, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "18px 20px" }}>
+              <span style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: 600 }}>Instância & Conexão</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", fontSize: "0.82rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Status do Pool:</span>
+                  <strong style={{ color: "var(--primary)" }}>{dbHealth?.connectionPool.status}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Database:</span>
+                  <span>{dbHealth?.connectionPool.databaseName}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ color: "var(--text-muted)" }}>Horário do Servidor:</span>
+                  <span>{dbHealth?.serverTime ? new Date(dbHealth.serverTime).toLocaleTimeString() : "..."}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Tabela de Contagem Estimada de Linhas */}
+          <div style={{ background: "rgba(17, 24, 39, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "18px 20px" }}>
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 12px 0" }}>
+              Volumetria de Tabelas Principais (Linhas Estimadas)
+            </h3>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
+              {dbHealth?.tables.map((t, idx) => (
+                <div key={idx} style={{ background: "rgba(255, 255, 255, 0.03)", padding: "12px 14px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.04)" }}>
+                  <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "4px" }}>{t.name}</div>
+                  <div style={{ fontSize: "1.2rem", fontWeight: 700, color: "var(--text-primary)" }}>
+                    {t.estimatedRows.toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ABA 4: DEPLOYS & CI/CD */}
+      {activeTab === "deploys" && (
+        <div>
+          <div style={{ marginBottom: "16px" }}>
+            <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 4px 0" }}>Deploys, Releases & Webhook de CI/CD</h2>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
+              Histórico de versões publicadas no Render/Vercel e integração com pipelines GitHub Actions.
+            </p>
+          </div>
+
+          {/* Webhook Endpoint Box */}
+          <div style={{
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(17, 24, 39, 0.7) 100%)",
+            border: "1px solid rgba(59, 130, 246, 0.25)",
+            borderRadius: "12px",
+            padding: "16px 20px",
+            marginBottom: "20px"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
+              <KeyRound size={16} color="#60a5fa" />
+              <strong style={{ fontSize: "0.88rem", color: "#93c5fd" }}>Webhook de Deploy para GitHub / Render / Vercel</strong>
+            </div>
+            <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 8px 0" }}>
+              Configure esta URL no seu pipeline ou webhook do Render para registrar automaticamente cada novo deploy no dashboard:
+            </p>
+            <div style={{
+              background: "rgba(0, 0, 0, 0.4)",
+              padding: "8px 12px",
+              borderRadius: "6px",
+              fontFamily: "monospace",
+              fontSize: "0.8rem",
+              color: "var(--primary)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <span>{`${API_BASE_URL}/admin/ops/deploy-webhook`}</span>
+              <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>POST (JSON)</span>
+            </div>
+          </div>
+
+          {/* Histórico de Deploys */}
+          <div style={{ background: "rgba(17, 24, 39, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "18px 20px" }}>
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 14px 0" }}>Histórico Recente de Publicações</h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {deploys.map((dep) => (
+                <div
+                  key={dep.id}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.02)",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
+                    borderRadius: "8px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "10px"
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <CheckCircle size={18} color="var(--primary)" />
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <strong style={{ fontSize: "0.88rem" }}>{dep.projectName}</strong>
+                        <span style={{ fontSize: "0.72rem", fontFamily: "monospace", background: "rgba(255, 255, 255, 0.08)", padding: "1px 6px", borderRadius: "4px" }}>
+                          #{dep.commitHash}
+                        </span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>({dep.branch})</span>
+                      </div>
+                      <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "2px" }}>
+                        {dep.commitMessage}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                    <span>Autor: {dep.author || "DevOps"}</span>
+                    <span>{new Date(dep.deployedAt).toLocaleString("pt-BR")}</span>
+                    <span style={{
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      background: "rgba(16, 185, 129, 0.15)",
+                      color: "#34d399",
+                      fontWeight: 700
+                    }}>
+                      {dep.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Adicionar Novo Projeto Monitorado */}
+      {showAddProjectModal && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.75)",
+          backdropFilter: "blur(6px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 10000,
+          padding: "16px"
+        }}>
+          <div style={{
+            background: "#111827",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "14px",
+            padding: "24px",
+            width: "100%",
+            maxWidth: "480px",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)"
+          }}>
+            <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 6px 0" }}>
+              Adicionar Projeto para Monitoramento
+            </h3>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: "0 0 16px 0" }}>
+              Monitore a disponibilidade, tempo de resposta e certificado SSL de qualquer API, serviço ou site.
+            </p>
+
+            <form onSubmit={handleAddProject} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Nome do Projeto</label>
+                <input
+                  type="text"
+                  placeholder="Ex: Landing Page Nova ou Webhook n8n"
+                  value={newProject.name}
+                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                  className="form-control"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Categoria</label>
+                <select
+                  value={newProject.category}
+                  onChange={(e: any) => setNewProject({ ...newProject, category: e.target.value })}
+                  className="form-control"
+                >
+                  <option value="API">API Backend</option>
+                  <option value="FRONTEND">Frontend Web</option>
+                  <option value="DATABASE">Banco de Dados</option>
+                  <option value="WEBHOOK">Webhook / Microserviço</option>
+                  <option value="EXTERNAL">Serviço Externo</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>URL de Health Check</label>
+                <input
+                  type="text"
+                  placeholder="https://exemplo.com.br/health"
+                  value={newProject.url}
+                  onChange={(e) => setNewProject({ ...newProject, url: e.target.value })}
+                  className="form-control"
+                  required
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowAddProjectModal(false)}
+                  className="btn btn-secondary"
+                  disabled={isSavingProject}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSavingProject}
+                >
+                  {isSavingProject ? "Adicionando..." : "Salvar e Monitorar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

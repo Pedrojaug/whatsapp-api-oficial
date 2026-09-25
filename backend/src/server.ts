@@ -26,6 +26,8 @@ import adminRouter from "./routes/admin";
 import billingRouter from "./routes/billing";
 import webhookRouter from "./routes/webhookRoutes"; // Deve ser importado separadamente para registro antes do whatsappRouter
 import n8nRouter from "./routes/n8nRoutes";
+import opsRouter from "./routes/opsRoutes";
+import { telemetryMiddleware } from "./utils/telemetry";
 import { handleTrackingRedirect } from "./routes/trackingRoutes";
 import publicApiRouter from "./routes/publicApiRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
@@ -87,6 +89,9 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// Monitoramento & Telemetria APM de alta performance (sem latência adicional)
+app.use(telemetryMiddleware);
 
 
 // Interceptador para servir ou restaurar imagens (R2 Cloud Storage ou fallback legado de banco)
@@ -150,6 +155,7 @@ app.use("/api", n8nRouter);
 
 // Rotas autenticadas
 app.use("/api/auth", authRouter);
+app.use("/api/admin/ops", opsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api", whatsappRouter);

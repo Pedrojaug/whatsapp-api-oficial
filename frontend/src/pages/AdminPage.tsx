@@ -279,14 +279,32 @@ export default function AdminPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={fetchData}
-          className="btn btn-secondary"
-          style={{ padding: "10px 18px", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px" }}
-        >
-          🔄 Atualizar Dados
-        </button>
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <button
+            type="button"
+            onClick={() => navigate("/ops")}
+            className="btn btn-primary"
+            style={{
+              padding: "10px 18px",
+              fontSize: "0.9rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+              borderColor: "rgba(56, 189, 248, 0.4)"
+            }}
+          >
+            ⚡ Mission Control (Dev & Infra)
+          </button>
+          <button
+            type="button"
+            onClick={fetchData}
+            className="btn btn-secondary"
+            style={{ padding: "10px 18px", fontSize: "0.9rem", display: "flex", alignItems: "center", gap: "8px" }}
+          >
+            🔄 Atualizar Dados
+          </button>
+        </div>
       </div>
 
       {/* CARDS INTERATIVOS DE FILTRO RÁPIDO */}

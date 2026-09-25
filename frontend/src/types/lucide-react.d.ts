@@ -47,6 +47,18 @@ declare module "lucide-react" {
   export const Lock: React.FC<any>;
   export const Mail: React.FC<any>;
   export const User: React.FC<any>;
+  export const Activity: React.FC<any>;
+  export const Server: React.FC<any>;
+  export const Database: React.FC<any>;
+  export const Cpu: React.FC<any>;
+  export const Globe: React.FC<any>;
+  export const Terminal: React.FC<any>;
+  export const Clock: React.FC<any>;
+  export const ArrowUpRight: React.FC<any>;
+  export const CheckCircle: React.FC<any>;
+  export const XCircle: React.FC<any>;
+  export const Flame: React.FC<any>;
+  export const Radio: React.FC<any>;
   const content: any;
   export default content;
 }

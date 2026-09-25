@@ -22,7 +22,8 @@ import {
   Link2,
   Megaphone,
   KeyRound,
-  UserCog
+  UserCog,
+  Activity
 } from "lucide-react";
 
 const SUPPORT_WHATSAPP = "5583920017106";
@@ -463,14 +464,26 @@ export default function Layout() {
             )}
 
             {user?.role === "SUPERUSER" && (
-              <NavLink
-                to="/admin"
-                className={({ isActive }) => `nav-item admin-nav-item${isActive ? " active" : ""}`}
-                onClick={closeSidebar}
-              >
-                <Wrench size={18} className="nav-icon" />
-                <span>Super Admin</span>
-              </NavLink>
+              <>
+                <NavLink
+                  to="/ops"
+                  className={({ isActive }) => `nav-item admin-nav-item${isActive ? " active" : ""}`}
+                  onClick={closeSidebar}
+                  style={{ color: "#38bdf8" }}
+                >
+                  <Activity size={18} className="nav-icon" />
+                  <span>Mission Control</span>
+                </NavLink>
+
+                <NavLink
+                  to="/admin"
+                  className={({ isActive }) => `nav-item admin-nav-item${isActive ? " active" : ""}`}
+                  onClick={closeSidebar}
+                >
+                  <Wrench size={18} className="nav-icon" />
+                  <span>Super Admin</span>
+                </NavLink>
+              </>
             )}
           </nav>
 
