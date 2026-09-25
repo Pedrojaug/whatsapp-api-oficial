@@ -33,5 +33,8 @@ Thumbs.db
 backend/uploads/
 **/uploads/
 
+# Local data & CI/CD credentials
+backend/data/
+**/data/
 
 .clinerules

@@ -59,6 +59,9 @@ declare module "lucide-react" {
   export const XCircle: React.FC<any>;
   export const Flame: React.FC<any>;
   export const Radio: React.FC<any>;
+  export const GitCommit: React.FC<any>;
+  export const GitBranch: React.FC<any>;
+  export const GitPullRequest: React.FC<any>;
   const content: any;
   export default content;
 }

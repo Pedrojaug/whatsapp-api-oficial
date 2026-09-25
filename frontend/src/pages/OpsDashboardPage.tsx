@@ -13,10 +13,11 @@ import {
   Trash2,
   ExternalLink,
   Cpu,
-  CheckCircle,
   Radio,
   Flame,
-  KeyRound
+  KeyRound,
+  GitCommit,
+  Settings2
 } from "lucide-react";
 
 interface MonitoredProject {
@@ -152,6 +153,72 @@ export default function OpsDashboardPage() {
   });
   const [isSavingProject, setIsSavingProject] = useState(false);
 
+  // Integração CI/CD (GitHub, Render, Vercel)
+  const [ciCdData, setCiCdData] = useState<{
+    github: { connected: boolean; commits: any[] };
+    render: { connected: boolean; deploys: any[]; message?: string };
+    vercel: { connected: boolean; deployments: any[]; message?: string };
+    config: {
+      githubRepo: string;
+      hasGithubToken: boolean;
+      hasRenderKey: boolean;
+      renderServiceId: string;
+      hasVercelToken: boolean;
+      vercelProjectId: string;
+    };
+  } | null>(null);
+
+  const [showCiCdModal, setShowCiCdModal] = useState(false);
+  const [ciCdForm, setCiCdForm] = useState({
+    githubRepo: "Pedrojaug/whatsapp-api-oficial",
+    githubToken: "",
+    renderApiKey: "",
+    renderServiceId: "srv-cv7cndre9etc73c9q7jg",
+    vercelToken: "",
+    vercelProjectId: ""
+  });
+  const [isSavingCiCd, setIsSavingCiCd] = useState(false);
+
+  const fetchCiCdData = useCallback(async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(`${API_BASE_URL}/admin/ops/ci-cd`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.data) {
+        setCiCdData(res.data);
+        if (res.data.config) {
+          setCiCdForm((prev) => ({
+            ...prev,
+            githubRepo: res.data.config.githubRepo || prev.githubRepo,
+            renderServiceId: res.data.config.renderServiceId || prev.renderServiceId,
+            vercelProjectId: res.data.config.vercelProjectId || prev.vercelProjectId
+          }));
+        }
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar CI/CD:", e);
+    }
+  }, []);
+
+  const handleSaveCiCdConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingCiCd(true);
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(`${API_BASE_URL}/admin/ops/ci-cd/config`, ciCdForm, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setShowCiCdModal(false);
+      showAlert("Configurações de CI/CD atualizadas com sucesso!", "success");
+      fetchCiCdData();
+    } catch (err: any) {
+      showAlert(`Erro ao salvar configurações: ${err.message}`, "error");
+    } finally {
+      setIsSavingCiCd(false);
+    }
+  };
+
   const fetchOpsData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     try {
@@ -181,6 +248,12 @@ export default function OpsDashboardPage() {
   useEffect(() => {
     fetchOpsData();
   }, [fetchOpsData]);
+
+  useEffect(() => {
+    if (activeTab === "deploys") {
+      fetchCiCdData();
+    }
+  }, [activeTab, fetchCiCdData]);
 
   // Polling automático a cada 6 segundos se autoRefresh estiver ativado
   useEffect(() => {
@@ -934,14 +1007,324 @@ export default function OpsDashboardPage() {
         </div>
       )}
 
-      {/* ABA 4: DEPLOYS & CI/CD */}
+      {/* ABA 4: DEPLOYS & CI/CD (GITHUB, RENDER, VERCEL) */}
       {activeTab === "deploys" && (
         <div>
-          <div style={{ marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 4px 0" }}>Deploys, Releases & Webhook de CI/CD</h2>
-            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
-              Histórico de versões publicadas no Render/Vercel e integração com pipelines GitHub Actions.
-            </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px", marginBottom: "20px" }}>
+            <div>
+              <h2 style={{ fontSize: "1.15rem", fontWeight: 700, margin: "0 0 4px 0" }}>Pipeline de Deploys & CI/CD Unificado</h2>
+              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: 0 }}>
+                Acompanhe em tempo real a árvore de commits do GitHub e o status de publicação no Render e na Vercel.
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <button
+                type="button"
+                onClick={fetchCiCdData}
+                className="btn btn-secondary"
+                style={{ fontSize: "0.8rem", padding: "6px 12px", display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <RefreshCw size={13} /> Atualizar Deploys
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCiCdModal(true)}
+                className="btn btn-primary"
+                style={{ fontSize: "0.8rem", padding: "6px 14px", display: "flex", alignItems: "center", gap: "6px" }}
+              >
+                <Settings2 size={14} /> Conectar Chaves (Render / Vercel)
+              </button>
+            </div>
+          </div>
+
+          {/* 3 Colunas: GitHub (Commits), Render (Backend), Vercel (Frontend) */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+            gap: "20px",
+            marginBottom: "24px"
+          }}>
+            {/* COLUNA 1: GITHUB (ÁRVORE DE COMMITS) */}
+            <div style={{
+              background: "rgba(17, 24, 39, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "14px",
+              padding: "18px 20px",
+              display: "flex",
+              flexDirection: "column"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <GitCommit size={18} color="#a855f7" />
+                  <strong style={{ fontSize: "0.95rem" }}>GitHub — Árvore de Commits</strong>
+                </div>
+                <span style={{ fontSize: "0.72rem", background: "rgba(168, 85, 247, 0.15)", color: "#c084fc", padding: "2px 8px", borderRadius: "10px", fontWeight: 600 }}>
+                  branch: main
+                </span>
+              </div>
+
+              {/* Lista com Árvore de Commits */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", maxHeight: "480px", overflowY: "auto", position: "relative", paddingLeft: "10px" }}>
+                {ciCdData?.github.commits.map((c, i) => (
+                  <div key={c.sha || i} style={{ display: "flex", gap: "12px", position: "relative" }}>
+                    {/* Linha vertical conectando a árvore */}
+                    {i < (ciCdData?.github.commits.length || 0) - 1 && (
+                      <div style={{
+                        position: "absolute",
+                        left: "6px",
+                        top: "16px",
+                        bottom: "-14px",
+                        width: "2px",
+                        background: "rgba(255, 255, 255, 0.1)"
+                      }} />
+                    )}
+
+                    {/* Ponto na árvore */}
+                    <div style={{
+                      width: "14px",
+                      height: "14px",
+                      borderRadius: "50%",
+                      background: i === 0 ? "#10b981" : "#a855f7",
+                      boxShadow: i === 0 ? "0 0 8px #10b981" : "none",
+                      border: "2px solid #111827",
+                      zIndex: 2,
+                      flexShrink: 0,
+                      marginTop: "3px"
+                    }} />
+
+                    {/* Detalhes do commit */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "3px" }}>
+                        <a
+                          href={c.htmlUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{
+                            fontSize: "0.74rem",
+                            fontFamily: "monospace",
+                            background: "rgba(255, 255, 255, 0.08)",
+                            color: "var(--primary)",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                            textDecoration: "none",
+                            fontWeight: 700
+                          }}
+                          title="Ver commit no GitHub"
+                        >
+                          #{c.shortSha} ↗
+                        </a>
+                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          {new Date(c.date).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: "0.82rem", color: "var(--text-primary)", fontWeight: 500, lineHeight: "1.35", wordBreak: "break-word" }}>
+                        {c.message.split("\n")[0]}
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "4px" }}>
+                        {c.authorAvatarUrl && (
+                          <img src={c.authorAvatarUrl} alt={c.authorName} style={{ width: "16px", height: "16px", borderRadius: "50%" }} />
+                        )}
+                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          {c.authorName}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {(!ciCdData || ciCdData.github.commits.length === 0) && (
+                  <div style={{ color: "var(--text-muted)", fontSize: "0.82rem", textAlign: "center", padding: "20px 0" }}>
+                    Carregando commits do repositório...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* COLUNA 2: RENDER (BACKEND DEPLOYS) */}
+            <div style={{
+              background: "rgba(17, 24, 39, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "14px",
+              padding: "18px 20px",
+              display: "flex",
+              flexDirection: "column"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Server size={18} color="#60a5fa" />
+                  <strong style={{ fontSize: "0.95rem" }}>Render — Backend Web Service</strong>
+                </div>
+                <span style={{
+                  fontSize: "0.72rem",
+                  background: ciCdData?.render.connected ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                  color: ciCdData?.render.connected ? "#34d399" : "#fde047",
+                  padding: "2px 8px",
+                  borderRadius: "10px",
+                  fontWeight: 600
+                }}>
+                  {ciCdData?.render.connected ? "● Render API Conectada" : "Webhook / Manual"}
+                </span>
+              </div>
+
+              {/* Lista de Deploys Render */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "480px", overflowY: "auto" }}>
+                {ciCdData?.render.deploys && ciCdData.render.deploys.length > 0 ? (
+                  ciCdData.render.deploys.map((dep, idx) => (
+                    <div key={dep.id || idx} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.05)", borderRadius: "8px", padding: "10px 12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <span style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: "6px",
+                          background: dep.status === "live" ? "rgba(16, 185, 129, 0.15)" : dep.status === "in_progress" ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                          color: dep.status === "live" ? "#34d399" : dep.status === "in_progress" ? "#fde047" : "#f87171",
+                          textTransform: "uppercase"
+                        }}>
+                          {dep.status === "live" ? "🟢 Live (Ativo)" : dep.status}
+                        </span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          {new Date(dep.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+
+                      <div style={{ fontSize: "0.8rem", color: "var(--text-secondary)", marginBottom: "4px" }}>
+                        {dep.commitMessage}
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        <span>Commit: #{dep.commitHash || "HEAD"}</span>
+                        <span>{dep.durationSeconds ? `Duração: ${dep.durationSeconds}s` : `Gatilho: ${dep.trigger}`}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{
+                    background: "rgba(59, 130, 246, 0.05)",
+                    border: "1px dashed rgba(59, 130, 246, 0.25)",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    textAlign: "center"
+                  }}>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 10px 0" }}>
+                      Para listar o histórico oficial de builds da Render diretamente na tela, conecte sua Chave de API da Render.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCiCdModal(true)}
+                      className="btn btn-secondary"
+                      style={{ fontSize: "0.76rem", padding: "4px 10px" }}
+                    >
+                      Configurar Chave da Render
+                    </button>
+                  </div>
+                )}
+
+                {/* Histórico Registrado via Webhook */}
+                {deploys.length > 0 && (!ciCdData?.render.deploys || ciCdData.render.deploys.length === 0) && (
+                  <div>
+                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Último Deploy Registrado:</span>
+                    {deploys.slice(0, 3).map((dep) => (
+                      <div key={dep.id} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.05)", borderRadius: "8px", padding: "10px 12px", marginBottom: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <strong style={{ fontSize: "0.82rem" }}>{dep.projectName}</strong>
+                          <span style={{ fontSize: "0.72rem", color: "#34d399", fontWeight: 700 }}>🟢 {dep.status}</span>
+                        </div>
+                        <div style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>{dep.commitMessage}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* COLUNA 3: VERCEL (FRONTEND DEPLOYMENTS) */}
+            <div style={{
+              background: "rgba(17, 24, 39, 0.7)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "14px",
+              padding: "18px 20px",
+              display: "flex",
+              flexDirection: "column"
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", borderBottom: "1px solid rgba(255, 255, 255, 0.08)", paddingBottom: "10px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <Globe size={18} color="#38bdf8" />
+                  <strong style={{ fontSize: "0.95rem" }}>Vercel — Frontend Web</strong>
+                </div>
+                <span style={{
+                  fontSize: "0.72rem",
+                  background: ciCdData?.vercel.connected ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                  color: ciCdData?.vercel.connected ? "#34d399" : "#fde047",
+                  padding: "2px 8px",
+                  borderRadius: "10px",
+                  fontWeight: 600
+                }}>
+                  {ciCdData?.vercel.connected ? "● Vercel API Conectada" : "Auto-Deploy GitHub"}
+                </span>
+              </div>
+
+              {/* Lista de Deployments Vercel */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "480px", overflowY: "auto" }}>
+                {ciCdData?.vercel.deployments && ciCdData.vercel.deployments.length > 0 ? (
+                  ciCdData.vercel.deployments.map((dep, idx) => (
+                    <div key={dep.id || idx} style={{ background: "rgba(255, 255, 255, 0.02)", border: "1px solid rgba(255, 255, 255, 0.05)", borderRadius: "8px", padding: "10px 12px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                        <span style={{
+                          fontSize: "0.72rem",
+                          fontWeight: 700,
+                          padding: "1px 6px",
+                          borderRadius: "6px",
+                          background: dep.state === "READY" ? "rgba(16, 185, 129, 0.15)" : dep.state === "BUILDING" ? "rgba(245, 158, 11, 0.15)" : "rgba(239, 68, 68, 0.15)",
+                          color: dep.state === "READY" ? "#34d399" : dep.state === "BUILDING" ? "#fde047" : "#f87171"
+                        }}>
+                          {dep.state === "READY" ? "🟢 Ready" : dep.state}
+                        </span>
+                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                          {new Date(dep.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+
+                      {dep.url && (
+                        <div style={{ fontSize: "0.78rem", marginBottom: "4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <a href={dep.url} target="_blank" rel="noreferrer" style={{ color: "var(--primary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            {dep.url.replace("https://", "")} <ExternalLink size={11} />
+                          </a>
+                        </div>
+                      )}
+
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                        <span>Commit: #{dep.commitHash || "HEAD"}</span>
+                        <span>Branch: {dep.branch}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{
+                    background: "rgba(56, 189, 248, 0.05)",
+                    border: "1px dashed rgba(56, 189, 248, 0.25)",
+                    borderRadius: "8px",
+                    padding: "16px",
+                    textAlign: "center"
+                  }}>
+                    <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 10px 0" }}>
+                      Deploy ativo vinculado ao repositório GitHub. Conecte seu token da Vercel para visualizar todos os builds e previews em tempo real.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowCiCdModal(true)}
+                      className="btn btn-secondary"
+                      style={{ fontSize: "0.76rem", padding: "4px 10px" }}
+                    >
+                      Configurar Token da Vercel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Webhook Endpoint Box */}
@@ -949,15 +1332,14 @@ export default function OpsDashboardPage() {
             background: "linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(17, 24, 39, 0.7) 100%)",
             border: "1px solid rgba(59, 130, 246, 0.25)",
             borderRadius: "12px",
-            padding: "16px 20px",
-            marginBottom: "20px"
+            padding: "16px 20px"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
               <KeyRound size={16} color="#60a5fa" />
-              <strong style={{ fontSize: "0.88rem", color: "#93c5fd" }}>Webhook de Deploy para GitHub / Render / Vercel</strong>
+              <strong style={{ fontSize: "0.88rem", color: "#93c5fd" }}>Webhook de Notificação de Deploy</strong>
             </div>
             <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", margin: "0 0 8px 0" }}>
-              Configure esta URL no seu pipeline ou webhook do Render para registrar automaticamente cada novo deploy no dashboard:
+              Qualquer plataforma externa (GitHub Actions, Render Webhook, Vercel Deploy Hook) pode notificar este endpoint para registrar publicações:
             </p>
             <div style={{
               background: "rgba(0, 0, 0, 0.4)",
@@ -974,58 +1356,117 @@ export default function OpsDashboardPage() {
               <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>POST (JSON)</span>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Histórico de Deploys */}
-          <div style={{ background: "rgba(17, 24, 39, 0.7)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "12px", padding: "18px 20px" }}>
-            <h3 style={{ fontSize: "0.95rem", fontWeight: 700, margin: "0 0 14px 0" }}>Histórico Recente de Publicações</h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {deploys.map((dep) => (
-                <div
-                  key={dep.id}
-                  style={{
-                    background: "rgba(255, 255, 255, 0.02)",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
-                    borderRadius: "8px",
-                    padding: "12px 16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flexWrap: "wrap",
-                    gap: "10px"
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                    <CheckCircle size={18} color="var(--primary)" />
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <strong style={{ fontSize: "0.88rem" }}>{dep.projectName}</strong>
-                        <span style={{ fontSize: "0.72rem", fontFamily: "monospace", background: "rgba(255, 255, 255, 0.08)", padding: "1px 6px", borderRadius: "4px" }}>
-                          #{dep.commitHash}
-                        </span>
-                        <span style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>({dep.branch})</span>
-                      </div>
-                      <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", marginTop: "2px" }}>
-                        {dep.commitMessage}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px", fontSize: "0.78rem", color: "var(--text-muted)" }}>
-                    <span>Autor: {dep.author || "DevOps"}</span>
-                    <span>{new Date(dep.deployedAt).toLocaleString("pt-BR")}</span>
-                    <span style={{
-                      padding: "2px 8px",
-                      borderRadius: "10px",
-                      background: "rgba(16, 185, 129, 0.15)",
-                      color: "#34d399",
-                      fontWeight: 700
-                    }}>
-                      {dep.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+      {/* Modal: Configurações de Conexões CI/CD (GitHub, Render, Vercel) */}
+      {showCiCdModal && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.75)",
+          backdropFilter: "blur(6px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 10000,
+          padding: "16px"
+        }}>
+          <div style={{
+            background: "#111827",
+            border: "1px solid rgba(255, 255, 255, 0.15)",
+            borderRadius: "14px",
+            padding: "24px",
+            width: "100%",
+            maxWidth: "520px",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.5)"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+              <h3 style={{ fontSize: "1.15rem", fontWeight: 700, margin: 0 }}>
+                Conectar CI/CD (GitHub, Render, Vercel)
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowCiCdModal(false)}
+                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.1rem" }}
+              >
+                ✕
+              </button>
             </div>
+            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: "0 0 16px 0" }}>
+              Insira suas chaves de API para carregar em tempo real o status de builds e deploys das plataformas.
+            </p>
+
+            <form onSubmit={handleSaveCiCdConfig} style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Repositório GitHub</label>
+                <input
+                  type="text"
+                  value={ciCdForm.githubRepo}
+                  onChange={(e) => setCiCdForm({ ...ciCdForm, githubRepo: e.target.value })}
+                  className="form-control"
+                  placeholder="usuario/repositorio"
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
+                  Render API Key (dashboard.render.com &gt; Account Settings &gt; API Keys)
+                </label>
+                <input
+                  type="password"
+                  value={ciCdForm.renderApiKey}
+                  onChange={(e) => setCiCdForm({ ...ciCdForm, renderApiKey: e.target.value })}
+                  className="form-control"
+                  placeholder="rnd_..."
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
+                  Render Service ID (da URL do serviço na Render: srv-...)
+                </label>
+                <input
+                  type="text"
+                  value={ciCdForm.renderServiceId}
+                  onChange={(e) => setCiCdForm({ ...ciCdForm, renderServiceId: e.target.value })}
+                  className="form-control"
+                  placeholder="srv-..."
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>
+                  Vercel Token (vercel.com &gt; Account Settings &gt; Tokens)
+                </label>
+                <input
+                  type="password"
+                  value={ciCdForm.vercelToken}
+                  onChange={(e) => setCiCdForm({ ...ciCdForm, vercelToken: e.target.value })}
+                  className="form-control"
+                  placeholder="Token Vercel..."
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCiCdModal(false)}
+                  className="btn btn-secondary"
+                  disabled={isSavingCiCd}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={isSavingCiCd}
+                >
+                  {isSavingCiCd ? "Salvando..." : "Salvar Conexões"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

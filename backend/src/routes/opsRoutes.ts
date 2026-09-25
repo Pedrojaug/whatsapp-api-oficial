@@ -3,6 +3,7 @@ import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { telemetry } from "../utils/telemetry";
 import { infraHealth, MonitoredProject } from "../services/infraHealthService";
+import { deployService } from "../services/deployIntegrationService";
 
 const router = Router();
 
@@ -159,6 +160,48 @@ router.post("/deploy-webhook", (req, res) => {
 
     console.log(`[Ops Webhook] Novo deploy registrado: ${projectName} (${commitHash.slice(0, 7)}) por ${author}`);
     res.json({ success: true, record });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 10. DADOS CONSOLIDADOS DE CI/CD (GitHub Commits, Render Deploys, Vercel Deployments)
+router.get("/ci-cd", authMiddleware, requireSuperUser, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const [githubCommits, renderData, vercelData] = await Promise.all([
+      deployService.getGitHubCommits(15),
+      deployService.getRenderDeploys(10),
+      deployService.getVercelDeployments(10)
+    ]);
+
+    res.json({
+      github: {
+        connected: githubCommits.length > 0,
+        commits: githubCommits
+      },
+      render: renderData,
+      vercel: vercelData,
+      config: deployService.getConfig()
+    });
+  } catch (error: any) {
+    console.error("[Ops CI/CD] Erro ao consolidar status de deploys:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 11. ATUALIZAR CREDENCIAIS E CONFIGURAÇÕES DE CI/CD
+router.post("/ci-cd/config", authMiddleware, requireSuperUser, (req: AuthenticatedRequest, res: Response) => {
+  const { githubRepo, githubToken, renderApiKey, renderServiceId, vercelToken, vercelProjectId } = req.body;
+  try {
+    deployService.updateConfig({
+      githubRepo,
+      githubToken,
+      renderApiKey,
+      renderServiceId,
+      vercelToken,
+      vercelProjectId
+    });
+    res.json({ success: true, config: deployService.getConfig() });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
