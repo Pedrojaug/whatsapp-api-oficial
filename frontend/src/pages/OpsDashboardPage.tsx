@@ -311,12 +311,15 @@ export default function OpsDashboardPage() {
     }
   }, [activeTab, fetchCiCdData]);
 
-  // Polling automático a cada 6 segundos se autoRefresh estiver ativado
+  // Polling automático inteligente a cada 25 segundos se autoRefresh estiver ativado e a aba estiver visível
   useEffect(() => {
     if (!autoRefresh) return;
     const interval = setInterval(() => {
-      fetchOpsData(true);
-    }, 6000);
+      // Pausa o polling se o usuário estiver em outra aba ou com o navegador minimizado (zero consumo de CPU/rede)
+      if (document.visibilityState === "visible") {
+        fetchOpsData(true);
+      }
+    }, 25000);
     return () => clearInterval(interval);
   }, [autoRefresh, fetchOpsData]);
 

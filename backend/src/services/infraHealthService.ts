@@ -57,8 +57,8 @@ class InfraHealthService {
       id: "send-backend",
       name: "Send Inteligentte - API Backend",
       category: "API",
-      url: process.env.BACKEND_PUBLIC_URL || "https://whatsapp-api-oficial.onrender.com/health",
-      domain: "whatsapp-api-oficial.onrender.com",
+      url: process.env.BACKEND_PUBLIC_URL || "https://whatsapp-api-oficial-nls9.onrender.com/health",
+      domain: "whatsapp-api-oficial-nls9.onrender.com",
       status: "ONLINE",
       latencyMs: 0,
       isCore: true
@@ -67,8 +67,8 @@ class InfraHealthService {
       id: "send-frontend",
       name: "Send Inteligentte - Painel Web",
       category: "FRONTEND",
-      url: (process.env.FRONTEND_URL || "https://inteligentte.com.br").split(",")[0],
-      domain: "inteligentte.com.br",
+      url: (process.env.FRONTEND_URL || "https://send.inteligentte.com.br").split(",")[0],
+      domain: "send.inteligentte.com.br",
       status: "ONLINE",
       latencyMs: 0,
       isCore: true
@@ -109,11 +109,17 @@ class InfraHealthService {
     }
   ];
 
+  // Cache in-memory da saúde do banco de dados (TTL 60 segundos)
+  // Evita acordar a Neon Tech e previne tempestades de queries com múltiplos acessos ao Mission Control
+  private cachedDbHealth: { data: DbHealthResult; expiresAt: number } | null = null;
+
   private constructor() {
-    // Executa sondagem automática a cada 2 minutos em segundo plano
+    // Sondagem em background apenas para serviços HTTP externos (NUNCA toca no banco Neon para não matar o auto-suspend)
     setInterval(() => {
-      this.probeAllProjects().catch(() => {});
-    }, 2 * 60 * 1000);
+      this.projects
+        .filter((p) => p.category !== "DATABASE")
+        .forEach((p) => this.probeSingleProject(p).catch(() => {}));
+    }, 5 * 60 * 1000);
   }
 
   public static getInstance(): InfraHealthService {
@@ -123,8 +129,13 @@ class InfraHealthService {
     return InfraHealthService.instance;
   }
 
-  // 1. Diagnóstico do Banco de Dados Neon (Latência, Ping & Tabelas)
-  public async probeDatabase(): Promise<DbHealthResult> {
+  // 1. Diagnóstico do Banco de Dados Neon (Latência, Ping & Tabelas com Cache de 60s)
+  public async probeDatabase(force = false): Promise<DbHealthResult> {
+    const nowMs = Date.now();
+    if (!force && this.cachedDbHealth && this.cachedDbHealth.expiresAt > nowMs) {
+      return this.cachedDbHealth.data;
+    }
+
     const start = process.hrtime();
     try {
       // 1. Medir latência real de uma query no Neon
@@ -155,8 +166,9 @@ class InfraHealthService {
         ];
       }
 
-      return {
-        status: latencyMs < 100 ? "HEALTHY" : latencyMs < 350 ? "DEGRADED" : "DEGRADED",
+      // Latência < 250ms é perfeitamente saudável (HEALTHY) para conexões cross-region (Render EUA ⇄ Neon São Paulo sa-east-1)
+      const result: DbHealthResult = {
+        status: latencyMs < 250 ? "HEALTHY" : latencyMs < 500 ? "DEGRADED" : "DOWN",
         latencyMs,
         serverTime: pingResult?.[0]?.now_time ? new Date(pingResult[0].now_time).toISOString() : new Date().toISOString(),
         tables,
@@ -165,6 +177,13 @@ class InfraHealthService {
           databaseName: process.env.DATABASE_URL?.split("@")[1]?.split("/")[1]?.split("?")[0] || "neondb"
         }
       };
+
+      this.cachedDbHealth = {
+        data: result,
+        expiresAt: nowMs + 60 * 1000 // Cache por 60 segundos
+      };
+
+      return result;
     } catch (error: any) {
       const diff = process.hrtime(start);
       return {
@@ -271,8 +290,10 @@ class InfraHealthService {
             const latencyMs = Math.round((diff[0] * 1000 + diff[1] / 1e6) * 10) / 10;
             const statusCode = res.statusCode || 0;
 
-            const isOnline = statusCode >= 200 && statusCode < 400;
-            const isDegraded = statusCode >= 400 && statusCode < 500;
+            const isMeta = parsed.hostname.includes("facebook.com");
+            // Meta Graph API retorna 400 quando o endpoint raiz é acessado sem token, o que confirma que o servidor da Meta está 100% ativo
+            const isOnline = (statusCode >= 200 && statusCode < 400) || (isMeta && (statusCode === 400 || statusCode === 401));
+            const isDegraded = !isOnline && statusCode >= 400 && statusCode < 500;
 
             project.status = isOnline ? "ONLINE" : isDegraded ? "DEGRADED" : "OFFLINE";
             project.latencyMs = latencyMs;

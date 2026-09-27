@@ -42,9 +42,14 @@ router.get("/overview", authMiddleware, requireSuperUser, async (_req: Authentic
     const offlineProjects = projects.filter((p) => p.status === "OFFLINE").length;
     healthScore -= offlineProjects * 15;
 
-    const errorRate = telemetryData.overview.errorRatePercent;
-    if (errorRate > 5) healthScore -= 15;
-    else if (errorRate > 1) healthScore -= 5;
+    // Apenas falhas de servidor (5xx) impactam negativamente o Score de Saúde do Sistema.
+    // Erros de cliente (4xx como senhas incorretas, 404, tokens expirados ou validações) são tráfego normal de aplicação.
+    const error5xxCount = telemetryData.overview.statusCodes?.["5xx"] || 0;
+    const totalReqs = telemetryData.overview.totalRequests || 1;
+    const error5xxRate = (error5xxCount / totalReqs) * 100;
+
+    if (error5xxRate > 5) healthScore -= 20;
+    else if (error5xxRate > 1) healthScore -= 10;
 
     healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
 

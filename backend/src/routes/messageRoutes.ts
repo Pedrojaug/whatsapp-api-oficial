@@ -308,6 +308,25 @@ router.get("/accounts/:accountId/messages/events", async (req: Request, res: Res
   }
 });
 
+// Cache in-memory para métricas analíticas (TTL: 60s)
+// Evita reexecutar 6 queries SQL analíticas concorrentes no Neon Postgres a cada refresh ou troca de abas
+interface CachedMetricsEntry {
+  data: any;
+  expiresAt: number;
+}
+const metricsCache = new Map<string, CachedMetricsEntry>();
+
+// Invalidação reativa orientada a eventos: quando novas mensagens chegam ou mudam de status, invalida o cache da conta
+messageEventEmitter.on("messageUpdated", (payload: any) => {
+  if (payload?.accountId) {
+    for (const key of metricsCache.keys()) {
+      if (key.startsWith(`${payload.accountId}:`)) {
+        metricsCache.delete(key);
+      }
+    }
+  }
+});
+
 // Obter métricas filtradas por período (scoped to user)
 router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) => {
   const { accountId } = req.params;
@@ -317,6 +336,14 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
     const userId = (req as AuthenticatedRequest).userId!;
     const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+
+    // Verificar se existe resposta válida no cache em memória
+    const cacheKey = `${accountId}:${period || '7days'}:${queryStart || ''}:${queryEnd || ''}`;
+    const nowMs = Date.now();
+    const cached = metricsCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowMs) {
+      return res.json(cached.data);
+    }
 
     const start = new Date();
     const end = new Date();
@@ -526,7 +553,7 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       return null;
     });
 
-    res.json({
+    const payload = {
       totals: {
         sent,
         delivered,
@@ -552,7 +579,14 @@ router.get("/accounts/:accountId/metrics", async (req: Request, res: Response) =
       chartData,
       templateMetrics,
       costs: financialMetrics
+    };
+
+    metricsCache.set(cacheKey, {
+      data: payload,
+      expiresAt: nowMs + 60 * 1000 // Cache in-memory de 60 segundos
     });
+
+    res.json(payload);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

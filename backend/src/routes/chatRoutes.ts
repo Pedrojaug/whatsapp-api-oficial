@@ -178,7 +178,25 @@ function csvCell(v: any): string {
   return /[;"\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-// Obter a lista de conversas ativas (scoped to user) - OTIMIZADO
+// Cache in-memory para lista de conversas (TTL: 15s com invalidação reativa em tempo real)
+interface CachedConversationsEntry {
+  data: ConversationRow[];
+  expiresAt: number;
+}
+const convCache = new Map<string, CachedConversationsEntry>();
+
+// Invalidação reativa: qualquer nova mensagem ou atualização de status limpa o cache da conta
+messageEventEmitter.on("messageUpdated", (payload: any) => {
+  if (payload?.accountId) {
+    for (const key of convCache.keys()) {
+      if (key.startsWith(`${payload.accountId}:`)) {
+        convCache.delete(key);
+      }
+    }
+  }
+});
+
+// Obter a lista de conversas ativas (scoped to user) - OTIMIZADO COM CACHE IN-MEMORY
 router.get("/accounts/:accountId/conversations", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   try {
@@ -186,8 +204,23 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
     const account = await findAccountForUser(accountId, userId);
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
 
-    const dateRange = parseDateWindow(req.query.startDate as string | undefined, req.query.endDate as string | undefined);
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    const cacheKey = `${accountId}:${startDate || ""}:${endDate || ""}`;
+    const nowMs = Date.now();
+    const cached = convCache.get(cacheKey);
+    if (cached && cached.expiresAt > nowMs) {
+      return res.json(cached.data);
+    }
+
+    const dateRange = parseDateWindow(startDate, endDate);
     const conversations = await buildConversations(accountId, dateRange);
+
+    convCache.set(cacheKey, {
+      data: conversations,
+      expiresAt: nowMs + 15 * 1000 // Cache por 15 segundos
+    });
+
     res.json(conversations);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
