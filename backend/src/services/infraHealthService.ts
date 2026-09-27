@@ -166,9 +166,12 @@ class InfraHealthService {
         ];
       }
 
-      // Latência < 250ms é perfeitamente saudável (HEALTHY) para conexões cross-region (Render EUA ⇄ Neon São Paulo sa-east-1)
+      // O banco está conectado e funcional.
+      // Latência < 350ms = HEALTHY (faixa normal para cross-region Render EUA ⇄ Neon São Paulo).
+      // Latência >= 350ms = DEGRADED (típico de cold start de deshibernação da Neon).
+      // O status DOWN só ocorre se o banco falhar e entrar no bloco catch.
       const result: DbHealthResult = {
-        status: latencyMs < 250 ? "HEALTHY" : latencyMs < 500 ? "DEGRADED" : "DOWN",
+        status: latencyMs < 350 ? "HEALTHY" : "DEGRADED",
         latencyMs,
         serverTime: pingResult?.[0]?.now_time ? new Date(pingResult[0].now_time).toISOString() : new Date().toISOString(),
         tables,

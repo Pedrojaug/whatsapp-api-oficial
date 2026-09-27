@@ -39,7 +39,8 @@ router.get("/overview", authMiddleware, requireSuperUser, async (_req: Authentic
     if (dbHealth.status === "DEGRADED") healthScore -= 15;
     if (dbHealth.status === "DOWN") healthScore -= 50;
 
-    const offlineProjects = projects.filter((p) => p.status === "OFFLINE").length;
+    // Projetos HTTP offline (exclui o banco aqui para não descontar pontos em duplicidade, já que dbHealth é avaliado acima)
+    const offlineProjects = projects.filter((p) => p.category !== "DATABASE" && p.status === "OFFLINE").length;
     healthScore -= offlineProjects * 15;
 
     // Apenas falhas de servidor (5xx) impactam negativamente o Score de Saúde do Sistema.
