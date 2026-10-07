@@ -140,7 +140,7 @@ export function WhatsAppDemo() {
   ];
 
   return (
-    <div className="sl-demo">
+    <div className="sl-demo" id="demo">
       <div className="sl-demo-tabs" role="group" aria-label="Escolha um exemplo de mensagem">
         {SCENARIO_IDS.map((id) => (
           <button

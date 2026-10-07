@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import { WhatsAppDemo } from "./WhatsAppDemo";
 import "./sales-landing.css";
@@ -185,6 +185,30 @@ export function SalesLanding({ content }: { content?: any }) {
   const recommendedName = plans.find((p) => p.id === recommended)?.name ?? "";
   const volumeLabel = volume >= 100000 ? "100 mil ou mais" : volume.toLocaleString("pt-BR");
 
+  // O botão flutuante só aparece depois do hero e some no CTA final/rodapé,
+  // para não cobrir a demo, o link de suporte nem os botões que já levam ao WhatsApp.
+  const heroRef = useRef<HTMLElement>(null);
+  const endRef = useRef<HTMLElement>(null);
+  const [heroVisible, setHeroVisible] = useState(true);
+  const [endVisible, setEndVisible] = useState(false);
+
+  useEffect(() => {
+    const hero = heroRef.current;
+    const end = endRef.current;
+    if (!hero || !end || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.target === hero) setHeroVisible(entry.isIntersecting);
+        if (entry.target === end) setEndVisible(entry.isIntersecting);
+      });
+    });
+    observer.observe(hero);
+    observer.observe(end);
+    return () => observer.disconnect();
+  }, []);
+
+  const fabHidden = heroVisible || endVisible;
+
   return (
     <div className={`sl ${displayFont.variable} ${bodyFont.variable} ${monoFont.variable}`}>
       <header className="sl-header">
@@ -200,7 +224,7 @@ export function SalesLanding({ content }: { content?: any }) {
             <a href="#planos">Planos</a>
           </nav>
           <div className="sl-header-actions">
-            <a href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
+            <a className="sl-header-login" href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
               Entrar
             </a>
             <a href="#planos" className="sl-btn sl-btn--ink sl-btn--sm">
@@ -211,7 +235,7 @@ export function SalesLanding({ content }: { content?: any }) {
       </header>
 
       <main>
-        <section id="topo" className="sl-wrap sl-hero">
+        <section id="topo" className="sl-wrap sl-hero" ref={heroRef}>
           <div className="sl-hero-copy">
             <p className="sl-kicker">WhatsApp oficial para empresas</p>
             <h1 className="sl-hero-title">
@@ -241,6 +265,9 @@ export function SalesLanding({ content }: { content?: any }) {
               </a>
             </div>
             <p className="sl-hero-note">Sem fidelidade · Configuração feita com a nossa equipe</p>
+            <a href="#demo" className="sl-demo-jump">
+              Veja como seu cliente recebe ↓
+            </a>
           </div>
           <WhatsAppDemo />
         </section>
@@ -419,11 +446,14 @@ Authorization: Bearer sk_••••••••
                 .join(" ");
               return (
                 <article key={plan.id} className={classes}>
-                  {isRecommended && <span className="sl-tag sl-tag--rec">Ideal para o seu volume</span>}
-                  <div className="sl-plan-head">
-                    <h3>{plan.name}</h3>
-                    {plan.badge && <span className="sl-tag">{plan.badge}</span>}
+                  <div className="sl-plan-tagrow">
+                    {isRecommended ? (
+                      <span className="sl-tag sl-tag--rec">Ideal para o seu volume</span>
+                    ) : (
+                      plan.badge && <span className="sl-tag">{plan.badge}</span>
+                    )}
                   </div>
+                  <h3>{plan.name}</h3>
                   <p className="sl-plan-desc">{plan.description}</p>
                   <p className="sl-plan-price">
                     <span>R$</span>
@@ -462,7 +492,7 @@ Authorization: Bearer sk_••••••••
           </div>
         </section>
 
-        <section className="sl-final">
+        <section className="sl-final" ref={endRef}>
           <div className="sl-wrap">
             <h2 className="sl-reveal">Sua próxima campanha não precisa de um celular ligado.</h2>
             <div className="sl-final-ctas">
@@ -486,6 +516,9 @@ Authorization: Bearer sk_••••••••
             <span>· © {new Date().getFullYear()} Send Inteligentte</span>
           </div>
           <nav aria-label="Rodapé">
+            <a href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
+              Entrar
+            </a>
             <a href="/politica-de-privacidade">Privacidade</a>
             <a href="/termos-e-condicoes">Termos de uso</a>
             <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
@@ -495,7 +528,11 @@ Authorization: Bearer sk_••••••••
         </div>
       </footer>
 
-      <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="sl-fab" aria-label="Tirar dúvidas no WhatsApp">
+      <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className={`sl-fab${fabHidden ? " sl-fab--hidden" : ""}`}
+        aria-label="Tirar dúvidas no WhatsApp"
+        aria-hidden={fabHidden}
+        tabIndex={fabHidden ? -1 : undefined}
+      >
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--sl-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.5 8.5 0 1 1 21 11.5z" />
         </svg>
