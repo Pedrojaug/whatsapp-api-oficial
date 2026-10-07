@@ -1,67 +1,62 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { Brand } from "./Brand";
+import React, { useEffect, useRef, useState } from "react";
+import { Archivo, IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
+import { WhatsAppDemo } from "./WhatsAppDemo";
+import "./sales-landing.css";
 
-// Ícones SVG Inline Minimalistas de Engenharia
-function CheckCircleIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-      <polyline points="22 4 12 14.01 9 11.01" />
-    </svg>
-  );
-}
+const displayFont = Archivo({
+  subsets: ["latin"],
+  axes: ["wdth"],
+  display: "swap",
+  variable: "--font-sl-display",
+});
 
-function ArrowRightIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5" y1="12" x2="19" y2="12" />
-      <polyline points="12 5 19 12 12 19" />
-    </svg>
-  );
-}
+const bodyFont = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-sl-body",
+});
 
-function ArrowUpRightIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="7" y1="17" x2="17" y2="7" />
-      <polyline points="7 7 17 7 17 17" />
-    </svg>
-  );
-}
+const monoFont = IBM_Plex_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+  variable: "--font-sl-mono",
+});
 
-function ShieldCheckIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--green)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-      <polyline points="9 12 11 14 15 10" />
-    </svg>
-  );
-}
+const WHATSAPP_URL = "https://wa.me/5583920017106";
 
-const PROMPT_SUGGESTIONS = [
-  "Quero disparar uma oferta VIP para 5.000 clientes com 20% OFF...",
-  "Quero recuperar carrinhos abandonados da minha loja no WhatsApp...",
-  "Quero enviar confirmações de pedido e rastreio via n8n e Webhooks...",
-  "Quero reativar clientes inativos com templates aprovados pela Meta..."
-];
+type Plan = {
+  id: string;
+  name: string;
+  description: string;
+  price: string;
+  period: string;
+  badge: string | null;
+  isPopular: boolean;
+  features: string[];
+  cta: string;
+};
 
-export const DEFAULT_PLANS = [
+type Faq = { question: string; answer: string };
+
+export const DEFAULT_PLANS: Plan[] = [
   {
     id: "starter",
     name: "Starter",
-    description: "Ideal para pequenas empresas iniciando operações com a API Oficial.",
+    description: "Para dar o primeiro passo no WhatsApp oficial.",
     price: "197",
     period: "/mês",
     badge: null,
     isPopular: false,
     features: [
-      "Até 5.000 mensagens/mês",
-      "1 Número de WhatsApp Oficial",
-      "Gestão de Listas & Segmentação",
-      "Links Rastreáveis (/t/:slug)",
-      "Módulo de Opt-out automático (LGPD)",
+      "5.000 mensagens por mês",
+      "1 número oficial",
+      "Contatos separados por grupo",
+      "Veja quem clicou em cada link",
+      "Descadastro automático (LGPD)",
       "Suporte via WhatsApp",
     ],
     cta: "Começar no Starter",
@@ -69,881 +64,480 @@ export const DEFAULT_PLANS = [
   {
     id: "pro",
     name: "Profissional",
-    description: "Para empresas com fluxo constante de disparos e automações integradas.",
+    description: "Para quem vende pelo WhatsApp todos os dias.",
     price: "397",
     period: "/mês",
-    badge: "Mais Escolhido",
+    badge: "Mais escolhido",
     isPopular: true,
     features: [
-      "Até 25.000 mensagens/mês",
-      "Até 3 Números de WhatsApp Oficial",
-      "Acesso completo à API REST & Webhooks",
-      "Templates de automação para n8n",
-      "Links Rastreáveis com métricas em tempo real",
-      "Onboarding assistido com nossa equipe",
-      "Suporte Prioritário",
+      "25.000 mensagens por mês",
+      "Até 3 números oficiais",
+      "Integração com loja, CRM e n8n",
+      "Configuração guiada pela nossa equipe",
+      "Atendimento prioritário",
     ],
     cta: "Escolher Profissional",
   },
   {
     id: "scale",
-    name: "Enterprise / Escala",
-    description: "Para grandes volumes de envio e esteiras críticas de vendas.",
+    name: "Escala",
+    description: "Para grandes volumes e operações que não podem parar.",
     price: "797",
     period: "/mês",
-    badge: "Alta Vazão",
+    badge: null,
     isPopular: false,
     features: [
-      "Disparos em escala ilimitada",
-      "Múltiplos números e instâncias",
-      "Vazão de alta prioridade (Tier Meta)",
-      "Webhooks dedicados e IP exclusivo",
-      "SLA de atendimento 24/7",
-      "Gerente de conta exclusivo",
+      "Mensagens sem limite de plano",
+      "Vários números e contas",
+      "Integrações dedicadas",
+      "Um gerente só para sua conta",
+      "Atendimento 24/7",
     ],
-    cta: "Falar com Consultor",
+    cta: "Falar com consultor",
   },
 ];
 
-export const DEFAULT_FAQS = [
+export const DEFAULT_FAQS: Faq[] = [
   {
-    question: "Preciso manter o celular ligado à internet durante os disparos?",
-    answer: "Não. Toda a infraestrutura roda 100% em nuvem. As mensagens trafegam diretamente pelos servidores oficiais da Meta, funcionando mesmo com seu computador e celular desligados.",
+    question: "Preciso deixar o celular ligado?",
+    answer: "Não. Tudo roda na nuvem da Meta, com seu celular e computador desligados.",
   },
   {
-    question: "A API é oficial do WhatsApp?",
-    answer: "Sim. A operação utiliza a infraestrutura oficial do WhatsApp Business Platform (Meta Cloud API). Isso elimina o risco de banimento de chip comum em disparadores não oficiais por emulação de QR Code.",
+    question: "Posso usar meu número atual?",
+    answer: "Sim, e nós fazemos a migração com você. Números novos, fixos e 0800 também funcionam.",
   },
   {
-    question: "Posso utilizar meu número de telefone atual?",
-    answer: "Sim! Se o seu número já estiver no WhatsApp comum ou Business, auxiliamos na migração para a API Oficial. Você também pode ativar números novos, fixos ou 0800 diretamente no seu Meta Business Manager.",
+    question: "Meu número ainda pode ser bloqueado?",
+    answer:
+      "O risco cai muito: você usa o canal oficial, com mensagens aprovadas pela Meta e descadastro automático. E a gente te mostra as boas práticas desde o começo.",
   },
   {
-    question: "Como integro o Send Inteligentte com n8n, Make ou meu CRM?",
-    answer: "Disponibilizamos uma API REST pública e segura autenticada por API Key, além de webhooks em tempo real de eventos de entrega, leitura e cliques em links. Você também recebe templates prontos de fluxo para n8n.",
+    question: "Não entendo nada de tecnologia. Consigo usar?",
+    answer:
+      "Consegue. Nossa equipe faz a configuração com você e aprova suas primeiras mensagens. Depois, é subir a planilha e enviar.",
   },
-  {
-    question: "Consigo acompanhar os resultados de entrega das minhas campanhas?",
-    answer: "Sim. O painel exibe detalhadamente quais contatos receberam, leram e clicaram nos links das suas mensagens, além de registrar automaticamente qualquer pedido de descadastro.",
-  },
-  {
-    question: "Vocês ajudam na configuração inicial (onboarding)?",
-    answer: "Sim! Nossa equipe acompanha os primeiros passos da sua conta: ajudamos a vincular seu Meta Business Manager, configurar seu número oficial e homologar seus primeiros templates de campanha.",
-  },
+];
+
+// Limites mensais usados pelo recomendador de plano.
+const PLAN_LIMITS: { id: string; max: number }[] = [
+  { id: "starter", max: 5000 },
+  { id: "pro", max: 25000 },
+  { id: "scale", max: Infinity },
+];
+
+function recommendPlan(volume: number) {
+  return (PLAN_LIMITS.find((p) => volume <= p.max) ?? PLAN_LIMITS[PLAN_LIMITS.length - 1]).id;
+}
+
+function checkoutHref(planId: string) {
+  const slug = planId === "starter" ? "mensal" : planId === "scale" ? "anual" : "trimestral";
+  return `/checkout?plano=${slug}&plan=${planId}`;
+}
+
+function ArrowRightIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12h14M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function HeroTick({ double, final }: { double?: boolean; final?: boolean }) {
+  const stroke = final ? "var(--sl-accent)" : "#9AA39E";
+  if (!double) {
+    return (
+      <svg className="sl-tick sl-tick--single" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path pathLength={1} d="M4 13 L9 18 L20 6" stroke={stroke} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="sl-tick" viewBox="0 0 32 24" fill="none" aria-hidden="true">
+      <path pathLength={1} d="M2 13 L7 18 L18 6" stroke={stroke} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path pathLength={1} d="M13 16 L15 18 L26 6" stroke={stroke} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+const USE_CASES = [
+  { title: "Recupere vendas perdidas", text: "Lucas, o tênis 42 ainda está no seu carrinho. Separamos por mais 2 horas.", time: "14:02" },
+  { title: "Receba em dia", text: "Carla, seu boleto de R$ 189,90 vence amanhã. O código está aqui embaixo.", time: "09:00" },
+  { title: "Menos “cadê meu pedido?”", text: "Pedido 9402 saiu para entrega. Chega hoje até as 18h.", time: "08:15" },
+  { title: "Traga clientes de volta", text: "Mariana, faz 60 dias. Seu cupom VOLTA15 vale até domingo.", time: "18:30" },
+];
+
+const COMPARISON = [
+  ["Seu número", "Pode ser bloqueado no meio da campanha", "Protegido no canal oficial"],
+  ["Celular", "Precisa ficar ligado e carregado", "Pode desligar"],
+  ["Funcionamento", "Para quando a conexão cai", "24 horas por dia"],
+  ["Resultados", "Você não sabe quem leu", "Vê quem recebeu, leu e clicou"],
+  ["Descadastro", "Controle manual em planilha", "Automático e dentro da LGPD"],
 ];
 
 export function SalesLanding({ content }: { content?: any }) {
-  const [activeTab, setActiveTab] = useState<"json" | "webhook" | "csv">("json");
-  const [promptIndex, setPromptIndex] = useState(0);
-  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const plans: Plan[] =
+    content && Array.isArray(content.plans) && content.plans.length > 0 ? content.plans : DEFAULT_PLANS;
+  const faqs: Faq[] =
+    content && Array.isArray(content.faqs) && content.faqs.length > 0 ? content.faqs : DEFAULT_FAQS;
 
-  const plans = (content && Array.isArray(content.plans) && content.plans.length > 0) ? content.plans : DEFAULT_PLANS;
-  const faqs = (content && Array.isArray(content.faqs) && content.faqs.length > 0) ? content.faqs : DEFAULT_FAQS;
+  const [volume, setVolume] = useState(8000);
+  const recommended = recommendPlan(volume);
+  const recommendedName = plans.find((p) => p.id === recommended)?.name ?? "";
+  const volumeLabel = volume >= 100000 ? "100 mil ou mais" : volume.toLocaleString("pt-BR");
 
-  // Efeito de rotação suave de prompts inspirador no Hero Base44
+  // O botão flutuante só aparece depois do hero e some no CTA final/rodapé,
+  // para não cobrir a demo, o link de suporte nem os botões que já levam ao WhatsApp.
+  const heroRef = useRef<HTMLElement>(null);
+  const endRef = useRef<HTMLElement>(null);
+  const [heroVisible, setHeroVisible] = useState(true);
+  const [endVisible, setEndVisible] = useState(false);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPromptIndex((prev) => (prev + 1) % PROMPT_SUGGESTIONS.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Intersection Observer para animação de scroll progressivo em todos os blocos
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add("is-visible");
-          }
-        });
-      },
-      {
-        threshold: 0.12,
-        rootMargin: "0px 0px -50px 0px"
-      }
-    );
-
-    const elements = document.querySelectorAll(".reveal-block, .showcase-reveal");
-    elements.forEach((el) => observer.observe(el));
-
+    const hero = heroRef.current;
+    const end = endRef.current;
+    if (!hero || !end || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.target === hero) setHeroVisible(entry.isIntersecting);
+        if (entry.target === end) setEndVisible(entry.isIntersecting);
+      });
+    });
+    observer.observe(hero);
+    observer.observe(end);
     return () => observer.disconnect();
   }, []);
 
-  const terminalSnippets = {
-    json: `POST https://api.sendinteligente.com.br/v1/messages
-Authorization: Bearer sec_live_94f8a2...
-Content-Type: application/json
-
-{
-  "to": "5511999998888",
-  "template": "aviso_promocao_vip",
-  "parameters": {
-    "nome": "Carlos Silva",
-    "cupom": "VIP20OFF",
-    "link": "https://suaempresa.com.br/oferta-vip"
-  }
-}`,
-    webhook: `// Evento entregue via Webhook em tempo real
-{
-  "event": "message.delivered",
-  "messageId": "wamid.HBgLMTE5OTk...",
-  "recipient": "5511999998888",
-  "status": "READ",
-  "templateName": "aviso_promocao_v1",
-  "clickedTrackingLink": true,
-  "clickedUrl": "https://suaempresa.com.br/oferta-vip",
-  "timestamp": "2026-08-31T15:00:00.000Z"
-}`,
-    csv: `Nome,Telefone,CodigoPedido,Desconto
-Carlos Silva,5511999998888,PED-9402,15%
-Mariana Costa,5521988887777,PED-9403,20%
-Lucas Souza,5531977776666,PED-9404,10%
-
-// Mapeamento automático de variáveis {{1}}, {{2}} e
-// higienização automática com filtro de Opt-out (LGPD).`,
-  };
+  const fabHidden = heroVisible || endVisible;
 
   return (
-    <div className="site-canvas-bg">
-      {/* 1. HEADER TÉCNICO COM MOLDURA EDITORIAL */}
-      <header className="site-header">
-        <div className="header-left">
-          <Brand />
-          <div className="header-meta-badge">
-            <span className="pulse-dot">
-              <span className="pulse-ring"></span>
-              <span className="pulse-core"></span>
-            </span>
-            <span className="badge-text">API Oficial Meta</span>
+    <div className={`sl ${displayFont.variable} ${bodyFont.variable} ${monoFont.variable}`}>
+      <header className="sl-header">
+        <div className="sl-wrap">
+          <a href="#topo" className="sl-logo" aria-label="Send Inteligentte — início">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/send-logo.png" alt="Send Inteligentte" width={177} height={32} />
+          </a>
+          <nav className="sl-nav" aria-label="Navegação principal">
+            <a href="#como-funciona">Como funciona</a>
+            <a href="#usos">Casos de uso</a>
+            <a href="#integracoes">Integrações</a>
+            <a href="#planos">Planos</a>
+          </nav>
+          <div className="sl-header-actions">
+            <a className="sl-header-login" href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
+              Entrar
+            </a>
+            <a href="#planos" className="sl-btn sl-btn--ink sl-btn--sm">
+              Começar agora
+            </a>
           </div>
-        </div>
-
-        <nav className="public-nav" aria-label="Navegação principal">
-          <a href="#metricas">Métricas</a>
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#showcase">Demonstração</a>
-          <a href="#recursos">Recursos</a>
-          <a href="#comparativo">Por que oficial?</a>
-          <a href="#planos">Planos</a>
-        </nav>
-
-        <div className="header-actions">
-          <a
-            className="login-link"
-            href="https://app.sendinteligente.com.br"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Entrar
-          </a>
-
-          <a className="primary-button compact" href="#planos">
-            <span>Começar agora</span>
-          </a>
         </div>
       </header>
 
-      {/* 2. HERO SECTION ESTILO BASE44 — EDITORIAL TECH COM MARCADORES EM CRUZ (+) */}
-      <section className="hero-base44-section" id="hero">
-        {/* Marcadores decorativos em cruz (+) nos cantos do container */}
-        <div className="tech-cross tech-cross-tl" aria-hidden="true">+</div>
-        <div className="tech-cross tech-cross-tr" aria-hidden="true">+</div>
-        <div className="tech-cross tech-cross-bl" aria-hidden="true">+</div>
-        <div className="tech-cross tech-cross-br" aria-hidden="true">+</div>
-
-        <div className="hero-content-wrapper">
-          {/* Badge Editorial de Marca / Infraestrutura */}
-          <div className="hero-brand-pill">
-            <span className="hero-pill-icon">
-              <span className="pulse-core"></span>
-            </span>
-            <span className="hero-pill-title">Send Inteligentte</span>
-            <span className="hero-pill-divider">/</span>
-            <span className="hero-pill-meta">WhatsApp Meta Cloud API</span>
-          </div>
-
-          {/* Título Editorial Massivo com Tracking Fechado (-0.03em) */}
-          <h1 className="hero-main-title">
-            Dispare milhares de mensagens no WhatsApp sem depender de celular ou QR Code.
-          </h1>
-
-          {/* Subtítulo Editorial */}
-          <p className="hero-sub-title">
-            Infraestrutura em nuvem 24/7 para disparos em massa, recuperação de clientes e integrações via API com a estabilidade e conformidade oficial da Meta.
-          </p>
-
-          {/* Prompt Interativo de Início Rápido (Estilo Base44) */}
-          <div className="hero-prompt-box">
-            <div className="hero-prompt-input-wrapper">
-              <span className="prompt-sparkle">✨</span>
-              <span className="hero-prompt-text" key={promptIndex}>
-                {PROMPT_SUGGESTIONS[promptIndex]}
+      <main>
+        <section id="topo" className="sl-wrap sl-hero" ref={heroRef}>
+          <div className="sl-hero-copy">
+            <p className="sl-kicker">WhatsApp oficial para empresas</p>
+            <h1 className="sl-hero-title">
+              <span className="sl-hero-line">
+                Enviada.
+                <HeroTick />
               </span>
+              <span className="sl-hero-line">
+                Entregue.
+                <HeroTick double />
+              </span>
+              <span className="sl-hero-line">
+                Lida.
+                <HeroTick double final />
+              </span>
+            </h1>
+            <p className="sl-hero-sub">
+              Fale com milhares de clientes de uma vez, pelo canal oficial do WhatsApp. Cobranças, ofertas e avisos que
+              chegam, são lidos e viram venda — sem arriscar o seu número.
+            </p>
+            <div className="sl-hero-ctas">
+              <a href="#planos" className="sl-btn sl-btn--accent">
+                Começar agora <ArrowRightIcon />
+              </a>
+              <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="sl-btn sl-btn--ghost">
+                Tirar dúvidas no WhatsApp
+              </a>
             </div>
-            <a href="#planos" className="hero-prompt-action-btn">
-              <span>Começar agora</span>
-              <ArrowRightIcon />
+            <p className="sl-hero-note">Sem fidelidade · Configuração feita com a nossa equipe</p>
+            <a href="#demo" className="sl-demo-jump">
+              Veja como seu cliente recebe ↓
             </a>
           </div>
+          <WhatsAppDemo />
+        </section>
 
-          {/* Indicador Suave de Scroll */}
-          <a href="#metricas" className="scroll-indicator-wrapper" aria-label="Rolar para ver métricas e painel">
-            <div className="scroll-mouse-icon">
-              <div className="scroll-mouse-dot" />
+        <section className="sl-facts" aria-label="Garantias da plataforma">
+          <div className="sl-wrap">
+            <div className="sl-fact">
+              <strong>Seu número protegido</strong>
+              <span>Canal oficial da Meta, longe do bloqueio do QR Code.</span>
             </div>
-            <span>Métricas &amp; Painel</span>
-          </a>
-        </div>
-      </section>
-
-      {/* 3. BENTO GRID DE MÉTRICAS (NOVO BLOCO DE PROVA MODULAR BASE44) */}
-      <section className="metrics-bento-section reveal-block" id="metricas">
-        <div className="metrics-bento-container">
-          <div className="metrics-cross metrics-cross-tl" aria-hidden="true">+</div>
-          <div className="metrics-cross metrics-cross-tr" aria-hidden="true">+</div>
-          <div className="metrics-cross metrics-cross-bl" aria-hidden="true">+</div>
-          <div className="metrics-cross metrics-cross-br" aria-hidden="true">+</div>
-
-          <div className="metrics-bento-grid">
-            {/* Card 1: 99.8% */}
-            <div className="metric-bento-card">
-              <div className="metric-card-top">
-                <span className="metric-tag">METRIC.01 // DELIVERY</span>
-                <span className="metric-status-dot"></span>
-              </div>
-              <div className="metric-giant-number">99.8%</div>
-              <div className="metric-card-bottom">
-                <h3 className="metric-label">Entregabilidade garantida</h3>
-                <p className="metric-subtext">Envios diretos aos servidores da Meta sem filtros intermediários ou perda de pacotes.</p>
-              </div>
+            <div className="sl-fact">
+              <strong>Funciona 24 horas</strong>
+              <span>Pode desligar o celular e fechar o computador.</span>
             </div>
-
-            {/* Card 2: 0 */}
-            <div className="metric-bento-card solid-dark">
-              <div className="metric-card-top">
-                <span className="metric-tag">METRIC.02 // HARDWARE</span>
-                <span className="metric-status-dot"></span>
-              </div>
-              <div className="metric-giant-number">0</div>
-              <div className="metric-card-bottom">
-                <h3 className="metric-label">Celulares conectados ou risco de queda</h3>
-                <p className="metric-subtext">Sua operação roda 100% em nuvem com alta disponibilidade sem depender de aparelhos físicos.</p>
-              </div>
+            <div className="sl-fact">
+              <strong>Ninguém fica sem receber</strong>
+              <span>Se uma mensagem falhar, reenviamos sozinhos.</span>
             </div>
-
-            {/* Card 3: < 2s */}
-            <div className="metric-bento-card">
-              <div className="metric-card-top">
-                <span className="metric-tag">METRIC.03 // LATENCY</span>
-                <span className="metric-status-dot"></span>
-              </div>
-              <div className="metric-giant-number">&lt; 2s</div>
-              <div className="metric-card-bottom">
-                <h3 className="metric-label">Latência média por disparo</h3>
-                <p className="metric-subtext">Processamento de fila de alta vazão com confirmação de entrega e leitura em tempo real.</p>
-              </div>
-            </div>
-
-            {/* Card 4: 100% */}
-            <div className="metric-bento-card">
-              <div className="metric-card-top">
-                <span className="metric-tag">METRIC.04 // COMPLIANCE</span>
-                <span className="metric-status-dot"></span>
-              </div>
-              <div className="metric-giant-number">100%</div>
-              <div className="metric-card-bottom">
-                <h3 className="metric-label">Cloud API Oficial Meta</h3>
-                <p className="metric-subtext">Templates homologados pela Meta, opt-out automático e total conformidade com a LGPD.</p>
-              </div>
+            <div className="sl-fact">
+              <strong>Você vê quem leu</strong>
+              <span>E quem clicou, cliente por cliente.</span>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* 4. SHOWCASE REVELADO NO SCROLL (MOLDURA TÉCNICA BENTO) */}
-      <section className="showcase-section showcase-perspective-wrapper" id="showcase">
-        <div className="product-window showcase-reveal bento-showcase-frame">
-          <div className="window-bar technical-window-bar">
-            <div className="window-left-col">
-              <div className="window-dots">
-                <span className="dot dot-close" />
-                <span className="dot dot-minimize" />
-                <span className="dot dot-maximize" />
-              </div>
-              <div className="window-endpoint">
-                <span className="endpoint-method">POST</span>
-                <span className="endpoint-path">api.sendinteligente.com.br/v1/messages</span>
-              </div>
-            </div>
-
-            <div className="window-center-col">
-              <span className="window-console-title">CONSOLE // PRODUCTION_VIEW</span>
-            </div>
-
-            <div className="window-right-col">
-              <div className="window-status-pill technical-status-pill">
-                <span className="live-dot" />
-                <span className="status-label">Meta Cloud API v19 • Operacional</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="window-body">
-            <video
-              src="/showcase.mp4"
-              poster="/dashboard-preview.png"
-              controls
-              playsInline
-              autoPlay
-              muted
-              loop
-              preload="metadata"
-              className="product-video"
-            >
-              <source src="/showcase.mp4" type="video/mp4" />
-              <img
-                src="/dashboard-preview.png"
-                alt="Interface do Painel Operacional Send Inteligentte"
-                className="product-screenshot"
-              />
-            </video>
-          </div>
-
-          <div className="window-footer-bar">
-            <div className="window-footer-item">
-              <span className="footer-meta-key">ENGINE:</span>
-              <span className="footer-meta-val">Meta Cloud API v19.0</span>
-            </div>
-            <div className="window-footer-item">
-              <span className="footer-meta-key">ROUTING:</span>
-              <span className="footer-meta-val">Direct BSP Cloud</span>
-            </div>
-            <div className="window-footer-item">
-              <span className="footer-meta-key">SECURITY:</span>
-              <span className="footer-meta-val">LGPD Opt-out Suppressed</span>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <main className="sales-page">
-        {/* 4. DESTRUIR A OBJEÇÃO: O RISCO DO IMPROVISO */}
-        <section className="problem-statement-section reveal-block" id="como-funciona">
-          <div className="editorial-header">
-            <h2>
-              O problema não é enviar uma mensagem. <br />
-              É enviar milhares delas sem transformar seu número em um problema.
-            </h2>
+        <section className="sl-wrap sl-section">
+          <div className="sl-split">
+            <h2 className="sl-h2 sl-reveal">QR Code funciona. Até o dia em que não funciona.</h2>
             <p>
-              Muitas operações ainda dependem de QR Code, sessões de WhatsApp Web, celulares conectados ou soluções que simulam o aplicativo. Funciona... até deixar de funcionar. O Send Inteligentte foi construído para operações que precisam de previsibilidade.
+              Basta o celular descarregar ou o chip ser bloqueado para suas vendas pararem — e seus contatos irem junto.
+              Quem vende pelo WhatsApp não pode depender de sorte.
             </p>
           </div>
-
-          <div className="problem-comparison-grid">
-            <div className="problem-card muted reveal-block delay-1">
-              <div className="card-kicker danger">QR Code / Emulação</div>
-              <h3>Sessões instáveis</h3>
-              <p>Seu negócio fica preso a uma sessão de navegador que expira, desconecta e corre risco constante de bloqueio do chip.</p>
-            </div>
-
-            <div className="problem-card muted reveal-block delay-2">
-              <div className="card-kicker danger">Aparelho Celular</div>
-              <h3>Gargalo físico</h3>
-              <p>Bateria descarregada, Wi-Fi oscilando ou celular desligado travam imediatamente o envio das mensagens da sua empresa.</p>
-            </div>
-
-            <div className="problem-card highlighted reveal-block delay-3">
-              <div className="card-kicker green">Send Inteligentte</div>
-              <h3>Infraestrutura oficial</h3>
-              <p>As campanhas rodam diretamente nos servidores em nuvem da Meta, com estabilidade 24 horas por dia, 7 dias por semana.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 5. PILARES DE VALOR (01, 02, 03, 04) */}
-        <section className="value-pillars-section reveal-block">
-          <div className="editorial-header">
-            <h2>Quando o canal de vendas é importante demais para depender de improviso.</h2>
-            <p>Tudo o que sua equipe precisa para ter tranquilidade operacional e foco exclusivo em vender mais.</p>
-          </div>
-
-          <div className="value-pillars-grid">
-            <div className="pillar-item reveal-block delay-1">
-              <div className="pillar-number">01</div>
-              <h3>Operação contínua</h3>
-              <p>Sua equipe não precisa deixar nenhum computador ou celular conectado para a campanha funcionar e entregar.</p>
-            </div>
-
-            <div className="pillar-item reveal-block delay-2">
-              <div className="pillar-number">02</div>
-              <h3>Mais controle</h3>
-              <p>Campanhas, contatos, templates homologados e resultados consolidados em um único ambiente limpo.</p>
-            </div>
-
-            <div className="pillar-item reveal-block delay-3">
-              <div className="pillar-number">03</div>
-              <h3>Menos risco</h3>
-              <p>Estrutura dentro das diretrizes oficiais do WhatsApp, com gestão nativa de descadastro (Opt-out) para conformidade com a LGPD.</p>
-            </div>
-
-            <div className="pillar-item reveal-block delay-4">
-              <div className="pillar-number">04</div>
-              <h3>Integração real</h3>
-              <p>Conecte seus sistemas existentes via Webhooks, API REST padronizada ou fluxos no n8n sem depender de gambiarras.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 6. ARQUITETURA DO PRODUTO (BENTO GRID MODULAR COM LISTAS INTERATIVAS) */}
-        <section className="product-architecture-section reveal-block" id="recursos">
-          <div className="editorial-header">
-            <div className="section-kicker">INFRAESTRUTURA &amp; RECURSOS</div>
-            <h2>Engenharia de precisão para sua esteira de WhatsApp.</h2>
-            <p>Criado para máxima velocidade de disparo, homologação instantânea de templates e rastreamento avançado.</p>
-          </div>
-
-          <div className="bento-resources-container">
-            {/* Card 1: Campanhas e Segmentação (Asymmetric Span 7) */}
-            <div className="bento-resource-card span-7">
-              <div className="bento-card-header">
-                <span className="bento-kicker">RECURSO.01 // CAMPAIGNS &amp; DISPATCH</span>
-                <h3>Disparos em massa com cadência inteligente</h3>
-                <p>Importe planilhas massivas com auto-mapping e controle a vazão de envio por segundo para máxima entregabilidade.</p>
-              </div>
-
-              <div className="interactive-resource-list">
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Importação instantânea CSV / XLSX com auto-mapping</span>
-                    <span className="resource-item-desc">Mapeamento automático de variáveis customizadas como nome, cupom e pedido</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Controle de cadência e vazão por segundo</span>
-                    <span className="resource-item-desc">Fila distribuída com intervalos controlados para assegurar alta reputação junto à Meta</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Variáveis dinâmicas no corpo e nos botões</span>
-                    <span className="resource-item-desc">Personalize o texto, links individuais e botões de resposta rápida</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Homologação de Templates (Asymmetric Span 5) */}
-            <div className="bento-resource-card span-5">
-              <div className="bento-card-header">
-                <span className="bento-kicker">RECURSO.02 // META TEMPLATES</span>
-                <h3>Homologação oficial de templates</h3>
-                <p>Crie, edite e sincronize modelos diretamente com os servidores da Meta sem sair do painel.</p>
-              </div>
-
-              <div className="interactive-resource-list">
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Sincronização bidirecional em tempo real</span>
-                    <span className="resource-item-desc">Acompanhe status Aprovado, Pendente ou Rejeitado pela Meta</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Pré-visualização fiel ao smartphone</span>
-                    <span className="resource-item-desc">Valide o visual da mensagem em telas iOS e Android antes do disparo</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Links & Opt-out LGPD (Asymmetric Span 5) */}
-            <div className="bento-resource-card span-5">
-              <div className="bento-card-header">
-                <span className="bento-kicker">RECURSO.03 // TRACKING &amp; LGPD</span>
-                <h3>Links rastreáveis e proteção LGPD</h3>
-                <p>Monitore quem clica em cada campanha e garanta conformidade legal imediata com descadastro automático.</p>
-              </div>
-
-              <div className="interactive-resource-list">
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Encurtador próprio com métricas por contato</span>
-                    <span className="resource-item-desc">Identifique exatamente quais leads clicaram nos seus links de oferta</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Supressão automática por palavra-chave (Opt-out)</span>
-                    <span className="resource-item-desc">Blacklist instantânea ao receber &quot;PARAR&quot; ou &quot;SAIR&quot;, blindando sua operação</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Conectividade & n8n (Asymmetric Span 7) */}
-            <div className="bento-resource-card span-7 solid-dark">
-              <div className="bento-card-header">
-                <span className="bento-kicker">RECURSO.04 // INTEGRATIONS &amp; API</span>
-                <h3>API REST dedicada e ecossistema n8n</h3>
-                <p>Integre seu CRM, plataformas de e-commerce e esteiras de automação sem depender de soluções amadoras.</p>
-              </div>
-
-              <div className="interactive-resource-list">
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Webhooks em tempo real com eventos de telemetria</span>
-                    <span className="resource-item-desc">Notificações imediatas para mensagens entregues, lidas e links clicados</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Templates pré-configurados para n8n &amp; Make</span>
-                    <span className="resource-item-desc">Fluxos prontos para recuperação de boletos, pix e avisos de entrega</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-
-                <div className="interactive-resource-item">
-                  <div className="resource-item-info">
-                    <span className="resource-item-title">Chaves de API seguras com autenticação Bearer</span>
-                    <span className="resource-item-desc">Controle granular de acesso para múltiplos desenvolvedores e ambientes</span>
-                  </div>
-                  <span className="action-circle-btn" aria-hidden="true">
-                    <ArrowUpRightIcon />
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* 7. TABELA COMPARATIVA TÉCNICA */}
-        <section className="comparison-table-section reveal-block" id="comparativo">
-          <div className="editorial-header">
-            <h2>Por que migrar para a infraestrutura oficial?</h2>
-            <p>Entenda a diferença estrutural entre soluções caseiras e uma plataforma desenhada para escala.</p>
-          </div>
-
-          <div className="table-wrapper">
-            <table className="comparison-table">
+          <div className="sl-table-box">
+            <table className="sl-table">
               <thead>
                 <tr>
-                  <th>Critério Operacional</th>
-                  <th className="highlight-col">Send Inteligentte (Oficial)</th>
-                  <th>Soluções QR Code / Web</th>
+                  <th scope="col">
+                    <span className="sr-only">Critério</span>
+                  </th>
+                  <th scope="col">Do jeito improvisado</th>
+                  <th scope="col">Com o Send</th>
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td className="criteria-name">Conexão</td>
-                  <td className="highlight-col text-green">Nuvem direta na Meta (Cloud API)</td>
-                  <td className="text-muted">Sessão web pareada em navegador</td>
-                </tr>
-                <tr>
-                  <td className="criteria-name">Dependência física</td>
-                  <td className="highlight-col text-green">Zero celular ou computador ligado</td>
-                  <td className="text-muted">Celular com internet e bateria contínua</td>
-                </tr>
-                <tr>
-                  <td className="criteria-name">Segurança contra banimento</td>
-                  <td className="highlight-col text-green">Templates aprovados pela Meta</td>
-                  <td className="text-muted">Alto risco por envio automatizado não oficial</td>
-                </tr>
-                <tr>
-                  <td className="criteria-name">Velocidade & Vazão</td>
-                  <td className="highlight-col text-green">Centenas de mensagens por segundo</td>
-                  <td className="text-muted">Lento e sujeito a desconexão</td>
-                </tr>
-                <tr>
-                  <td className="criteria-name">Status em Tempo Real</td>
-                  <td className="highlight-col text-green">Enviado, Entregue, Lido e Clicado</td>
-                  <td className="text-muted">Confirmação instável ou ausente</td>
-                </tr>
-                <tr>
-                  <td className="criteria-name">Proteção Jurídica (LGPD)</td>
-                  <td className="highlight-col text-green">Módulo de Opt-out automático</td>
-                  <td className="text-muted">Controle manual em planilhas</td>
-                </tr>
+                {COMPARISON.map(([label, before, after]) => (
+                  <tr key={label}>
+                    <th scope="row">{label}</th>
+                    <td>{before}</td>
+                    <td>{after}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </section>
 
-        {/* 8. INTEGRAÇÃO E TERMINAL TÉCNICO */}
-        <section className="integrations-section reveal-block" id="integracoes">
-          <div className="integrations-container">
-            <div className="integrations-copy">
-              <div className="section-kicker">Desenvolvedores & Automação</div>
-              <h2>Feito para integrar com o que você já usa.</h2>
-              <p>
-                Seja disparando por uma planilha CSV ou integrando sua esteira com n8n, CRM ou webhook de pagamentos, o Send Inteligentte se adapta ao seu fluxo sem fricção.
-              </p>
+        <section id="como-funciona" className="sl-band">
+          <div className="sl-wrap sl-section">
+            <h2 className="sl-h2 sl-reveal">Da conta criada à primeira venda, com a gente do lado.</h2>
+            <ol className="sl-steps">
+              <li className="sl-step">
+                <span className="sl-step-bar" aria-hidden="true" />
+                <p className="sl-step-num">01</p>
+                <h3>Conecte seu número</h3>
+                <p>Use o número que seus clientes já conhecem. Nossa equipe faz a configuração com você.</p>
+              </li>
+              <li className="sl-step">
+                <span className="sl-step-bar" aria-hidden="true" />
+                <p className="sl-step-num">02</p>
+                <h3>Escreva sua mensagem</h3>
+                <p>Monte o texto no painel. A Meta aprova e você acompanha tudo por lá.</p>
+              </li>
+              <li className="sl-step">
+                <span className="sl-step-bar" aria-hidden="true" />
+                <p className="sl-step-num">03</p>
+                <h3>Envie e acompanhe</h3>
+                <p>Suba sua planilha de contatos, escolha o horário e veja as respostas chegando.</p>
+              </li>
+            </ol>
+          </div>
+        </section>
 
-              <div className="integration-chips-list">
-                <span className="chip">REST API</span>
-                <span className="chip">Webhooks</span>
-                <span className="chip">n8n Community</span>
-                <span className="chip">CSV / Excel</span>
-                <span className="chip">Typebot</span>
-                <span className="chip">Zapier & Make</span>
-              </div>
-            </div>
-
-            <div className="terminal-box">
-              <div className="terminal-header">
-                <div className="terminal-tabs">
-                  <button
-                    className={`terminal-tab ${activeTab === "json" ? "active" : ""}`}
-                    onClick={() => setActiveTab("json")}
-                  >
-                    API REST
-                  </button>
-                  <button
-                    className={`terminal-tab ${activeTab === "webhook" ? "active" : ""}`}
-                    onClick={() => setActiveTab("webhook")}
-                  >
-                    Webhooks
-                  </button>
-                  <button
-                    className={`terminal-tab ${activeTab === "csv" ? "active" : ""}`}
-                    onClick={() => setActiveTab("csv")}
-                  >
-                    CSV & Variáveis
-                  </button>
+        <section id="usos" className="sl-wrap sl-section">
+          <div className="sl-split">
+            <h2 className="sl-h2 sl-reveal">Tem dinheiro parado esperando um lembrete.</h2>
+            <p>
+              Carrinho esquecido, boleto vencendo, cliente sumido. Cada um é uma venda que volta com a mensagem certa — com
+              o nome do cliente e o link pronto para pagar.
+            </p>
+          </div>
+          <div className="sl-cases">
+            {USE_CASES.map((c) => (
+              <article key={c.title} className="sl-case">
+                <h3>{c.title}</h3>
+                <div className="sl-case-bubble">
+                  {c.text}
+                  <div className="sl-case-meta">
+                    {c.time} <span className="sl-case-ticks">✓✓</span>
+                  </div>
                 </div>
-              </div>
-              <pre className="terminal-body">
-                <code>{terminalSnippets[activeTab]}</code>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section id="integracoes" className="sl-dark">
+          <div className="sl-wrap sl-section">
+            <div className="sl-dark-copy">
+              <p className="sl-kicker">Integrações</p>
+              <h2 className="sl-h2 sl-reveal">Conversa com o sistema que você já usa.</h2>
+              <p>
+                Loja virtual, CRM ou n8n: a mensagem sai sozinha quando o pedido é feito ou o boleto vence. Sua equipe
+                técnica conecta em minutos.
+              </p>
+              <ul className="sl-chips">
+                <li>n8n</li>
+                <li>Make</li>
+                <li>API</li>
+                <li>Planilha</li>
+              </ul>
+            </div>
+            <div className="sl-code">
+              <div className="sl-code-label">Uma chamada envia a mensagem</div>
+              <pre>
+                <code>
+                  <span className="sl-method">POST</span>
+                  {` /api/v1/send
+Authorization: Bearer sk_••••••••
+
+{
+  "to": "5583999990000",
+  "templateName": "lembrete_pix",
+  "variables": ["Carla", "R$ 189,90"]
+}`}
+                </code>
               </pre>
             </div>
           </div>
         </section>
 
-        {/* 9. PROVA OPERACIONAL / CONFIANÇA */}
-        <section className="operational-proof-section reveal-block">
-          <div className="editorial-header center-align">
-            <h2>Transparência e foco em resultado desde o primeiro dia.</h2>
-            <p>Construímos uma ferramenta objetiva: você conecta seu WhatsApp Business, valida seus modelos e começa a rodar suas campanhas com segurança.</p>
+        <section id="planos" className="sl-wrap sl-section">
+          <h2 className="sl-h2 sl-reveal">Escolha pelo tamanho da sua operação.</h2>
+          <p className="sl-pricing-sub">Sem fidelidade. Troque de plano quando crescer ou cancele quando quiser.</p>
+
+          <div className="sl-picker">
+            <label htmlFor="sl-volume">
+              Quantas mensagens você envia por mês?
+              <output htmlFor="sl-volume">{volumeLabel}</output>
+            </label>
+            <input
+              id="sl-volume"
+              type="range"
+              min={1000}
+              max={100000}
+              step={1000}
+              value={volume}
+              onChange={(e) => setVolume(Number(e.target.value))}
+            />
+            {recommendedName && (
+              <p>
+                Para esse volume, o plano ideal é o <strong>{recommendedName}</strong>.
+              </p>
+            )}
           </div>
 
-          <div className="proof-deliverables-grid">
-            <div className="proof-card reveal-block delay-1">
-              <ShieldCheckIcon />
-              <h4>Configuração Apoiada</h4>
-              <p>Auxiliamos na criação e verificação da sua conta no Gerenciador de Negócios da Meta.</p>
-            </div>
-
-            <div className="proof-card reveal-block delay-2">
-              <ShieldCheckIcon />
-              <h4>Suporte Direto</h4>
-              <p>Atendimento humanizado via WhatsApp com os desenvolvedores da plataforma para destravar suas campanhas.</p>
-            </div>
-
-            <div className="proof-card reveal-block delay-3">
-              <ShieldCheckIcon />
-              <h4>Sem Fidelidade</h4>
-              <p>Contrate o plano que melhor atende sua demanda de disparos e cancele quando quiser, sem multas.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 10. PLANOS E PREÇOS (TABELA ASSIMÉTRICA) */}
-        <section className="pricing-section reveal-block" id="planos">
-          <div className="editorial-header center-align">
-            <div className="section-kicker">PLANOS &amp; INVESTIMENTO</div>
-            <h2>Preços transparentes para escalar sua operação.</h2>
-            <p>Infraestrutura em nuvem pronta para disparar. Sem contratos de fidelidade ou taxas ocultas.</p>
-          </div>
-
-          <div className="pricing-grid asymmetric-pricing-grid">
-            {plans.map((plan: any) => {
-              const planSlug = plan.id === "starter" ? "mensal" : plan.id === "scale" ? "anual" : "trimestral";
-              const isMain = plan.isPopular;
-
+          <div className="sl-plans">
+            {plans.map((plan) => {
+              const isRecommended = plan.id === recommended;
+              const classes = [
+                "sl-plan",
+                plan.isPopular ? "sl-plan--featured" : "",
+                isRecommended ? "sl-plan--recommended" : "",
+              ]
+                .filter(Boolean)
+                .join(" ");
               return (
-                <div
-                  key={plan.id}
-                  className={`pricing-card ${isMain ? "featured-asymmetric" : "secondary-card"}`}
-                >
-                  {isMain && (
-                    <div className="asymmetric-badge">
-                      <span>RECOMENDADO // MAIS ESCOLHIDO</span>
-                    </div>
-                  )}
-
-                  <div className="pricing-card-header">
-                    <span className="pricing-plan-id">PLANO // {plan.id.toUpperCase()}</span>
-                    <h3>{plan.name}</h3>
-                    <p className="pricing-desc">{plan.description}</p>
+                <article key={plan.id} className={classes}>
+                  <div className="sl-plan-tagrow">
+                    {isRecommended ? (
+                      <span className="sl-tag sl-tag--rec">Ideal para o seu volume</span>
+                    ) : (
+                      plan.badge && <span className="sl-tag">{plan.badge}</span>
+                    )}
                   </div>
-
-                  <div className="pricing-price-box">
-                    <span className="price-currency">R$</span>
-                    <span className="price-amount">{plan.price}</span>
-                    <span className="price-period">{plan.period}</span>
-                  </div>
-
-                  <ul className="pricing-features">
-                    {plan.features.map((feature: string, idx: number) => (
-                      <li key={idx}>
-                        <CheckCircleIcon />
-                        <span>{feature}</span>
-                      </li>
+                  <h3>{plan.name}</h3>
+                  <p className="sl-plan-desc">{plan.description}</p>
+                  <p className="sl-plan-price">
+                    <span>R$</span>
+                    <strong>{plan.price}</strong>
+                    <span className="sl-plan-period">{plan.period}</span>
+                  </p>
+                  <ul>
+                    {plan.features.map((feature) => (
+                      <li key={feature}>{feature}</li>
                     ))}
                   </ul>
-
-                  <a
-                    href={`/checkout?plano=${planSlug}&plan=${plan.id}`}
-                    className={`pricing-cta-button ${isMain ? "primary" : "secondary"}`}
-                  >
+                  <a href={checkoutHref(plan.id)} className="sl-btn sl-btn--ghost">
                     {plan.cta}
-                    {isMain && <ArrowRightIcon />}
                   </a>
-                </div>
+                </article>
               );
             })}
           </div>
-
-          <div className="pricing-meta-disclaimer">
-            <p>
-              * As mensagens pela API Oficial da Meta são tarifadas pelo seu consumo direto no Meta Business Manager conforme as categorias de Marketing, Utilidade e Serviço.
-            </p>
-          </div>
+          <p className="sl-pricing-note">
+            Além do plano, a Meta cobra um valor por conversa direto na sua conta, que varia conforme o tipo de mensagem
+            (marketing, aviso ou atendimento).
+          </p>
         </section>
 
-        {/* 11. FAQ EM ACORDEÃO EDITORIAL */}
-        <section className="faq-section reveal-block" id="faq">
-          <div className="editorial-header">
-            <div className="section-kicker">TIRE SUAS DÚVIDAS</div>
-            <h2>Perguntas Frequentes</h2>
-            <p>Tudo o que você precisa saber sobre a Cloud API Oficial da Meta e o funcionamento da plataforma.</p>
-          </div>
-
-          <div className="faq-accordion-container">
-            {faqs.map((faq: any, idx: number) => {
-              const isOpen = openFaqIndex === idx;
-              return (
-                <div
-                  key={idx}
-                  className={`faq-accordion-item ${isOpen ? "is-expanded" : ""}`}
-                >
-                  <button
-                    type="button"
-                    className="faq-accordion-trigger"
-                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
-                    aria-expanded={isOpen}
-                  >
-                    <div className="faq-trigger-left">
-                      <span className="faq-item-index">0{idx + 1}</span>
-                      <span className="faq-item-question">{faq.question}</span>
-                    </div>
-                    <span className="faq-toggle-circle" aria-hidden="true">
-                      {isOpen ? "−" : "+"}
-                    </span>
-                  </button>
-
-                  <div className={`faq-accordion-body ${isOpen ? "open" : ""}`}>
-                    <div className="faq-accordion-inner">
-                      <p>{faq.answer}</p>
-                    </div>
-                  </div>
+        <section id="faq" className="sl-band sl-faq">
+          <div className="sl-wrap sl-section">
+            <h2 className="sl-h2 sl-reveal">Antes de você perguntar.</h2>
+            <dl>
+              {faqs.map((faq) => (
+                <div key={faq.question}>
+                  <dt>{faq.question}</dt>
+                  <dd>{faq.answer}</dd>
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="faq-contact-box">
-            <div>
-              <h4>Ainda tem dúvidas sobre a API Oficial?</h4>
-              <p>Fale diretamente com nosso time técnico pelo WhatsApp.</p>
-            </div>
-            <a
-              href="https://wa.me/5583920017106?text=Ol%C3%A1!%20Gostaria%20de%20tirar%20d%C3%BAvidas%20sobre%20o%20Send%20Inteligentte."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="secondary-button"
-            >
-              Conversar com especialista →
-            </a>
+              ))}
+            </dl>
           </div>
         </section>
 
-        {/* 12. CTA FINAL */}
-        <section className="final-closing-section reveal-block">
-          <div className="closing-content-box">
-            <h2>Pronto para profissionalizar seus disparos de WhatsApp?</h2>
-            <p>
-              Abandone o improviso do QR Code e coloque sua esteira de vendas na infraestrutura mais estável do mercado.
-            </p>
-            <div className="closing-actions">
-              <a className="primary-button large" href="#planos">
-                <span>Criar minha conta agora</span>
-                <ArrowRightIcon />
+        <section className="sl-final" ref={endRef}>
+          <div className="sl-wrap">
+            <h2 className="sl-reveal">Sua próxima campanha não precisa de um celular ligado.</h2>
+            <div className="sl-final-ctas">
+              <a href="#planos" className="sl-btn sl-btn--ink">
+                Começar agora
               </a>
-              <a
-                className="secondary-button large"
-                href="https://wa.me/5583920017106?text=Ol%C3%A1!%20Quero%20uma%20demonstra%C3%A7%C3%A3o%20do%20Send%20Inteligentte."
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Falar com consultor
+              <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="sl-btn sl-btn--ghost">
+                Falar com um especialista
               </a>
             </div>
           </div>
         </section>
-
-        {/* FOOTER */}
-        <footer className="site-footer">
-          <div className="footer-top">
-            <Brand />
-            <p className="footer-description">
-              Plataforma de disparo e automação em nuvem para WhatsApp utilizando a API Oficial da Meta Cloud.
-            </p>
-          </div>
-
-          <div className="footer-bottom">
-            <p>© {new Date().getFullYear()} Send Inteligentte. Todos os direitos reservados.</p>
-            <div className="footer-links">
-              <a href="/politica-de-privacidade">Privacidade</a>
-              <a href="/termos-e-condicoes">Termos de Uso</a>
-              <a href="https://wa.me/5583920017106" target="_blank" rel="noopener noreferrer">Suporte</a>
-            </div>
-          </div>
-        </footer>
       </main>
+
+      <footer className="sl-footer">
+        <div className="sl-wrap">
+          <div className="sl-footer-brand">
+            <span>Um produto</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/lab-logo-light.png" alt="Inteligentte Lab" width={134} height={30} />
+            <span>· © {new Date().getFullYear()} Send Inteligentte</span>
+          </div>
+          <nav aria-label="Rodapé">
+            <a href="https://app.sendinteligente.com.br" target="_blank" rel="noopener noreferrer">
+              Entrar
+            </a>
+            <a href="/politica-de-privacidade">Privacidade</a>
+            <a href="/termos-e-condicoes">Termos de uso</a>
+            <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+              Suporte
+            </a>
+          </nav>
+        </div>
+      </footer>
+
+      <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className={`sl-fab${fabHidden ? " sl-fab--hidden" : ""}`}
+        aria-label="Tirar dúvidas no WhatsApp"
+        aria-hidden={fabHidden}
+        tabIndex={fabHidden ? -1 : undefined}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--sl-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M21 11.5a8.4 8.4 0 0 1-12.4 7.4L3 20.5l1.6-5.4A8.5 8.5 0 1 1 21 11.5z" />
+        </svg>
+        <span>Tirar dúvidas</span>
+      </a>
     </div>
   );
 }
