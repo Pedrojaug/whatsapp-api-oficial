@@ -3,6 +3,9 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { API_BASE_URL } from "../contexts/AuthContext";
+import { useConfirm } from "../hooks/useConfirm";
+import Modal from "../components/Modal";
+import { getInitials } from "../utils/formatters";
 import {
   Users,
   UserPlus,
@@ -31,52 +34,95 @@ interface TeamMember {
   createdAt: string;
 }
 
-const ROLE_INFO: Record<string, { label: string; desc: string; color: string; bg: string; border: string; icon: any }> = {
+// Cores vêm dos tokens --role-* (index.css), então acompanham o tema claro/escuro.
+const ROLE_INFO: Record<string, { label: string; short: string; desc: string; color: string; icon: typeof Shield }> = {
   OWNER: {
     label: "Proprietário",
+    short: "Acesso total à conta",
     desc: "Acesso total: números, disparos, equipe e chaves de API. Único que pode excluir a conta.",
-    color: "#f59e0b",
-    bg: "rgba(245, 158, 11, 0.12)",
-    border: "rgba(245, 158, 11, 0.35)",
+    color: "var(--role-owner)",
     icon: Shield,
   },
   ADMIN: {
     label: "Administrador",
+    short: "Tudo, exceto excluir a conta",
     desc: "Tudo do proprietário, inclusive equipe e chaves de API, exceto excluir a conta.",
-    color: "#8b5cf6",
-    bg: "rgba(139, 92, 246, 0.12)",
-    border: "rgba(139, 92, 246, 0.35)",
+    color: "var(--role-admin)",
     icon: Shield,
   },
   MANAGER: {
     label: "Gerente",
+    short: "Templates, listas, disparos e métricas",
     desc: "Cria templates, listas e campanhas, faz disparos, vê métricas e atende no chat.",
-    color: "#3b82f6",
-    bg: "rgba(59, 130, 246, 0.12)",
-    border: "rgba(59, 130, 246, 0.35)",
+    color: "var(--role-manager)",
     icon: Briefcase,
   },
   ATTENDANT: {
     label: "Atendente",
+    short: "Live Chat e respostas rápidas",
     desc: "Atende no Live Chat (responde, envia template a um contato, respostas rápidas) e consulta listas.",
-    color: "#10b981",
-    bg: "rgba(16, 185, 129, 0.12)",
-    border: "rgba(16, 185, 129, 0.35)",
+    color: "var(--role-attendant)",
     icon: Headphones,
   },
   VIEWER: {
     label: "Visualizador",
+    short: "Somente leitura",
     desc: "Somente leitura de conversas, listas, disparos e métricas. Não envia mensagens.",
-    color: "#94a3b8",
-    bg: "rgba(148, 163, 184, 0.12)",
-    border: "rgba(148, 163, 184, 0.35)",
+    color: "var(--role-viewer)",
     icon: Eye,
   },
 };
 
+const ASSIGNABLE_ROLES = ["ATTENDANT", "MANAGER", "ADMIN", "VIEWER"] as const;
+
+// Variáveis CSS por elemento: o selo e o bloco de ícone leem a cor daqui.
+const roleStyle = (color: string) => ({ "--role-color": color }) as React.CSSProperties;
+const tileStyle = (color: string) => ({ "--tile-color": color }) as React.CSSProperties;
+
+/** Grupo de opções de cargo (radiogroup): setas do teclado trocam a seleção. */
+function RolePicker({ value, onChange, labelledBy }: { value: string; onChange: (role: string) => void; labelledBy: string }) {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const delta = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const i = Math.max(0, ASSIGNABLE_ROLES.indexOf(value as (typeof ASSIGNABLE_ROLES)[number]));
+    const next = ASSIGNABLE_ROLES[(i + delta + ASSIGNABLE_ROLES.length) % ASSIGNABLE_ROLES.length];
+    onChange(next);
+    e.currentTarget.querySelector<HTMLButtonElement>(`[data-role="${next}"]`)?.focus();
+  };
+  return (
+    <div className="role-options" role="radiogroup" aria-labelledby={labelledBy} onKeyDown={onKeyDown}>
+      {ASSIGNABLE_ROLES.map((key) => {
+        const info = ROLE_INFO[key];
+        const Icon = info.icon;
+        const selected = value === key;
+        return (
+          <button
+            key={key}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected ? 0 : -1}
+            data-role={key}
+            className="role-option"
+            style={roleStyle(info.color)}
+            onClick={() => onChange(key)}
+          >
+            <span className="role-option__label">
+              <Icon size={14} aria-hidden="true" /> {info.label}
+            </span>
+            <span className="role-option__desc">{info.short}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function TeamPage() {
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
+  const confirm = useConfirm();
 
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,9 +273,13 @@ export default function TeamPage() {
       return;
     }
 
-    if (!window.confirm(`Tem certeza que deseja revogar o acesso de "${member.name}" (${member.email}) a esta conta?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Revogar o acesso de ${member.name}?`,
+      description: `${member.email} deixa de acessar esta conta imediatamente. O usuário continua existindo e pode ser adicionado de novo depois.`,
+      confirmLabel: "Revogar acesso",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     try {
       await axios.delete(`${API_BASE_URL}/accounts/${selectedAccount.id}/team/${member.id}`);
@@ -271,45 +321,34 @@ export default function TeamPage() {
 
   if (!selectedAccount) {
     return (
-      <div className="card" style={{ textAlign: "center", padding: "60px 20px" }}>
-        <Users size={48} style={{ color: "var(--text-muted)", marginBottom: "16px", opacity: 0.5 }} />
-        <h2 style={{ fontSize: "1.2rem", fontWeight: 600, marginBottom: "8px" }}>Nenhuma conta selecionada</h2>
-        <p style={{ color: "var(--text-muted)", fontSize: "0.88rem" }}>
-          Selecione uma conta do WhatsApp no topo para gerenciar os colaboradores e cargos.
-        </p>
+      <div className="glass" style={{ borderRadius: "var(--radius-xl)" }}>
+        <div className="empty-state">
+          <Users size={48} className="empty-state__icon" aria-hidden="true" />
+          <h2 className="empty-state__title">Nenhuma conta selecionada</h2>
+          <p className="empty-state__desc">Selecione uma conta do WhatsApp no topo para gerenciar a equipe e os cargos.</p>
+        </div>
       </div>
     );
   }
 
+  const statTiles = [
+    { label: "Total de membros", value: stats.total, color: "var(--text-primary)", icon: Users },
+    { label: "Atendentes", value: stats.attendants, color: "var(--role-attendant)", icon: Headphones },
+    { label: "Gerentes", value: stats.managers, color: "var(--role-manager)", icon: Briefcase },
+    { label: "Proprietário e admins", value: stats.admins, color: "var(--role-owner)", icon: Shield },
+  ];
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px", maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
-      
-      {/* ── Cabeçalho Principal ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)", maxWidth: "1200px", margin: "0 auto", width: "100%" }}>
+
+      {/* ── Cabeçalho ── */}
+      <div className="page-header">
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "6px" }}>
-            <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>
-              Equipe & Colaboradores
-            </h1>
-            <span
-              style={{
-                fontSize: "0.72rem",
-                padding: "2px 8px",
-                borderRadius: "12px",
-                background: "rgba(0, 194, 107, 0.12)",
-                color: "var(--primary)",
-                fontWeight: 600,
-                border: "1px solid rgba(0, 194, 107, 0.3)"
-              }}
-            >
-              Multi-Agentes & RBAC
-            </span>
-          </div>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", margin: 0 }}>
-            Gerencie os acessos individuais da sua equipe no WhatsApp Oficial <strong>{selectedAccount.name}</strong>.
+          <h1 className="page-heading">Equipe &amp; Acessos</h1>
+          <p className="page-subheading">
+            Convide colaboradores e defina o que cada um pode fazer na conta <strong>{selectedAccount.name}</strong>.
           </p>
         </div>
-
         <button
           type="button"
           onClick={() => {
@@ -320,201 +359,125 @@ export default function TeamPage() {
             setShowAddModal(true);
           }}
           className="btn btn-primary"
-          style={{ display: "inline-flex", alignItems: "center", gap: "8px", padding: "10px 18px", fontSize: "0.85rem", fontWeight: 600 }}
         >
-          <UserPlus size={16} />
-          Novo Colaborador
+          <UserPlus size={16} aria-hidden="true" />
+          Novo colaborador
         </button>
       </div>
 
-      {/* ── Cards de Estatísticas ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "16px" }}>
-        <div className="card" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text)" }}>
-            <Users size={22} />
+      {/* ── Números da equipe ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "var(--space-4)" }}>
+        {statTiles.map(({ label, value, color, icon: Icon }) => (
+          <div key={label} className="glass" style={{ borderRadius: "var(--radius-lg)", padding: "var(--space-4) var(--space-5)", display: "flex", alignItems: "center", gap: "var(--space-3-5)" }}>
+            <div className="icon-tile" style={tileStyle(color)}>
+              <Icon size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>{label}</div>
+              <div style={{ fontSize: "var(--fs-2xl)", fontWeight: 700, color, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Total de Membros</div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 700 }}>{stats.total}</div>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "rgba(16, 185, 129, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
-            <Headphones size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Atendentes (Live Chat)</div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#10b981" }}>{stats.attendants}</div>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "rgba(59, 130, 246, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#3b82f6" }}>
-            <Briefcase size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Gerentes / Supervisores</div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#3b82f6" }}>{stats.managers}</div>
-          </div>
-        </div>
-
-        <div className="card" style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "rgba(245, 158, 11, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", color: "#f59e0b" }}>
-            <Shield size={22} />
-          </div>
-          <div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 600 }}>Admins & Dono</div>
-            <div style={{ fontSize: "1.4rem", fontWeight: 700, color: "#f59e0b" }}>{stats.admins}</div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      {/* ── Barra de Pesquisa e Filtro ── */}
-      <div className="card" style={{ padding: "12px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "14px", flexWrap: "wrap" }}>
-        <div style={{ position: "relative", flex: 1, minWidth: "260px" }}>
-          <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
+      {/* ── Busca ── */}
+      <div className="glass" style={{ borderRadius: "var(--radius-lg)", padding: "var(--space-3) var(--space-4)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-3-5)", flexWrap: "wrap" }}>
+        <div className="field-with-icon" style={{ flex: 1, minWidth: "min(260px, 100%)" }}>
+          <Search size={16} aria-hidden="true" />
+          <label htmlFor="team-search" className="sr-only">Buscar colaborador</label>
           <input
-            type="text"
-            placeholder="Buscar por nome, e-mail ou cargo..."
+            id="team-search"
+            type="search"
+            placeholder="Buscar por nome, e-mail ou cargo"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="form-control"
-            style={{ paddingLeft: "36px", height: "38px", fontSize: "0.82rem" }}
+            className="field-input"
           />
         </div>
-        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+        <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }} aria-live="polite">
           Exibindo <strong>{filteredMembers.length}</strong> de {members.length} colaboradores
         </div>
       </div>
 
-      {/* ── Tabela de Colaboradores ── */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      {/* ── Tabela de colaboradores ── */}
+      <div className="glass" style={{ borderRadius: "var(--radius-lg)", padding: 0, overflow: "hidden" }}>
         {loading ? (
-          <div style={{ padding: "40px", textAlign: "center", color: "var(--text-muted)" }}>
-            <div className="spinner" style={{ margin: "0 auto 12px" }}></div>
-            Carregando colaboradores...
+          <div className="empty-state" role="status">
+            <div className="spinner" aria-hidden="true"></div>
+            <span>Carregando colaboradores...</span>
           </div>
         ) : filteredMembers.length === 0 ? (
-          <div style={{ padding: "50px 20px", textAlign: "center" }}>
-            <Users size={40} style={{ color: "var(--text-muted)", marginBottom: "12px", opacity: 0.4 }} />
-            <h3 style={{ fontSize: "1.05rem", fontWeight: 600, marginBottom: "6px" }}>Nenhum colaborador encontrado</h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.82rem", maxWidth: "400px", margin: "0 auto 16px" }}>
-              {searchQuery ? "Nenhum membro corresponde ao termo pesquisado." : "Cadastre os operadores da sua empresa para que eles atendam clientes no Live Chat sem acesso aos dados do proprietário."}
+          <div className="empty-state">
+            <Users size={40} className="empty-state__icon" aria-hidden="true" />
+            <h3 className="empty-state__title">Nenhum colaborador encontrado</h3>
+            <p className="empty-state__desc">
+              {searchQuery ? "Nenhum membro corresponde ao termo pesquisado." : "Adicione os operadores da sua empresa para que eles atendam clientes no Live Chat sem usar o login do proprietário."}
             </p>
           </div>
         ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "0.85rem" }}>
+          <div className="table-container" style={{ borderRadius: 0 }}>
+            <table className="data-table">
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border-color)", background: "rgba(255,255,255,0.02)", color: "var(--text-muted)", fontSize: "0.75rem", textTransform: "uppercase" }}>
-                  <th style={{ padding: "14px 20px" }}>Colaborador</th>
-                  <th style={{ padding: "14px 20px" }}>Cargo / Nível</th>
-                  <th style={{ padding: "14px 20px" }}>Permissões Principais</th>
-                  <th style={{ padding: "14px 20px" }}>Ingresso</th>
-                  <th style={{ padding: "14px 20px", textAlign: "right" }}>Ações</th>
+                <tr>
+                  <th scope="col">Colaborador</th>
+                  <th scope="col">Cargo</th>
+                  <th scope="col" className="team-col-desc">O que pode fazer</th>
+                  <th scope="col">Desde</th>
+                  <th scope="col" style={{ textAlign: "right" }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredMembers.map((m) => {
                   const rInfo = ROLE_INFO[m.role] || ROLE_INFO.ATTENDANT;
                   const Icon = rInfo.icon;
-                  const initials = m.name ? m.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "U";
 
                   return (
-                    <tr key={m.id} style={{ borderBottom: "1px solid var(--border-color)", transition: "background 0.15s" }}>
-                      
-                      {/* Nome e E-mail */}
-                      <td style={{ padding: "14px 20px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <div
-                            style={{
-                              width: "38px",
-                              height: "38px",
-                              borderRadius: "50%",
-                              background: rInfo.bg,
-                              border: `1px solid ${rInfo.border}`,
-                              color: rInfo.color,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontWeight: 700,
-                              fontSize: "0.82rem",
-                              flexShrink: 0
-                            }}
-                          >
-                            {initials}
+                    <tr key={m.id}>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)" }}>
+                          <div className="avatar avatar--role" style={roleStyle(rInfo.color)} aria-hidden="true">
+                            {getInitials(m.name || m.email, "?")}
                           </div>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-                              {m.name}
-                              {m.isOwner && (
-                                <span style={{ fontSize: "0.65rem", padding: "1px 5px", borderRadius: "6px", background: "rgba(245, 158, 11, 0.15)", color: "#f59e0b", border: "1px solid rgba(245, 158, 11, 0.3)" }}>
-                                  Dono
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: "0.76rem", color: "var(--text-muted)" }}>{m.email}</div>
+                            <div style={{ fontWeight: 600 }}>{m.name}</div>
+                            <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)" }}>{m.email}</div>
                           </div>
                         </div>
                       </td>
-
-                      {/* Cargo */}
-                      <td style={{ padding: "14px 20px" }}>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "3px 10px",
-                            borderRadius: "14px",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            background: rInfo.bg,
-                            color: rInfo.color,
-                            border: `1px solid ${rInfo.border}`,
-                          }}
-                        >
-                          <Icon size={12} />
+                      <td>
+                        <span className="role-badge" style={roleStyle(rInfo.color)}>
+                          <Icon size={12} aria-hidden="true" />
                           {rInfo.label}
                         </span>
                       </td>
-
-                      {/* Descrição resumida */}
-                      <td style={{ padding: "14px 20px", color: "var(--text-muted)", fontSize: "0.78rem", maxWidth: "280px" }}>
+                      <td className="team-col-desc" style={{ color: "var(--text-muted)", fontSize: "var(--fs-sm)", maxWidth: "280px" }}>
                         {rInfo.desc}
                       </td>
-
-                      {/* Data de ingresso */}
-                      <td style={{ padding: "14px 20px", color: "var(--text-muted)", fontSize: "0.78rem", whiteSpace: "nowrap" }}>
+                      <td style={{ color: "var(--text-muted)", fontSize: "var(--fs-sm)", whiteSpace: "nowrap" }}>
                         {new Date(m.createdAt).toLocaleDateString("pt-BR")}
                       </td>
-
-                      {/* Ações */}
-                      <td style={{ padding: "14px 20px", textAlign: "right", whiteSpace: "nowrap" }}>
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                         {m.isOwner ? (
-                          <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
-                            Inalterável
-                          </span>
+                          <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>Dono da conta</span>
                         ) : (
-                          <div style={{ display: "inline-flex", gap: "6px" }}>
+                          <div style={{ display: "inline-flex", gap: "var(--space-1-5)" }}>
                             <button
                               type="button"
                               onClick={() => openEditModal(m)}
-                              className="btn btn-ghost"
-                              style={{ padding: "6px 10px", fontSize: "0.75rem", display: "inline-flex", alignItems: "center", gap: "4px" }}
-                              title="Alterar cargo ou redefinir senha"
+                              className="icon-action"
+                              aria-label={`Editar cargo ou senha de ${m.name}`}
+                              title="Editar cargo ou senha"
                             >
-                              <Edit2 size={13} /> Editar
+                              <Edit2 size={15} aria-hidden="true" />
                             </button>
                             <button
                               type="button"
                               onClick={() => handleDeleteMember(m)}
-                              className="btn btn-ghost"
-                              style={{ padding: "6px 10px", fontSize: "0.75rem", color: "#f87171" }}
-                              title="Revogar acesso à conta"
+                              className="icon-action icon-action--danger"
+                              aria-label={`Revogar o acesso de ${m.name}`}
+                              title="Revogar acesso"
                             >
-                              <Trash2 size={13} />
+                              <Trash2 size={15} aria-hidden="true" />
                             </button>
                           </div>
                         )}
@@ -528,258 +491,114 @@ export default function TeamPage() {
         )}
       </div>
 
-      {/* ── Modal: Novo Colaborador ── */}
-      {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "520px", width: "95%", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-color)", padding: "24px" }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(0, 194, 107, 0.15)", color: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <UserPlus size={18} />
-                </div>
-                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>Adicionar Colaborador</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.1rem" }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateMember} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "6px", display: "block" }}>
-                  Nome Completo do Colaborador *
-                </label>
-                <div style={{ position: "relative" }}>
-                  <UserIcon size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Ex: Amanda Ferreira"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    className="form-control"
-                    style={{ paddingLeft: "32px", height: "38px", fontSize: "0.82rem" }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "6px", display: "block" }}>
-                  E-mail de Login Corporativo *
-                </label>
-                <div style={{ position: "relative" }}>
-                  <Mail size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                  <input
-                    type="email"
-                    required
-                    autoComplete="off"
-                    placeholder="amanda@empresa.com.br"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    className="form-control"
-                    style={{ paddingLeft: "32px", height: "38px", fontSize: "0.82rem" }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-                  <label style={{ fontSize: "0.78rem", fontWeight: 600, margin: 0 }}>
-                    Senha Inicial de Acesso *
-                  </label>
-                  <button
-                    type="button"
-                    onClick={generatePassword}
-                    style={{ background: "none", border: "none", color: "var(--primary)", fontSize: "0.72rem", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "3px", fontWeight: 600 }}
-                  >
-                    <Sparkles size={12} /> Gerar Automática
-                  </button>
-                </div>
-                <div style={{ position: "relative" }}>
-                  <Lock size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                  <input
-                    type="text"
-                    required
-                    minLength={6}
-                    maxLength={128}
-                    autoComplete="new-password"
-                    placeholder="Mínimo 6 caracteres"
-                    value={passwordInput}
-                    onChange={(e) => setPasswordInput(e.target.value)}
-                    className="form-control"
-                    style={{ paddingLeft: "32px", height: "38px", fontSize: "0.82rem" }}
-                  />
-                </div>
-                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "4px", display: "block" }}>
-                  O colaborador usará este e-mail e senha para entrar na plataforma.
-                </span>
-              </div>
-
-              <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "8px", display: "block" }}>
-                  Cargo e Nível de Permissão *
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  {[
-                    { key: "ATTENDANT", label: "🎧 Atendente", desc: "Live Chat e respostas rápidas" },
-                    { key: "MANAGER", label: "👔 Gerente", desc: "Templates, listas, disparos e métricas" },
-                    { key: "ADMIN", label: "🛡️ Administrador", desc: "Acesso total à conta" },
-                    { key: "VIEWER", label: "📊 Visualizador", desc: "Apenas leitura de dados" },
-                  ].map((item) => {
-                    const isSelected = roleInput === item.key;
-                    return (
-                      <div
-                        key={item.key}
-                        onClick={() => setRoleInput(item.key)}
-                        style={{
-                          padding: "10px 12px",
-                          borderRadius: "10px",
-                          border: isSelected ? "2px solid var(--primary)" : "1px solid var(--border-color)",
-                          background: isSelected ? "rgba(0, 194, 107, 0.12)" : "rgba(255,255,255,0.03)",
-                          cursor: "pointer",
-                          transition: "all 0.15s"
-                        }}
-                      >
-                        <div style={{ fontSize: "0.82rem", fontWeight: 600, color: isSelected ? "var(--primary)" : "var(--text)" }}>
-                          {item.label}
-                        </div>
-                        <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginTop: "2px" }}>
-                          {item.desc}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="btn btn-ghost"
-                  style={{ fontSize: "0.82rem" }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn btn-primary"
-                  style={{ fontSize: "0.82rem", padding: "8px 20px" }}
-                >
-                  {isSubmitting ? "Cadastrando..." : "Cadastrar Colaborador"}
-                </button>
-              </div>
-            </form>
+      {/* ── Modal: novo colaborador ── */}
+      <Modal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Novo colaborador"
+        icon={<span className="icon-tile icon-tile--sm" style={tileStyle("var(--primary)")}><UserPlus size={18} aria-hidden="true" /></span>}
+        onSubmit={handleCreateMember}
+        footer={
+          <>
+            <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-secondary">Cancelar</button>
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary">
+              {isSubmitting ? "Adicionando..." : "Adicionar colaborador"}
+            </button>
+          </>
+        }
+      >
+        <div className="field">
+          <label htmlFor="member-name" className="field-label">Nome completo</label>
+          <div className="field-with-icon">
+            <UserIcon size={15} aria-hidden="true" />
+            <input id="member-name" type="text" required placeholder="Ex.: Amanda Ferreira" value={nameInput} onChange={(e) => setNameInput(e.target.value)} className="field-input" />
           </div>
         </div>
-      )}
 
-      {/* ── Modal: Editar Cargo / Senha ── */}
-      {showEditModal && selectedMember && (
-        <div className="modal-backdrop" onClick={() => setShowEditModal(false)}>
-          <div
-            className="modal-content"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: "480px", width: "95%", borderRadius: "var(--radius-lg)", border: "1px solid var(--border-color)", padding: "24px" }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "rgba(59, 130, 246, 0.15)", color: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <Edit2 size={18} />
-                </div>
-                <h3 style={{ fontSize: "1.1rem", fontWeight: 700, margin: 0 }}>Editar Colaborador</h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowEditModal(false)}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "1.1rem" }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateMember} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "6px", display: "block" }}>
-                  Nome
-                </label>
-                <input
-                  type="text"
-                  value={editNameInput}
-                  onChange={(e) => setEditNameInput(e.target.value)}
-                  className="form-control"
-                  style={{ height: "38px", fontSize: "0.82rem" }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "6px", display: "block" }}>
-                  Alterar Cargo
-                </label>
-                <select
-                  value={editRoleInput}
-                  onChange={(e) => setEditRoleInput(e.target.value)}
-                  className="form-control"
-                  style={{ height: "38px", fontSize: "0.82rem" }}
-                >
-                  <option value="ATTENDANT">🎧 Atendente (Apenas Live Chat & Mini-CRM)</option>
-                  <option value="MANAGER">👔 Gerente (Campanhas, Listas e Métricas)</option>
-                  <option value="ADMIN">🛡️ Administrador (Acesso total à conta)</option>
-                  <option value="VIEWER">📊 Visualizador (Apenas leitura)</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: "0.78rem", fontWeight: 600, marginBottom: "6px", display: "block" }}>
-                  Redefinir Senha de Acesso (opcional)
-                </label>
-                <div style={{ position: "relative" }}>
-                  <KeyRound size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
-                  <input
-                    type="text"
-                    minLength={6}
-                    maxLength={128}
-                    autoComplete="new-password"
-                    placeholder="Deixe em branco para não alterar"
-                    value={editPasswordInput}
-                    onChange={(e) => setEditPasswordInput(e.target.value)}
-                    className="form-control"
-                    style={{ paddingLeft: "32px", height: "38px", fontSize: "0.82rem" }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="btn btn-ghost"
-                  style={{ fontSize: "0.82rem" }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn btn-primary"
-                  style={{ fontSize: "0.82rem", padding: "8px 20px" }}
-                >
-                  {isSubmitting ? "Salvando..." : "Salvar Alterações"}
-                </button>
-              </div>
-            </form>
+        <div className="field">
+          <label htmlFor="member-email" className="field-label">E-mail de login</label>
+          <div className="field-with-icon">
+            <Mail size={15} aria-hidden="true" />
+            <input id="member-email" type="email" required autoComplete="off" placeholder="amanda@empresa.com.br" value={emailInput} onChange={(e) => setEmailInput(e.target.value)} className="field-input" />
           </div>
         </div>
-      )}
+
+        <div className="field">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)" }}>
+            <label htmlFor="member-password" className="field-label">Senha inicial</label>
+            <button type="button" onClick={generatePassword} className="btn btn-secondary btn-sm">
+              <Sparkles size={12} aria-hidden="true" /> Gerar senha
+            </button>
+          </div>
+          <div className="field-with-icon">
+            <Lock size={15} aria-hidden="true" />
+            <input
+              id="member-password"
+              type="text"
+              required
+              minLength={6}
+              maxLength={128}
+              autoComplete="new-password"
+              placeholder="Mínimo 6 caracteres"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className="field-input"
+              aria-describedby="member-password-hint"
+            />
+          </div>
+          <span id="member-password-hint" className="field-hint">O colaborador entra na plataforma com este e-mail e esta senha.</span>
+        </div>
+
+        <div className="field">
+          <span id="member-role-label" className="field-label">Cargo</span>
+          <RolePicker value={roleInput} onChange={setRoleInput} labelledBy="member-role-label" />
+        </div>
+      </Modal>
+
+      {/* ── Modal: editar colaborador ── */}
+      <Modal
+        open={showEditModal && !!selectedMember}
+        onClose={() => setShowEditModal(false)}
+        title={selectedMember ? `Editar ${selectedMember.name}` : "Editar colaborador"}
+        icon={<span className="icon-tile icon-tile--sm" style={tileStyle("var(--role-manager)")}><Edit2 size={18} aria-hidden="true" /></span>}
+        onSubmit={handleUpdateMember}
+        footer={
+          <>
+            <button type="button" onClick={() => setShowEditModal(false)} className="btn btn-secondary">Cancelar</button>
+            <button type="submit" disabled={isSubmitting} className="btn btn-primary">
+              {isSubmitting ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </>
+        }
+      >
+        <div className="field">
+          <label htmlFor="edit-member-name" className="field-label">Nome</label>
+          <input id="edit-member-name" type="text" value={editNameInput} onChange={(e) => setEditNameInput(e.target.value)} className="field-input" />
+        </div>
+
+        <div className="field">
+          <span id="edit-member-role-label" className="field-label">Cargo</span>
+          <RolePicker value={editRoleInput} onChange={setEditRoleInput} labelledBy="edit-member-role-label" />
+        </div>
+
+        <div className="field">
+          <label htmlFor="edit-member-password" className="field-label">Nova senha (opcional)</label>
+          <div className="field-with-icon">
+            <KeyRound size={15} aria-hidden="true" />
+            <input
+              id="edit-member-password"
+              type="text"
+              minLength={6}
+              maxLength={128}
+              autoComplete="new-password"
+              placeholder="Deixe em branco para manter a atual"
+              value={editPasswordInput}
+              onChange={(e) => setEditPasswordInput(e.target.value)}
+              className="field-input"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

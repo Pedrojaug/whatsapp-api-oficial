@@ -6,6 +6,7 @@ import "./App.css";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AlertProvider } from "./contexts/AlertContext";
+import { ConfirmProvider } from "./contexts/ConfirmContext";
 import AppLoader from "./components/AppLoader";
 import PageLoader from "./components/PageLoader";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -76,6 +77,7 @@ export default function App() {
       <AuthProvider>
       <AccountProvider>
         <AlertProvider>
+        <ConfirmProvider>
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
@@ -114,6 +116,7 @@ export default function App() {
               </Routes>
             </Suspense>
           </BrowserRouter>
+        </ConfirmProvider>
         </AlertProvider>
       </AccountProvider>
     </AuthProvider>

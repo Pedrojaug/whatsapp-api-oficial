@@ -145,3 +145,14 @@ export function formatScheduleType(type: string): string {
       return type || "-";
   }
 }
+
+// Iniciais para avatar. Array.from respeita emoji e acentos compostos (w[0] partia o emoji ao meio
+// e exibia "E�"); só letras e números entram, então "🔥 Ana Paula" vira "AP".
+export function getInitials(name: string | null | undefined, fallback = "?"): string {
+  const letters = (name || "")
+    .trim()
+    .split(/\s+/)
+    .map((word) => Array.from(word)[0] || "")
+    .filter((ch) => /\p{L}|\p{N}/u.test(ch));
+  return letters.length ? letters.slice(0, 2).join("").toUpperCase() : fallback;
+}

@@ -8,26 +8,28 @@ const router = Router();
 // Aplica autenticação a todas as rotas de Respostas Rápidas
 router.use(authMiddleware);
 
+// Padrões neutros semeados em toda conta nova. Nunca coloque aqui conteúdo de um cliente
+// (ofertas, chave PIX, endereço): o produto é multi-tenant e isto vai para todas as contas.
 export const DEFAULT_QUICK_REPLIES = [
-  {
-    title: "🎁 Oferta Body Splash",
-    message: `Obrigada pelo retorno! 💚 💦\n\nFestival de Body Splash 21 a 30/09 | 1 lançamento por dia\n200 ml — à vista ou cartão:\n\n🔥 R$ 75 por R$ 40\n🔥 R$ 72 por R$ 38\n\n🎁 *Incentivos:*\n• R$ 299 ➔ Body Splash 100 ml\n• R$ 400 ➔ Colônia 100 ml\n• R$ 800 ➔ 2 Colônias + Body Splash 200 ml\n\nJá revelados: *Laranja* e *Brisa Verde*.\nAmanhã: *Ternura* 🤫\n\nQuer pedir? Responda *SIM* e encaminhamos você para o atendimento da loja!`
-  },
-  {
-    title: "💳 Chave PIX",
-    message: `Perfeito! Segue a nossa chave PIX para pagamento:\n\n🔑 Chave: (84) 99999-9999\nTitular: Magda Perfumaria e Cosméticos\n\nAssim que fizer o envio do comprovante, separamos o seu pedido imediatamente! ✨`
-  },
-  {
-    title: "📍 Endereço & Horários",
-    message: `📍 Nossa loja fica localizada no Centro.\n⏰ Horário de atendimento:\nSegunda a Sexta: 08:30 às 18:00\nSábado: 08:30 às 13:00\n\nVenha nos visitar ou peça para entregarmos aí para você!`
-  },
-  {
-    title: "⏳ Pedir um Momento",
-    message: `Olá! Já recebi sua mensagem e estou verificando o seu pedido com a nossa equipe. Em minutinhos te dou o retorno completo, tá bem? Obrigado pela paciência! 💚`
-  },
   {
     title: "👋 Boas-vindas",
     message: `Olá! Tudo bem? Que bom falar com você! Como posso te ajudar hoje? 😊`
+  },
+  {
+    title: "⏳ Pedir um momento",
+    message: `Recebi sua mensagem e já estou verificando. Em alguns minutos te dou o retorno completo, tá bem? Obrigado pela paciência!`
+  },
+  {
+    title: "💳 Chave PIX",
+    message: `Segue nossa chave PIX para pagamento:\n\n🔑 Chave: [sua chave PIX]\nTitular: [nome do titular]\n\nAssim que receber o comprovante, damos andamento ao seu pedido.`
+  },
+  {
+    title: "📍 Endereço e horários",
+    message: `📍 Endereço: [seu endereço]\n⏰ Horário de atendimento:\nSegunda a sexta: [horário]\nSábado: [horário]`
+  },
+  {
+    title: "🙏 Encerramento",
+    message: `Obrigado pelo contato! Se precisar de mais alguma coisa, é só chamar por aqui.`
   }
 ];
 

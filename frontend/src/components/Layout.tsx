@@ -39,6 +39,15 @@ function WhatsAppIcon() {
   );
 }
 
+// Nomes dos cargos iguais aos de Equipe & Acessos; a cor vem dos tokens --role-*.
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: "Proprietário",
+  ADMIN: "Administrador",
+  MANAGER: "Gerente",
+  ATTENDANT: "Atendente",
+  VIEWER: "Visualizador",
+};
+
 export default function Layout() {
   const { token, user, isImpersonating, impersonatorName, login, logout, stopImpersonating } = useAuth();
   const { accounts, selectedAccount, selectAccount } = useAccount();
@@ -488,33 +497,11 @@ export default function Layout() {
                       {user.name || user.email}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                      <span style={{
-                        fontSize: "0.68rem",
-                        padding: "1px 6px",
-                        borderRadius: "4px",
-                        fontWeight: 600,
-                        background:
-                          accountRole === "OWNER" || accountRole === "ADMIN" ? "rgba(245, 158, 11, 0.15)" :
-                          accountRole === "MANAGER" ? "rgba(59, 130, 246, 0.15)" :
-                          accountRole === "ATTENDANT" ? "rgba(16, 185, 129, 0.15)" :
-                          "rgba(148, 163, 184, 0.15)",
-                        color:
-                          accountRole === "OWNER" || accountRole === "ADMIN" ? "#f59e0b" :
-                          accountRole === "MANAGER" ? "#60a5fa" :
-                          accountRole === "ATTENDANT" ? "#34d399" :
-                          "#94a3b8",
-                        border: `1px solid ${
-                          accountRole === "OWNER" || accountRole === "ADMIN" ? "rgba(245, 158, 11, 0.3)" :
-                          accountRole === "MANAGER" ? "rgba(59, 130, 246, 0.3)" :
-                          accountRole === "ATTENDANT" ? "rgba(16, 185, 129, 0.3)" :
-                          "rgba(148, 163, 184, 0.3)"
-                        }`
-                      }}>
-                        {accountRole === "OWNER" ? "👑 Dono" :
-                         accountRole === "ADMIN" ? "👑 Admin" :
-                         accountRole === "MANAGER" ? "👔 Gerente" :
-                         accountRole === "ATTENDANT" ? "🎧 Atendente" :
-                         accountRole === "VIEWER" ? "📊 Visualizador" : accountRole}
+                      <span
+                        className="role-badge"
+                        style={{ "--role-color": `var(--role-${(ROLE_LABELS[accountRole] ? accountRole : "VIEWER").toLowerCase()})`, padding: "0 var(--space-1-5)", fontSize: "var(--fs-2xs)" } as React.CSSProperties}
+                      >
+                        {ROLE_LABELS[accountRole] ?? accountRole}
                       </span>
                     </div>
                   </div>
