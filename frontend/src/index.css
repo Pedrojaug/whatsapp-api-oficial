@@ -2761,3 +2761,6 @@ body.light-theme .page-heading {
 
 /* Equipe & Acessos: em telas estreitas a descrição do cargo sai da tabela (continua no seletor de cargo) */
 @media (max-width: 900px) { .team-col-desc { display: none; } }
+
+/* Live Chat: balão com áudio tem largura própria e o player se ajusta a ela (nunca vaza) */
+.msg-bubble:has(.audio-player) { width: 300px; max-width: 100%; }

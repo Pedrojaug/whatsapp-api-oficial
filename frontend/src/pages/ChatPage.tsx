@@ -217,14 +217,15 @@ function AudioMessagePlayer({ src }: { src: string }) {
   const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
 
   return (
-    <div style={{
+    // Largura vem do balão (.msg-bubble:has(.audio-player) em index.css); antes o min-width fixo
+    // de 260px fazia a onda, o "1x" e o download vazarem do balão em conversas estreitas.
+    <div className="audio-player" style={{
       display: "flex",
       alignItems: "center",
       gap: "var(--space-3)",
       padding: "var(--space-1) var(--space-0-5)",
       width: "100%",
-      minWidth: "260px",
-      maxWidth: "330px"
+      minWidth: 0
     }}>
       {/* Botão Play / Pause Estilo WhatsApp */}
       <button
