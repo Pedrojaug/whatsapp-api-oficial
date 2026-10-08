@@ -9,7 +9,8 @@ import { useCountup } from "../hooks/useCountup";
 import ExecutiveReportModal from "../components/ExecutiveReportModal";
 import FinancialMetricsSection from "../components/FinancialMetricsSection";
 import { formatBRL } from "../utils/pricing";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Send, Check, Eye, MessageSquare, BarChart3, Activity } from "lucide-react";
+import { AreaChart, RingGauge, Sparkline } from "../components/DashboardCharts";
 
 const CATEGORY_LABELS: Record<string, string> = {
   MARKETING: "Marketing",
@@ -298,34 +299,60 @@ export default function DashboardPage() {
     }
   };
 
-  const kpis = [
-    { label: "Enviadas", value: countAll.toLocaleString("pt-BR"), detail: totalFailed > 0 ? `${totalFailed.toLocaleString("pt-BR")} falharam` : "Nenhuma falha", detailTone: totalFailed > 0 ? "error" : undefined },
-    { label: "Entregues", value: countDelivered.toLocaleString("pt-BR"), detail: `${deliveryRate}% das enviadas` },
-    { label: "Lidas", value: countRead.toLocaleString("pt-BR"), detail: `${readRate}% das entregues` },
-    { label: "Responderam", value: countReplies.toLocaleString("pt-BR"), detail: `${responseRate}% das entregues` },
-    { label: "Investimento", value: formatBRL(periodSpentBrl), detail: `Previsão do mês: ${formatBRL(monthForecastBrl)}` },
+  // Séries diárias para os minigráficos dos indicadores (mesmos dados do gráfico principal).
+  const series = metricsData.chartData;
+  const hasReplySeries = series.some((d) => typeof d.replies === "number");
+  // Custo do período por categoria (barra empilhada no cartão de custos).
+  const costByCategory = Object.entries(
+    ((costs?.templateCosts || []) as Array<{ category: string; totalCostBrl: number }>).reduce<Record<string, number>>((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + (t.totalCostBrl || 0);
+      return acc;
+    }, {})
+  )
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const costCategoryTotal = costByCategory.reduce((sum, [, v]) => sum + v, 0);
+  const monthProgress = monthForecastBrl > 0 ? Math.min(100, Math.round((monthSpentBrl / monthForecastBrl) * 100)) : 0;
+
+  const kpis: Array<{
+    label: string;
+    value: string;
+    detail: string;
+    detailTone?: "error";
+    color: string;
+    icon: typeof Send;
+    spark?: number[];
+    progress?: number;
+  }> = [
+    { label: "Enviadas", value: countAll.toLocaleString("pt-BR"), detail: totalFailed > 0 ? `${totalFailed.toLocaleString("pt-BR")} falharam` : "Nenhuma falha", detailTone: totalFailed > 0 ? "error" : undefined, color: "var(--primary)", icon: Send, spark: series.map((d) => d.sent) },
+    { label: "Entregues", value: countDelivered.toLocaleString("pt-BR"), detail: `${deliveryRate}% das enviadas`, color: "var(--info)", icon: Check, spark: series.map((d) => Math.max(0, d.sent - d.failed)) },
+    { label: "Lidas", value: countRead.toLocaleString("pt-BR"), detail: `${readRate}% das entregues`, color: "var(--chat-read-tick)", icon: Eye, spark: series.map((d) => d.read) },
+    { label: "Responderam", value: countReplies.toLocaleString("pt-BR"), detail: `${responseRate}% das entregues`, color: "var(--violet)", icon: MessageSquare, spark: hasReplySeries ? series.map((d) => d.replies ?? 0) : undefined },
+    { label: "Investimento", value: formatBRL(periodSpentBrl), detail: `${monthProgress}% da previsão do mês`, color: "var(--warning)", icon: BarChart3, progress: monthProgress },
   ];
 
   const deliveryHealth = [
-    { label: "Números sem WhatsApp", value: failureDiagnosis.invalidNumbers, hint: "Erro 131026 da Meta. Remova esses contatos das listas." },
-    { label: "Limite de frequência da Meta", value: failureDiagnosis.frequencyCapped, hint: "O contato já recebeu marketing demais nas últimas 24 h." },
-    { label: "Experimento da Meta", value: failureDiagnosis.metaExperiment, hint: "Contato em grupo de controle da Meta." },
-    { label: "Outras falhas", value: failureDiagnosis.other ?? 0, hint: "Falhas sem motivo classificado." },
+    { label: "Números sem WhatsApp", value: failureDiagnosis.invalidNumbers, color: "var(--error)", hint: "Erro 131026 da Meta. Remova esses contatos das listas." },
+    { label: "Limite de frequência da Meta", value: failureDiagnosis.frequencyCapped, color: "var(--warning)", hint: "O contato já recebeu marketing demais nas últimas 24 h." },
+    { label: "Experimento da Meta", value: failureDiagnosis.metaExperiment, color: "var(--violet)", hint: "Contato em grupo de controle da Meta." },
+    { label: "Outras falhas", value: failureDiagnosis.other ?? 0, color: "var(--text-muted)", hint: "Falhas sem motivo classificado." },
   ];
 
   const formatAxisDate = (date: string) =>
     date.includes("T")
       ? date.split("T")[1].slice(0, 5)
       : new Date(date + "T00:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
-  const formatTick = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v));
 
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+    <div className="fade-in dashboard" style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
       {/* ── Cabeçalho: título, período e exportação ── */}
-      <div className="page-header" style={{ alignItems: "center" }}>
+      <div className="page-header dashboard__hero" style={{ alignItems: "center" }}>
         <div>
           <h1 className="page-heading">Painel de métricas</h1>
-          <p className="page-subheading">{accountDisplay} · {periodLabel}</p>
+          <p className="page-subheading" style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap" }}>
+            <span>{accountDisplay} · {periodLabel}</span>
+            {!isDemoAccount && <span className="live-badge" title="Os números se atualizam sozinhos a cada nova mensagem"><span className="live-badge__dot" aria-hidden="true" />Ao vivo</span>}
+          </p>
         </div>
         <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
           <div className="segmented" role="radiogroup" aria-label="Período">
@@ -372,78 +399,51 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ── Indicadores ── */}
+      {/* ── Indicadores com tendência ── */}
       <div className="kpi-grid" aria-busy={isLoadingMetrics}>
-        {kpis.map((k) =>
+        {kpis.map((k, i) =>
           isLoadingMetrics ? (
-            <div key={k.label} className="skeleton" style={{ height: "96px", borderRadius: "var(--radius-lg)" }} />
+            <div key={k.label} className="skeleton" style={{ height: "132px", borderRadius: "var(--radius-lg)" }} />
           ) : (
-            <div key={k.label} className="glass kpi">
-              <span className="kpi__label">{k.label}</span>
+            <div key={k.label} className="glass kpi kpi--alive" style={{ "--kpi-color": k.color, animationDelay: `${i * 60}ms` } as React.CSSProperties}>
+              <div className="kpi__top">
+                <span className="kpi__label">{k.label}</span>
+                <span className="kpi__icon" aria-hidden="true"><k.icon size={15} /></span>
+              </div>
               <span className="kpi__value">{k.value}</span>
               <span className={`kpi__detail${k.detailTone === "error" ? " kpi__detail--error" : ""}`}>{k.detail}</span>
+              {k.spark && k.spark.length > 0 && (
+                <Sparkline values={k.spark} color={k.color} label={`Tendência de ${k.label.toLowerCase()} no período`} />
+              )}
+              {k.progress !== undefined && (
+                <div className="kpi__progress" role="progressbar" aria-valuenow={k.progress} aria-valuemin={0} aria-valuemax={100} aria-label="Gasto do mês em relação à previsão">
+                  <span style={{ width: `${k.progress}%` }} />
+                </div>
+              )}
             </div>
           )
         )}
       </div>
 
-      {/* ── Envios por dia ── */}
+      {/* ── Envios ao longo do período ── */}
       <section className="glass panel" aria-labelledby="chart-title">
         <div className="panel__header">
           <h2 id="chart-title" className="panel__title">Envios por {metricsPeriod === "today" || metricsPeriod === "yesterday" ? "horário" : "dia"}</h2>
           <div className="chart-legend" aria-hidden="true">
             <span><i style={{ background: "var(--primary)" }} /> Enviadas</span>
             <span><i style={{ background: "var(--info)" }} /> Lidas</span>
-            <span><i style={{ background: "var(--error)" }} /> Falhas</span>
+            <span><i className="chart-legend__dot" style={{ background: "var(--error)" }} /> Falhas</span>
           </div>
         </div>
 
         {metricsData.chartData.length === 0 ? (
-          <p className="panel__empty">Nenhum envio neste período.</p>
-        ) : (() => {
-          const maxRaw = Math.max(...metricsData.chartData.map(d => Math.max(d.sent, d.failed)), 10);
-          const maxVal = maxRaw <= 10 ? 10 : Math.ceil(maxRaw / 5) * 5;
-          const ticks = [1, 0.75, 0.5, 0.25, 0].map((f) => Math.round(maxVal * f));
-          const mid = Math.floor(metricsData.chartData.length / 2);
-
-          return (
-            <div className="bar-chart">
-              <div className="bar-chart__plot">
-                <div className="bar-chart__ticks" aria-hidden="true">
-                  {ticks.map((t) => <span key={t}>{formatTick(t)}</span>)}
-                </div>
-                <div className="bar-chart__area">
-                  <div className="bar-chart__grid" aria-hidden="true">
-                    {ticks.map((t) => <div key={t} />)}
-                  </div>
-                  <div className="bar-chart__bars">
-                    {metricsData.chartData.map((d, index) => {
-                      const dayMax = Math.max(d.sent, d.failed);
-                      const heightPercent = dayMax > 0 ? (dayMax / maxVal) * 100 : 0;
-                      const readPercent = d.sent > 0 ? (d.read / d.sent) * 100 : 0;
-                      const label = `${formatAxisDate(d.date)}: ${d.sent.toLocaleString("pt-BR")} enviadas, ${d.read.toLocaleString("pt-BR")} lidas, ${d.failed} falhas`;
-                      return (
-                        <div key={index} className="bar-chart__group" style={{ height: `${heightPercent}%` }} title={label} aria-label={label} role="img">
-                          {d.sent > 0 && (
-                            <div className="bar-chart__bar bar-chart__bar--sent">
-                              {d.read > 0 && <div className="bar-chart__bar bar-chart__bar--read" style={{ height: `${readPercent}%` }} />}
-                            </div>
-                          )}
-                          {d.failed > 0 && <div className="bar-chart__bar bar-chart__bar--failed" style={{ height: `${(d.failed / dayMax) * 100}%` }} />}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-              <div className="bar-chart__axis" aria-hidden="true">
-                <span>{formatAxisDate(metricsData.chartData[0].date)}</span>
-                {metricsData.chartData.length > 2 && <span>{formatAxisDate(metricsData.chartData[mid].date)}</span>}
-                <span>{formatAxisDate(metricsData.chartData[metricsData.chartData.length - 1].date)}</span>
-              </div>
-            </div>
-          );
-        })()}
+          <div className="panel__empty-state">
+            <Activity size={28} aria-hidden="true" />
+            <p className="panel__empty">Nenhum envio neste período.</p>
+          </div>
+        ) : (
+          <AreaChart data={metricsData.chartData} formatLabel={formatAxisDate} />
+        )}
       </section>
 
       {/* ── Custos e saúde da entrega ── */}
@@ -453,12 +453,36 @@ export default function DashboardPage() {
             <h2 id="costs-title" className="panel__title">Custos na Meta</h2>
             <span className="panel__hint">Falhas não são cobradas</span>
           </div>
-          <dl className="stat-list">
-            <div><dt>{periodLabel}</dt><dd>{formatBRL(periodSpentBrl)}</dd></div>
-            <div><dt>Gasto no mês</dt><dd>{formatBRL(monthSpentBrl)}</dd></div>
-            <div><dt>Previsão do mês</dt><dd>{formatBRL(monthForecastBrl)}</dd></div>
-            <div><dt>Próxima cobrança</dt><dd>{nextBilling}</dd></div>
-          </dl>
+          <div className="cost-hero">
+            <span className="cost-hero__label">{periodLabel}</span>
+            <span className="cost-hero__value">{formatBRL(periodSpentBrl)}</span>
+          </div>
+          {costCategoryTotal > 0 && (
+            <div className="cost-split">
+              <div className="cost-split__bar" role="img" aria-label={`Custo por categoria: ${costByCategory.map(([c, v]) => `${CATEGORY_LABELS[c] ?? c} ${Math.round((v / costCategoryTotal) * 100)}%`).join(", ")}`}>
+                {costByCategory.map(([c, v]) => (
+                  <span key={c} className={`cat-chip--${c.toLowerCase()}`} style={{ width: `${(v / costCategoryTotal) * 100}%` }} />
+                ))}
+              </div>
+              <div className="cost-split__legend" aria-hidden="true">
+                {costByCategory.map(([c, v]) => (
+                  <span key={c} className={`cat-chip--${c.toLowerCase()}`}>
+                    <i />{CATEGORY_LABELS[c] ?? c} <strong>{formatBRL(v)}</strong>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="month-meter">
+            <div className="month-meter__labels">
+              <span>Gasto no mês <strong>{formatBRL(monthSpentBrl)}</strong></span>
+              <span>Previsão <strong>{formatBRL(monthForecastBrl)}</strong></span>
+            </div>
+            <div className="month-meter__track" role="progressbar" aria-valuenow={monthProgress} aria-valuemin={0} aria-valuemax={100} aria-label="Gasto do mês em relação à previsão">
+              <span style={{ width: `${monthProgress}%` }} />
+            </div>
+            <span className="month-meter__foot">Próxima cobrança: {nextBilling}</span>
+          </div>
         </section>
 
         <section className="glass panel" aria-labelledby="health-title">
@@ -466,18 +490,24 @@ export default function DashboardPage() {
             <h2 id="health-title" className="panel__title">Saúde da entrega</h2>
             <span className="panel__hint">{totalFailed.toLocaleString("pt-BR")} falhas</span>
           </div>
-          <dl className="stat-list">
-            {deliveryHealth.map((h) => (
-              <div key={h.label} title={h.hint}>
-                <dt>{h.label}</dt>
-                <dd>{h.value.toLocaleString("pt-BR")}</dd>
+          <div className="health">
+            <RingGauge value={deliveryRate} color={deliveryRate >= 95 ? "var(--primary)" : deliveryRate >= 85 ? "var(--warning)" : "var(--error)"}>
+              <strong>{deliveryRate}%</strong>
+              <span>entregues</span>
+            </RingGauge>
+            <dl className="stat-list" style={{ flex: 1, minWidth: 0 }}>
+              {deliveryHealth.map((h) => (
+                <div key={h.label} title={h.hint}>
+                  <dt><i className="stat-list__dot" style={{ background: h.color }} aria-hidden="true" />{h.label}</dt>
+                  <dd>{h.value.toLocaleString("pt-BR")}</dd>
+                </div>
+              ))}
+              <div title="Contatos que pediram para não receber mais mensagens (PARAR, SAIR).">
+                <dt><i className="stat-list__dot" style={{ background: "var(--blue)" }} aria-hidden="true" />Descadastros</dt>
+                <dd>{optOutsCount.toLocaleString("pt-BR")} <small>({optOutRate}%)</small></dd>
               </div>
-            ))}
-            <div title="Contatos que pediram para não receber mais mensagens (PARAR, SAIR).">
-              <dt>Descadastros</dt>
-              <dd>{optOutsCount.toLocaleString("pt-BR")} <small>({optOutRate}%)</small></dd>
-            </div>
-          </dl>
+            </dl>
+          </div>
         </section>
       </div>
 
@@ -509,7 +539,7 @@ export default function DashboardPage() {
                   return (
                     <tr key={t.templateName}>
                       <td style={{ fontWeight: 600 }}>{t.templateName}</td>
-                      <td style={{ color: "var(--text-muted)" }}>{cost ? CATEGORY_LABELS[cost.category] ?? cost.category : "—"}</td>
+                      <td>{cost ? <span className={`cat-chip cat-chip--${cost.category.toLowerCase()}`}>{CATEGORY_LABELS[cost.category] ?? cost.category}</span> : "—"}</td>
                       <td className="num">{delivered.toLocaleString("pt-BR")}</td>
                       <td className="num">
                         <span className="inline-meter" aria-label={`${rate}% lidas`}>
