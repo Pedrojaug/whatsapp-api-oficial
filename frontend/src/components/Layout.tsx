@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
 import Brand, { BrandIcon } from "./Brand";
+import { hasPermission, canOpenPage, homePageFor } from "../utils/permissions";
 import {
   BarChart3,
   MessageSquare,
@@ -88,34 +89,21 @@ export default function Layout() {
 
   // RBAC Role Resolution for Current Selected Account
   const accountRole = (selectedAccount?.accountRole || "OWNER").toUpperCase();
-  const isOwnerOrAdmin = accountRole === "OWNER" || accountRole === "ADMIN";
-  const isManager = accountRole === "MANAGER";
-  const isAttendant = accountRole === "ATTENDANT";
-  const isViewer = accountRole === "VIEWER";
+  const isOwnerOrAdmin = hasPermission(accountRole, "manageSettings");
+  const canViewReports = hasPermission(accountRole, "viewReports");
+  const canDispatch = hasPermission(accountRole, "dispatch");
+  const canManageTeam = hasPermission(accountRole, "manageTeam");
 
-  // RBAC Automatic Route Protection
+  // RBAC: telas fora do cargo redirecionam para a tela inicial dele (matriz em utils/permissions.ts)
   useEffect(() => {
     if (!selectedAccount) return;
     const currentPath = location.pathname;
     if (currentPath === "/login" || currentPath === "/register") return;
 
-    if (isAttendant) {
-      const allowedPaths = ["/chat", "/lists"];
-      if (!allowedPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
-        navigate("/chat", { replace: true });
-      }
-    } else if (isViewer) {
-      const allowedPaths = ["/metrics", "/chat", "/lists", "/messages"];
-      if (!allowedPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
-        navigate("/metrics", { replace: true });
-      }
-    } else if (isManager) {
-      const forbiddenPaths = ["/accounts", "/api-keys"];
-      if (forbiddenPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
-        navigate("/metrics", { replace: true });
-      }
+    if (!canOpenPage(accountRole, currentPath)) {
+      navigate(homePageFor(accountRole), { replace: true });
     }
-  }, [isAttendant, isViewer, isManager, selectedAccount, location.pathname, navigate]);
+  }, [accountRole, selectedAccount, location.pathname, navigate]);
 
   // Unauthenticated -> Render Modern Auth Form
   if (!token) {
@@ -320,7 +308,7 @@ export default function Layout() {
             <span className="sidebar-section-label">Comunicação</span>
 
             {/* Painel de Métricas: Visível para Dono, Admin, Gerente e Visualizador */}
-            {!isAttendant && (
+            {canViewReports && (
               <NavLink
                 to="/metrics"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -332,7 +320,7 @@ export default function Layout() {
             )}
 
             {/* Campanhas: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/campaigns"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -344,7 +332,7 @@ export default function Layout() {
             )}
 
             {/* Modelos (Templates): Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/templates"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -366,7 +354,7 @@ export default function Layout() {
             </NavLink>
 
             {/* Disparos & Logs: Todos exceto Atendente */}
-            {!isAttendant && (
+            {canViewReports && (
               <NavLink
                 to="/messages"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -388,7 +376,7 @@ export default function Layout() {
             </NavLink>
 
             {/* Links Rastreáveis: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/link-tracking"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -400,7 +388,7 @@ export default function Layout() {
             )}
 
             {/* Galeria de Mídia: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/media"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -412,7 +400,7 @@ export default function Layout() {
             )}
 
             {/* Descadastros: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/optouts"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -424,11 +412,11 @@ export default function Layout() {
             )}
 
             {/* Configurações (exibido apenas se tiver itens com permissão) */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canManageTeam && (
               <>
                 <span className="sidebar-section-label" style={{ marginTop: "12px" }}>Configurações</span>
 
-                {/* Equipe & Acessos: Dono, Admin, Gerente */}
+                {/* Equipe & Acessos: Dono e Admin (o backend recusa os demais cargos) */}
                 <NavLink
                   to="/team"
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}

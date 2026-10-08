@@ -4,7 +4,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { normalizePhone, phoneVariants } from "../services/phoneService";
 import { metaService } from "../services/metaService";
-import { findAccountForUser, canSendMessages } from "../utils/accountAccess";
+import { findAccountForUser, canSendMessages, getAccountWithPermission } from "../utils/accountAccess";
 import { messageEventEmitter } from "../utils/emitter";
 import axios from "axios";
 
@@ -201,8 +201,8 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
   const { accountId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
@@ -233,8 +233,8 @@ router.get("/accounts/:accountId/conversations/export", async (req: Request, res
   const { startDate, endDate, filter = "ALL" } = req.query;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const dateRange = parseDateWindow(startDate as string | undefined, endDate as string | undefined);
     const conversations = await buildConversations(accountId, dateRange);
@@ -266,8 +266,8 @@ router.patch("/accounts/:accountId/conversations/:phone/blacklist", async (req: 
   const { blacklisted = true } = req.body;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const normalized = normalizePhone(phone);
     const isBlack = !!blacklisted;
@@ -301,8 +301,8 @@ router.patch("/accounts/:accountId/conversations/:phone/handled", async (req: Re
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const normalized = normalizePhone(phone);
     const updated = await (prisma as any).whatsAppContact.upsert({
@@ -357,8 +357,8 @@ router.post("/accounts/:accountId/conversations/mark-all-handled", async (req: R
   }
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const allPhones = new Set<string>();
     phones.forEach((p: string) => {
@@ -404,8 +404,8 @@ router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Req
   const { accountId, phone } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const messages = await prisma.message.findMany({
       where: { accountId, to: { in: phoneVariants(phone) } },
@@ -425,10 +425,9 @@ router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Resp
     const userId = (req as AuthenticatedRequest).userId;
     console.log(`[Media Proxy] Requisição de mídia recebida: conta=${accountId}, mediaId=${mediaId}, userId=${userId}`);
 
-    let account = userId ? await findAccountForUser(accountId, userId) : null;
-    if (!account) {
-      account = (await prisma.account.findFirst({ where: { id: accountId } })) as any;
-    }
+    // Sem fallback para "qualquer conta": antes, um usuário logado de outro tenant conseguia
+    // baixar mídias de conversas alheias só trocando o accountId na URL.
+    const account = userId ? await findAccountForUser(accountId, userId) : null;
 
     if (!account) {
       console.warn(`[Media Proxy] Conta não encontrada para ID: ${accountId}`);
@@ -511,8 +510,8 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
 
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     if (!canSendMessages(account.accountRole)) {
       return res.status(403).json({ error: "Seu cargo possui permissão apenas de visualização." });

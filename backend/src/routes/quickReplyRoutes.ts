@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
-import { findAccountForUser } from "../utils/accountAccess";
+import { findAccountForUser, getAccountWithPermission } from "../utils/accountAccess";
 
 const router = Router();
 
@@ -37,8 +37,8 @@ router.get("/accounts/:accountId/quick-replies", async (req: Request, res: Respo
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     let replies = await prisma.quickReply.findMany({
       where: { accountId },
@@ -93,8 +93,8 @@ router.post("/accounts/:accountId/quick-replies", async (req: Request, res: Resp
   }
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const created = await prisma.quickReply.create({
       data: {
@@ -133,8 +133,8 @@ router.put("/accounts/:accountId/quick-replies/:id", async (req: Request, res: R
   }
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const existing = await prisma.quickReply.findFirst({
       where: { id, accountId }
@@ -170,8 +170,8 @@ router.delete("/accounts/:accountId/quick-replies/:id", async (req: Request, res
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const existing = await prisma.quickReply.findFirst({
       where: { id, accountId }
@@ -195,8 +195,8 @@ router.post("/accounts/:accountId/quick-replies/reset-defaults", async (req: Req
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     await prisma.quickReply.deleteMany({
       where: { accountId }

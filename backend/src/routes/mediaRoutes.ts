@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import { prisma } from "../db";
+import { getAccountWithPermission } from "../utils/accountAccess";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { storageService } from "../services/storageService";
 
@@ -15,10 +16,8 @@ router.get("/accounts/:accountId/media", async (req: Request, res: Response) => 
   const { accountId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const media = await prisma.mediaAsset.findMany({
       where: { accountId },
@@ -66,10 +65,8 @@ router.post("/accounts/:accountId/media", async (req: Request, res: Response) =>
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     // Converter base64 para Buffer
     const base64Data = fileBase64.replace(/^data:.*?;base64,/, "");
@@ -117,10 +114,8 @@ router.delete("/accounts/:accountId/media/:mediaId", async (req: Request, res: R
   const { accountId, mediaId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const mediaAsset = await prisma.mediaAsset.findFirst({
       where: { id: mediaId, accountId }

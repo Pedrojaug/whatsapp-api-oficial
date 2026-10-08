@@ -34,7 +34,7 @@ interface TeamMember {
 const ROLE_INFO: Record<string, { label: string; desc: string; color: string; bg: string; border: string; icon: any }> = {
   OWNER: {
     label: "Proprietário",
-    desc: "Acesso irrestrito a faturamento, números, campanhas e equipe.",
+    desc: "Acesso total: números, disparos, equipe e chaves de API. Único que pode excluir a conta.",
     color: "#f59e0b",
     bg: "rgba(245, 158, 11, 0.12)",
     border: "rgba(245, 158, 11, 0.35)",
@@ -42,7 +42,7 @@ const ROLE_INFO: Record<string, { label: string; desc: string; color: string; bg
   },
   ADMIN: {
     label: "Administrador",
-    desc: "Acesso completo à conta, relatórios e gestão de colaboradores.",
+    desc: "Tudo do proprietário, inclusive equipe e chaves de API, exceto excluir a conta.",
     color: "#8b5cf6",
     bg: "rgba(139, 92, 246, 0.12)",
     border: "rgba(139, 92, 246, 0.35)",
@@ -50,7 +50,7 @@ const ROLE_INFO: Record<string, { label: string; desc: string; color: string; bg
   },
   MANAGER: {
     label: "Gerente",
-    desc: "Cria campanhas, gerencia listas, analisa métricas e supervisiona chats.",
+    desc: "Cria templates, listas e campanhas, faz disparos, vê métricas e atende no chat.",
     color: "#3b82f6",
     bg: "rgba(59, 130, 246, 0.12)",
     border: "rgba(59, 130, 246, 0.35)",
@@ -58,7 +58,7 @@ const ROLE_INFO: Record<string, { label: string; desc: string; color: string; bg
   },
   ATTENDANT: {
     label: "Atendente",
-    desc: "Foco no Live Chat, Mini-CRM e envio de respostas rápidas.",
+    desc: "Atende no Live Chat (responde, envia template a um contato, respostas rápidas) e consulta listas.",
     color: "#10b981",
     bg: "rgba(16, 185, 129, 0.12)",
     border: "rgba(16, 185, 129, 0.35)",
@@ -66,7 +66,7 @@ const ROLE_INFO: Record<string, { label: string; desc: string; color: string; bg
   },
   VIEWER: {
     label: "Visualizador",
-    desc: "Apenas leitura de conversas e métricas, sem permissão de envio.",
+    desc: "Somente leitura de conversas, listas, disparos e métricas. Não envia mensagens.",
     color: "#94a3b8",
     bg: "rgba(148, 163, 184, 0.12)",
     border: "rgba(148, 163, 184, 0.35)",
@@ -629,8 +629,8 @@ export default function TeamPage() {
                 </label>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
                   {[
-                    { key: "ATTENDANT", label: "🎧 Atendente", desc: "Live Chat e Mini-CRM" },
-                    { key: "MANAGER", label: "👔 Gerente", desc: "Campanhas, Listas e Métricas" },
+                    { key: "ATTENDANT", label: "🎧 Atendente", desc: "Live Chat e respostas rápidas" },
+                    { key: "MANAGER", label: "👔 Gerente", desc: "Templates, listas, disparos e métricas" },
                     { key: "ADMIN", label: "🛡️ Administrador", desc: "Acesso total à conta" },
                     { key: "VIEWER", label: "📊 Visualizador", desc: "Apenas leitura de dados" },
                   ].map((item) => {

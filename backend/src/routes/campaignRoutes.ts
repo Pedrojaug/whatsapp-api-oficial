@@ -2,23 +2,19 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { calculateNextRun } from "../utils/campaignScheduler";
-import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountWithPermission } from "../utils/accountAccess";
 import { triggerCampaignWorker } from "../workers/campaignWorker";
 
 const router = Router();
 router.use(authMiddleware);
-
-async function getAccount(accountId: string, userId: string) {
-  return await findAccountForUser(accountId, userId);
-}
 
 // GET /accounts/:accountId/campaigns
 router.get("/accounts/:accountId/campaigns", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "view");
+  if (!account) return;
 
   const campaigns = await prisma.campaign.findMany({
     where: { accountId },
@@ -34,8 +30,8 @@ router.get("/accounts/:accountId/campaigns/:id/runs", async (req: Request, res: 
   const { accountId, id } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "view");
+  if (!account) return;
 
   const runs = await prisma.campaignRun.findMany({
     where: { campaignId: id, campaign: { accountId } },
@@ -56,8 +52,8 @@ router.post("/accounts/:accountId/campaigns", async (req: Request, res: Response
   if (!templateName?.trim()) return res.status(400).json({ error: "Campo 'templateName' é obrigatório." });
   if (!scheduleType) return res.status(400).json({ error: "Campo 'scheduleType' é obrigatório." });
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const nextRunAt = calculateNextRun({
     scheduleType,
@@ -92,8 +88,8 @@ router.put("/accounts/:accountId/campaigns/:id", async (req: Request, res: Respo
   const { name, contactListId, templateName, variables, mediaUrl, scheduleType, scheduleTime, scheduleDays, scheduleDate } = req.body;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const existing = await prisma.campaign.findFirst({ where: { id, accountId } });
   if (!existing) return res.status(404).json({ error: "Campanha não encontrada." });
@@ -133,8 +129,8 @@ router.post("/accounts/:accountId/campaigns/:id/activate", async (req: Request, 
   const { accountId, id } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const campaign = await prisma.campaign.findFirst({ where: { id, accountId } });
   if (!campaign) return res.status(404).json({ error: "Campanha não encontrada." });
@@ -176,8 +172,8 @@ router.post("/accounts/:accountId/campaigns/:id/pause", async (req: Request, res
   const { accountId, id } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const updated = await prisma.campaign.updateMany({
     where: { id, accountId, status: "ACTIVE" },
@@ -193,8 +189,8 @@ router.delete("/accounts/:accountId/campaigns/:id", async (req: Request, res: Re
   const { accountId, id } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const deleted = await prisma.campaign.deleteMany({ where: { id, accountId } });
   if (deleted.count === 0) return res.status(404).json({ error: "Campanha não encontrada." });

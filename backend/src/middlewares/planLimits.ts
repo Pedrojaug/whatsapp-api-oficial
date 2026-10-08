@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { prisma } from "../db";
 import { AuthenticatedRequest } from "./auth";
+import { findAccountForUser } from "../utils/accountAccess";
 
 /**
  * Middleware de validação de assinatura.
@@ -43,6 +44,14 @@ export async function checkAccountLimit(
       return next();
     }
 
+    // Colaboradores (criados em Equipe & Acessos) usam as contas de quem os convidou.
+    if (user.planTier === "team_member") {
+      return res.status(403).json({
+        error: "Colaboradores não podem conectar números próprios. Peça ao proprietário da conta para conectar o número.",
+        code: "TEAM_MEMBER_CANNOT_CONNECT",
+      });
+    }
+
     const currentAccountsCount = user._count.accounts;
     const maxAllowed = user.maxAccounts || 1;
 
@@ -73,8 +82,22 @@ export async function checkMonthlyMessageLimit(
     const userId = req.userId;
     if (!userId) return res.status(401).json({ error: "Não autorizado." });
 
+    // A cota é do plano do DONO da conta. Antes era lida do usuário logado: um colaborador
+    // não tem contas próprias, então passava sem limite nenhum.
+    let quotaOwnerId = userId;
+    const accountId = req.params?.accountId;
+    if (accountId) {
+      const account = await findAccountForUser(accountId, userId);
+      if (!account) return next(); // o handler responde 404 (sem revelar a cota de contas alheias)
+      if (account.userId !== userId) {
+        const requester = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+        if (requester?.role === "SUPERUSER") return next();
+        quotaOwnerId = account.userId;
+      }
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: quotaOwnerId },
       select: {
         id: true,
         role: true,

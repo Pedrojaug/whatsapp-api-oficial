@@ -3,7 +3,7 @@ import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { metaService } from "../services/metaService";
-import { findAccountForUser } from "../utils/accountAccess";
+import { findAccountForUser, getAccountWithPermission } from "../utils/accountAccess";
 
 const router = Router();
 
@@ -17,10 +17,8 @@ router.get("/accounts/:accountId/templates", async (req: Request, res: Response)
   
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Account not found or access denied" });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     // Buscar templates direto da Meta apenas se sync=true
     if (sync) {
@@ -109,10 +107,8 @@ router.post("/accounts/:accountId/templates", async (req: Request, res: Response
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Account not found" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     // 1. Criar no banco local como PENDING
     const localTemplate = await prisma.template.upsert({
@@ -192,8 +188,8 @@ router.post("/accounts/:accountId/templates/draft", async (req: Request, res: Re
 
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Account not found" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const templateNameFormatted = name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
 
@@ -246,10 +242,8 @@ router.post("/accounts/:accountId/templates/upload-sample", async (req: Request,
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Account not found" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const decryptedToken = decryptToken(account.accessToken);
 
@@ -301,10 +295,8 @@ router.delete("/accounts/:accountId/templates/:templateId", async (req: Request,
   const { accountId, templateId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const template = await prisma.template.findFirst({
       where: { id: templateId, accountId }

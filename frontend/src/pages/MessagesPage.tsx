@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
+import { hasPermission } from "../utils/permissions";
 import { useAlert } from "../contexts/AlertContext";
 import { useSSE } from "../hooks/useSSE";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
@@ -39,6 +40,8 @@ interface MessageLog {
 export default function MessagesPage() {
   const { token } = useAuth();
   const { selectedAccount } = useAccount();
+  // Visualizador acompanha os logs, mas não dispara nem mexe em agendamentos.
+  const canDispatch = hasPermission(selectedAccount?.accountRole, "dispatch");
   const { showAlert } = useAlert();
 
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -670,7 +673,12 @@ export default function MessagesPage() {
             })()
           )}
 
-          <button type="submit" disabled={loading || !selectedAccount} className="btn btn-primary" style={{ width: "100%", marginTop: "10px" }}>
+          {!canDispatch && (
+            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+              Seu cargo (Visualizador) permite apenas acompanhar os disparos.
+            </span>
+          )}
+          <button type="submit" disabled={loading || !selectedAccount || !canDispatch} className="btn btn-primary" style={{ width: "100%", marginTop: "10px" }}>
             {loading ? (scheduledAt ? "Agendando..." : "Enviando...") : scheduledAt ? "Agendar Disparo 📅" : (recipientType === "single" ? "Disparar WhatsApp" : "Iniciar Disparo em Lote")}
           </button>
         </form>
@@ -1013,7 +1021,7 @@ export default function MessagesPage() {
                             <span className="badge badge-pending">PENDING</span>
                           </td>
                           <td style={{ textAlign: "right" }}>
-                            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                            {canDispatch && <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -1036,7 +1044,7 @@ export default function MessagesPage() {
                               >
                                 🗑️ Cancelar
                               </button>
-                            </div>
+                            </div>}
                           </td>
                         </tr>
                       ))}
