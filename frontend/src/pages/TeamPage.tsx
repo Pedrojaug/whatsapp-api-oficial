@@ -122,6 +122,16 @@ export default function TeamPage() {
     }
   }, [selectedAccount, fetchTeam]);
 
+  // Mesmas regras do backend (validateMemberPassword). A senha vai exatamente como
+  // digitada: o login não faz trim, então nada de remover espaços em silêncio.
+  const getPasswordError = (password: string): string | null => {
+    if (!password) return "Defina uma senha de acesso para o colaborador.";
+    if (password !== password.trim()) return "A senha não pode começar nem terminar com espaço.";
+    if (password.length < 6) return "A senha deve ter no mínimo 6 caracteres.";
+    if (password.length > 128) return "A senha deve ter no máximo 128 caracteres.";
+    return null;
+  };
+
   // Gerador de senha segura
   const generatePassword = () => {
     const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$*";
@@ -141,16 +151,26 @@ export default function TeamPage() {
       return;
     }
 
+    const passwordError = getPasswordError(passwordInput);
+    if (passwordError) {
+      showAlert(passwordError, "error");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/team`, {
         name: nameInput.trim(),
         email: emailInput.trim(),
-        password: passwordInput.trim() || undefined,
+        password: passwordInput,
         role: roleInput,
       });
 
-      showAlert(`Colaborador ${res.data.name} adicionado com sucesso! 🎉`, "success");
+      if (res.data.notice) {
+        showAlert(res.data.notice, "info");
+      } else {
+        showAlert(`Colaborador ${res.data.name} adicionado! Ele entra com o e-mail ${res.data.email} e a senha definida.`, "success");
+      }
       setShowAddModal(false);
       setNameInput("");
       setEmailInput("");
@@ -168,15 +188,28 @@ export default function TeamPage() {
     e.preventDefault();
     if (!selectedAccount || !selectedMember) return;
 
+    if (editPasswordInput) {
+      const passwordError = getPasswordError(editPasswordInput);
+      if (passwordError) {
+        showAlert(passwordError, "error");
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     try {
-      await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/team/${selectedMember.id}`, {
+      const res = await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/team/${selectedMember.id}`, {
         role: editRoleInput,
         name: editNameInput.trim() || undefined,
-        password: editPasswordInput.trim() || undefined,
+        password: editPasswordInput || undefined,
       });
 
-      showAlert("Dados do colaborador atualizados com sucesso!", "success");
+      showAlert(
+        res.data.passwordUpdated
+          ? "Colaborador atualizado. A nova senha já vale para o próximo login."
+          : "Dados do colaborador atualizados com sucesso!",
+        "success"
+      );
       setShowEditModal(false);
       setSelectedMember(null);
       fetchTeam(selectedAccount.id);
@@ -547,6 +580,7 @@ export default function TeamPage() {
                   <input
                     type="email"
                     required
+                    autoComplete="off"
                     placeholder="amanda@empresa.com.br"
                     value={emailInput}
                     onChange={(e) => setEmailInput(e.target.value)}
@@ -559,7 +593,7 @@ export default function TeamPage() {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                   <label style={{ fontSize: "0.78rem", fontWeight: 600, margin: 0 }}>
-                    Senha Inicial de Acesso
+                    Senha Inicial de Acesso *
                   </label>
                   <button
                     type="button"
@@ -573,7 +607,11 @@ export default function TeamPage() {
                   <Lock size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
                   <input
                     type="text"
-                    placeholder="Mínimo 6 caracteres (ou deixe em branco para padrão)"
+                    required
+                    minLength={6}
+                    maxLength={128}
+                    autoComplete="new-password"
+                    placeholder="Mínimo 6 caracteres"
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
                     className="form-control"
@@ -708,6 +746,9 @@ export default function TeamPage() {
                   <KeyRound size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
                   <input
                     type="text"
+                    minLength={6}
+                    maxLength={128}
+                    autoComplete="new-password"
                     placeholder="Deixe em branco para não alterar"
                     value={editPasswordInput}
                     onChange={(e) => setEditPasswordInput(e.target.value)}

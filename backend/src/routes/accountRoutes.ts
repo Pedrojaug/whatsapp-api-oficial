@@ -5,7 +5,13 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { checkSubscriptionActive, checkAccountLimit } from "../middlewares/planLimits";
 import { encryptToken, decryptToken } from "../utils/crypto";
 import { metaService } from "../services/metaService";
-import { findAccountForUser, canManageTeam } from "../utils/accountAccess";
+import {
+  findAccountForUser,
+  canManageTeam,
+  validateMemberPassword,
+  loadCredentialTarget,
+  isManagedCollaborator,
+} from "../utils/accountAccess";
 
 const router = Router();
 
@@ -190,13 +196,20 @@ router.post(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async 
   const { name, email, password, role } = req.body;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  if (!email || !email.includes("@")) {
+  if (typeof email !== "string" || !email.includes("@")) {
     return res.status(400).json({ error: "E-mail corporativo válido é obrigatório." });
+  }
+
+  const hasPassword = typeof password === "string" && password.length > 0;
+  if (hasPassword) {
+    const passwordError = validateMemberPassword(password);
+    if (passwordError) return res.status(400).json({ error: passwordError });
   }
 
   const assignedRole = ["ADMIN", "MANAGER", "ATTENDANT", "VIEWER"].includes(role?.toUpperCase())
     ? role.toUpperCase()
     : "ATTENDANT";
+  const cleanName = typeof name === "string" ? name.trim() : "";
 
   try {
     const account = await findAccountForUser(accountId, userId);
@@ -207,16 +220,21 @@ router.post(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async 
 
     const cleanEmail = email.toLowerCase().trim();
     let target = await prisma.user.findUnique({ where: { email: cleanEmail } });
+    const existingUser = !!target;
+    let credentialsUpdated = false;
+    let notice: string | null = null;
 
     if (!target) {
-      // Cria novo usuário diretamente com credenciais definidas pelo admin
-      const defaultPassword = password && password.trim().length >= 6 ? password.trim() : "Send123456!";
-      const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+      // Novo colaborador: a senha é obrigatória (antes caía num padrão oculto e o login falhava)
+      if (!hasPassword) {
+        return res.status(400).json({ error: validateMemberPassword(password) });
+      }
+      const hashedPassword = await bcrypt.hash(password, 10);
 
       target = await prisma.user.create({
         data: {
           email: cleanEmail,
-          name: name ? name.trim() : cleanEmail.split("@")[0],
+          name: cleanName || cleanEmail.split("@")[0],
           password: hashedPassword,
           createdById: userId,
           emailVerified: true,
@@ -224,20 +242,27 @@ router.post(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async 
           planTier: "team_member",
         }
       });
+      credentialsUpdated = true;
     } else {
       if (target.id === account.userId) {
         return res.status(400).json({ error: "Este usuário já é o proprietário desta conta." });
       }
-      // Se já existia e forneceu nome/senha para atualizar
-      if (password && password.trim().length >= 6) {
-        const hashedPassword = await bcrypt.hash(password.trim(), 10);
-        await prisma.user.update({
-          where: { id: target.id },
-          data: {
-            password: hashedPassword,
-            ...(name ? { name: name.trim() } : {}),
-          },
-        });
+      if (hasPassword) {
+        const credentialTarget = await loadCredentialTarget(target.id);
+        if (credentialTarget && isManagedCollaborator(credentialTarget, account.userId)) {
+          await prisma.user.update({
+            where: { id: target.id },
+            data: {
+              password: await bcrypt.hash(password, 10),
+              ...(cleanName ? { name: cleanName } : {}),
+            },
+          });
+          credentialsUpdated = true;
+        } else {
+          notice = "Este e-mail já possui um cadastro próprio na plataforma. O acesso foi vinculado, mas a senha não foi alterada: o colaborador deve entrar com a senha que já utiliza (ou usar \"Esqueci minha senha\").";
+        }
+      } else {
+        notice = "Este e-mail já possui cadastro na plataforma. O colaborador deve entrar com a senha que já utiliza.";
       }
     }
 
@@ -257,6 +282,9 @@ router.post(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async 
       role: share.role,
       isOwner: false,
       createdAt: share.createdAt,
+      existingUser,
+      credentialsUpdated,
+      notice,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -285,6 +313,28 @@ router.patch(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/team
       return res.status(404).json({ error: "Colaborador não encontrado nesta conta." });
     }
 
+    // Valida tudo antes de gravar: antes, uma senha curta era ignorada em silêncio
+    // e o admin via "atualizado com sucesso" sem a senha ter mudado.
+    const hasPassword = typeof password === "string" && password.length > 0;
+    if (hasPassword) {
+      const passwordError = validateMemberPassword(password);
+      if (passwordError) return res.status(400).json({ error: passwordError });
+    }
+
+    const userUpdateData: any = {};
+    const cleanName = typeof name === "string" ? name.trim() : "";
+    if (cleanName && cleanName !== share.user.name) userUpdateData.name = cleanName;
+    if (hasPassword) userUpdateData.password = await bcrypt.hash(password, 10);
+
+    if (Object.keys(userUpdateData).length > 0) {
+      const credentialTarget = await loadCredentialTarget(share.userId);
+      if (!credentialTarget || !isManagedCollaborator(credentialTarget, account.userId)) {
+        return res.status(403).json({
+          error: "Este colaborador possui um cadastro próprio na plataforma. Só é possível alterar o cargo; a senha deve ser redefinida por ele em \"Esqueci minha senha\".",
+        });
+      }
+    }
+
     let updatedRole = share.role;
     if (role && ["ADMIN", "MANAGER", "ATTENDANT", "VIEWER"].includes(role.toUpperCase())) {
       updatedRole = role.toUpperCase();
@@ -292,12 +342,6 @@ router.patch(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/team
         where: { id: shareId },
         data: { role: updatedRole },
       });
-    }
-
-    const userUpdateData: any = {};
-    if (name && name.trim()) userUpdateData.name = name.trim();
-    if (password && password.trim().length >= 6) {
-      userUpdateData.password = await bcrypt.hash(password.trim(), 10);
     }
 
     if (Object.keys(userUpdateData).length > 0) {
@@ -314,6 +358,7 @@ router.patch(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/team
       email: share.user.email,
       role: updatedRole,
       isOwner: false,
+      passwordUpdated: !!userUpdateData.password,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -331,7 +376,9 @@ router.delete(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/tea
       return res.status(403).json({ error: "Apenas administradores e proprietários podem remover membros da equipe." });
     }
 
-    await prisma.accountShare.delete({ where: { id: shareId } });
+    // Escopo por accountId: impede revogar acessos de outra conta pelo shareId
+    const { count } = await prisma.accountShare.deleteMany({ where: { id: shareId, accountId } });
+    if (count === 0) return res.status(404).json({ error: "Colaborador não encontrado nesta conta." });
     res.json({ success: true, message: "Acesso do colaborador revogado com sucesso." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
