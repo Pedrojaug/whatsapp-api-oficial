@@ -6,6 +6,8 @@ interface FinancialMetricsSectionProps {
   periodLabel: string;
   templateMetrics?: Array<{ templateName: string; total: number; sent: number; delivered?: number; read: number; failed: number }>;
   isLoading?: boolean;
+  /** Mostra só tarifas, simulador e regras de cobrança (o painel já exibe os totais e a tabela). */
+  referenceOnly?: boolean;
 }
 
 export default function FinancialMetricsSection({
@@ -13,6 +15,7 @@ export default function FinancialMetricsSection({
   periodLabel,
   templateMetrics = [],
   isLoading = false,
+  referenceOnly = false,
 }: FinancialMetricsSectionProps) {
   // Simulador de Custos em Tempo Real
   const [simulatorContacts, setSimulatorContacts] = useState<number>(1000);
@@ -63,7 +66,8 @@ export default function FinancialMetricsSection({
         };
       });
 
-  if (isLoading) {
+  // Tarifas e simulador não dependem dos dados do período: no modo referência não há esqueleto.
+  if (isLoading && !referenceOnly) {
     return (
       <div className="glass" style={{ padding: "26px 30px", borderRadius: "var(--radius-xl)" }}>
         <div className="skeleton" style={{ height: "40px", width: "300px", marginBottom: "20px" }} />
@@ -76,10 +80,11 @@ export default function FinancialMetricsSection({
     );
   }
 
+  // No modo referência o painel já está dentro de um bloco recolhível: sem cartão próprio.
   return (
     <div
-      className="glass"
-      style={{
+      className={referenceOnly ? undefined : "glass"}
+      style={referenceOnly ? { display: "flex", flexDirection: "column", gap: "var(--space-6)", marginTop: "var(--space-4)" } : {
         padding: "28px 30px",
         borderRadius: "var(--radius-xl)",
         display: "flex",
@@ -89,6 +94,7 @@ export default function FinancialMetricsSection({
         background: "linear-gradient(135deg, rgba(20, 24, 28, 0.95) 0%, rgba(28, 33, 39, 0.95) 100%)",
       }}
     >
+      {!referenceOnly && (<>
       {/* Cabeçalho Corporativo & Status de Tarifação */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
         <div>
@@ -278,6 +284,8 @@ export default function FinancialMetricsSection({
           </div>
         </div>
       </div>
+
+      </>)}
 
       {/* Seção Central: Tarifas por Categoria + Simulador de Disparos */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(340px, 1fr))", gap: "20px" }}>
@@ -534,6 +542,7 @@ export default function FinancialMetricsSection({
         </div>
       </div>
 
+      {!referenceOnly && (<>
       {/* Tabela de Investimento Detalhada por Template */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
@@ -642,6 +651,8 @@ export default function FinancialMetricsSection({
           </div>
         )}
       </div>
+
+      </>)}
 
       {/* Accordion / Guia Didático de Faturamento da Meta */}
       <div

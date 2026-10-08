@@ -8,6 +8,15 @@ import { useAlert } from "../contexts/AlertContext";
 import { useCountup } from "../hooks/useCountup";
 import ExecutiveReportModal from "../components/ExecutiveReportModal";
 import FinancialMetricsSection from "../components/FinancialMetricsSection";
+import { formatBRL } from "../utils/pricing";
+import { RefreshCw } from "lucide-react";
+
+const CATEGORY_LABELS: Record<string, string> = {
+  MARKETING: "Marketing",
+  UTILITY: "Utilidade",
+  AUTHENTICATION: "Autenticação",
+  SERVICE: "Atendimento",
+};
 
 // Dados específicos de Showcase B2B EXCLUSIVAMENTE para a conta de gravação demo.video@sendinteligente.com.br
 const SHOWCASE_METRICS: Record<string, {
@@ -215,7 +224,6 @@ export default function DashboardPage() {
     }
   });
 
-  const totalSent = metricsData.totals.sent;
   const totalDelivered = metricsData.totals.delivered;
   const totalRead = metricsData.totals.read;
   const totalFailed = metricsData.totals.failed;
@@ -223,22 +231,34 @@ export default function DashboardPage() {
   const totalReplies = metricsData.totals.uniqueReplies ?? metricsData.totals.replies ?? 0;
 
   const countAll = useCountup(totalAll);
-  const countSent = useCountup(totalSent);
   const countDelivered = useCountup(totalDelivered);
   const countRead = useCountup(totalRead);
-  const countFailed = useCountup(totalFailed);
   const countReplies = useCountup(totalReplies);
 
-  const responseRate = metricsData.totals.responseRate ?? (totalDelivered > 0 ? Math.round((totalReplies / totalDelivered) * 100) : 0);
-  const validDeliveryRate = metricsData.totals.validDeliveryRate ?? (totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0);
-  const failureDiagnosis = metricsData.failureDiagnosis || {
-    invalidNumbers: totalFailed > 0 ? Math.round(totalFailed * 0.9) : 0,
-    frequencyCapped: totalFailed > 0 ? Math.round(totalFailed * 0.08) : 0,
-    metaExperiment: totalFailed > 0 ? Math.round(totalFailed * 0.02) : 0,
-    other: 0,
+  // Taxas com o mesmo denominador do WhatsApp: entrega sobre enviadas; leitura e resposta sobre entregues.
+  const pct = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+  const deliveryRate = pct(totalDelivered, totalAll);
+  const readRate = pct(totalRead, totalDelivered);
+  const responseRate = metricsData.totals.responseRate ?? pct(totalReplies, totalDelivered);
+
+  // Sem diagnóstico do backend, as falhas ficam como "não classificadas" (nada de divisão estimada).
+  const failureDiagnosis = metricsData.failureDiagnosis ?? {
+    invalidNumbers: 0,
+    frequencyCapped: 0,
+    metaExperiment: 0,
+    other: totalFailed,
   };
   const optOutsCount = metricsData.totals.optOuts ?? 0;
   const optOutRate = metricsData.totals.optOutRate ?? 0;
+
+  const costs = metricsData.costs;
+  const periodSpentBrl: number = costs?.period?.totalSpentBrl ?? 0;
+  const monthSpentBrl: number = costs?.billingForecast?.currentMonthSpentBrl ?? periodSpentBrl;
+  const monthForecastBrl: number = costs?.billingForecast?.totalForecastMonthBrl ?? monthSpentBrl;
+  const nextBilling: string = (costs?.billingForecast?.nextBillingEstimate || "Fechamento mensal da Meta").replace(/\s*\(.*\)\s*$/, "");
+  const costByTemplate = new Map<string, { category: string; totalCostBrl: number }>(
+    (costs?.templateCosts || []).map((t: { templateName: string; category: string; totalCostBrl: number }) => [t.templateName, { category: t.category, totalCostBrl: t.totalCostBrl }])
+  );
 
   const periodLabel = metricsPeriod === "today"
     ? "Hoje"
@@ -254,543 +274,251 @@ export default function DashboardPage() {
 
   const accountDisplay = selectedAccount?.name || "Send Inteligentte";
 
+  const exportXlsx = async () => {
+    setExportingXlsx(true);
+    try {
+      if (selectedAccount && !isDemoAccount) {
+        const res = await axios.get(
+          `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=metrics&period=${metricsPeriod}${metricsPeriod === "custom" && metricsStartDate ? `&startDate=${metricsStartDate}${metricsEndDate ? `&endDate=${metricsEndDate}` : ""}` : ""}`,
+          { responseType: "blob" }
+        );
+        const url = URL.createObjectURL(res.data);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `metricas_${new Date().toISOString().slice(0, 10)}.xlsx`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        showAlert("Relatório de métricas exportado.", "success");
+      }
+    } catch {
+      showAlert("Erro ao exportar a planilha.", "error");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
+  const kpis = [
+    { label: "Enviadas", value: countAll.toLocaleString("pt-BR"), detail: totalFailed > 0 ? `${totalFailed.toLocaleString("pt-BR")} falharam` : "Nenhuma falha", detailTone: totalFailed > 0 ? "error" : undefined },
+    { label: "Entregues", value: countDelivered.toLocaleString("pt-BR"), detail: `${deliveryRate}% das enviadas` },
+    { label: "Lidas", value: countRead.toLocaleString("pt-BR"), detail: `${readRate}% das entregues` },
+    { label: "Responderam", value: countReplies.toLocaleString("pt-BR"), detail: `${responseRate}% das entregues` },
+    { label: "Investimento", value: formatBRL(periodSpentBrl), detail: `Previsão do mês: ${formatBRL(monthForecastBrl)}` },
+  ];
+
+  const deliveryHealth = [
+    { label: "Números sem WhatsApp", value: failureDiagnosis.invalidNumbers, hint: "Erro 131026 da Meta. Remova esses contatos das listas." },
+    { label: "Limite de frequência da Meta", value: failureDiagnosis.frequencyCapped, hint: "O contato já recebeu marketing demais nas últimas 24 h." },
+    { label: "Experimento da Meta", value: failureDiagnosis.metaExperiment, hint: "Contato em grupo de controle da Meta." },
+    { label: "Outras falhas", value: failureDiagnosis.other ?? 0, hint: "Falhas sem motivo classificado." },
+  ];
+
+  const formatAxisDate = (date: string) =>
+    date.includes("T")
+      ? date.split("T")[1].slice(0, 5)
+      : new Date(date + "T00:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+  const formatTick = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v));
+
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)" }}>
+      {/* ── Cabeçalho: título, período e exportação ── */}
+      <div className="page-header" style={{ alignItems: "center" }}>
         <div>
-          <h1 className="page-heading">Painel de Métricas</h1>
-          <p className="page-subheading">
-            Visão geral dos disparos efetuados pela conta <strong>{accountDisplay}</strong>
-          </p>
+          <h1 className="page-heading">Painel de métricas</h1>
+          <p className="page-subheading">{accountDisplay} · {periodLabel}</p>
         </div>
-        
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          <button
-            type="button"
-            onClick={() => setShowExecutiveReport(true)}
-            className="btn btn-primary"
-            style={{ padding: "8px 16px", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "6px" }}
-          >
-            <span>📄</span> Relatório Executivo (PDF)
+        <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
+          <div className="segmented" role="radiogroup" aria-label="Período">
+            {(["today", "yesterday", "7days", "30days", "custom"] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                role="radio"
+                aria-checked={metricsPeriod === p}
+                className="segmented__option"
+                onClick={() => setMetricsPeriod(p)}
+              >
+                {{ today: "Hoje", yesterday: "Ontem", "7days": "7 dias", "30days": "30 dias", custom: "Período" }[p]}
+              </button>
+            ))}
+          </div>
+          <button type="button" onClick={() => setShowExecutiveReport(true)} className="btn btn-secondary btn-sm">
+            Relatório PDF
           </button>
-
-          <button
-            type="button"
-            disabled={exportingXlsx}
-            onClick={async () => {
-              setExportingXlsx(true);
-              try {
-                if (selectedAccount && !isDemoAccount) {
-                  const res = await axios.get(
-                    `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=metrics&period=${metricsPeriod}${metricsPeriod === "custom" && metricsStartDate ? `&startDate=${metricsStartDate}${metricsEndDate ? `&endDate=${metricsEndDate}` : ""}` : ""}`,
-                    { responseType: "blob" }
-                  );
-                  const url = URL.createObjectURL(res.data);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `relatorio_executivo_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                } else {
-                  setTimeout(() => {
-                    showAlert("Relatório de métricas exportado com sucesso!", "success");
-                    setExportingXlsx(false);
-                  }, 800);
-                  return;
-                }
-              } catch {
-                showAlert("Erro ao exportar XLSX.", "error");
-              } finally {
-                setExportingXlsx(false);
-              }
-            }}
-            className="btn btn-secondary"
-            style={{ padding: "8px 14px", fontSize: "0.85rem" }}
-          >
-            {exportingXlsx ? "Exportando..." : "📊 Exportar XLSX"}
+          <button type="button" disabled={exportingXlsx} onClick={exportXlsx} className="btn btn-secondary btn-sm">
+            {exportingXlsx ? "Exportando..." : "Planilha"}
           </button>
-          
           <button
             type="button"
+            className="icon-action"
+            aria-label="Atualizar métricas"
+            title="Atualizar métricas"
             onClick={() => {
-              if (isDemoAccount) {
-                showAlert("Métricas atualizadas em tempo real!", "success");
-              } else if (selectedAccount) {
-                fetchMetrics(selectedAccount.id);
-              }
+              if (isDemoAccount) showAlert("Métricas atualizadas.", "success");
+              else if (selectedAccount) fetchMetrics(selectedAccount.id);
             }}
-            className="btn btn-secondary"
-            style={{ padding: "8px 14px", fontSize: "0.85rem" }}
           >
-            🔄 Atualizar Dados
+            <RefreshCw size={15} aria-hidden="true" />
           </button>
         </div>
       </div>
 
-      {/* Filtros de Período */}
-      <div className="glass" style={{ padding: "20px 24px", borderRadius: "var(--radius-lg)", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "15px" }}>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-          {(["7days", "today", "yesterday", "30days", "custom"] as const).map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => setMetricsPeriod(p)}
-              className={`btn ${metricsPeriod === p ? "btn-primary" : "btn-secondary"}`}
-              style={{ padding: "8px 14px", fontSize: "0.85rem" }}
-            >
-              {p === "7days" && "Últimos 7 dias"}
-              {p === "today" && "Hoje"}
-              {p === "yesterday" && "Ontem"}
-              {p === "30days" && "Últimos 30 dias"}
-              {p === "custom" && "Personalizado"}
-            </button>
-          ))}
-        </div>
-
-        {metricsPeriod === "custom" && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>De:</label>
-              <input
-                type="date"
-                value={metricsStartDate}
-                onChange={(e) => setMetricsStartDate(e.target.value)}
-                className="field-input"
-                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", width: "auto", fontSize: "0.85rem" }}
-              />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Até:</label>
-              <input
-                type="date"
-                value={metricsEndDate}
-                onChange={(e) => setMetricsEndDate(e.target.value)}
-                className="field-input"
-                style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", width: "auto", fontSize: "0.85rem" }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Metrics cards grid */}
-      {isLoadingMetrics ? (
-        <div className="metrics-stats-grid">
-          {[1,2,3,4,5,6,7].map((i) => (
-            <div key={i} className="skeleton" style={{ height: "100px", borderRadius: "var(--radius-xl)" }} />
-          ))}
-        </div>
-      ) : (
-        <div className="metrics-stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
-          <div className="glass glass-interactive hover-glow-primary stat-card stat-card--primary">
-            <span className="stat-card__label">Total Disparado</span>
-            <span className="stat-card__value">{countAll.toLocaleString("pt-BR")}</span>
-          </div>
-          <div className="glass glass-interactive hover-glow-purple stat-card stat-card--purple">
-            <span className="stat-card__label">Enviado</span>
-            <span className="stat-card__value">{countSent.toLocaleString("pt-BR")}</span>
-          </div>
-          <div className="glass glass-interactive hover-glow-cyan stat-card stat-card--cyan">
-            <span className="stat-card__label">Entregue</span>
-            <span className="stat-card__value">{countDelivered.toLocaleString("pt-BR")}</span>
-          </div>
-          <div className="glass glass-interactive hover-glow-success stat-card stat-card--success">
-            <span className="stat-card__label">Lido</span>
-            <span className="stat-card__value">{countRead.toLocaleString("pt-BR")}</span>
-          </div>
-          <div className="glass glass-interactive hover-glow-purple stat-card" style={{ borderLeft: "4px solid #a855f7" }}>
-            <span className="stat-card__label">💬 Respostas (Leads)</span>
-            <span className="stat-card__value" style={{ color: "#c084fc" }}>{countReplies.toLocaleString("pt-BR")}</span>
-          </div>
-          <div className="glass glass-interactive hover-glow-purple stat-card" style={{ borderLeft: "4px solid #8b5cf6" }}>
-            <span className="stat-card__label">📈 Taxa de Resposta</span>
-            <span className="stat-card__value" style={{ color: "#a78bfa" }}>{responseRate}%</span>
-          </div>
-          <div className="glass glass-interactive hover-glow-error stat-card stat-card--error">
-            <span className="stat-card__label">Falhas</span>
-            <span className="stat-card__value">{countFailed.toLocaleString("pt-BR")}</span>
-          </div>
+      {metricsPeriod === "custom" && (
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <label htmlFor="metrics-start" style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)" }}>De</label>
+          <input id="metrics-start" type="date" value={metricsStartDate} onChange={(e) => setMetricsStartDate(e.target.value)} className="field-input" style={{ width: "auto" }} />
+          <label htmlFor="metrics-end" style={{ fontSize: "var(--fs-sm)", color: "var(--text-secondary)" }}>até</label>
+          <input id="metrics-end" type="date" value={metricsEndDate} onChange={(e) => setMetricsEndDate(e.target.value)} className="field-input" style={{ width: "auto" }} />
         </div>
       )}
 
-      <div className="metrics-chart-grid">
-        {/* Delivery Funnel */}
-        <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Funil de Entrega & Conversão</h3>
-            <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Performance comercial</span>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", justifyContent: "center", flex: 1 }}>
-            {/* Eficácia na Base Válida */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                <span>🎯 Eficácia na Base Válida (Com WhatsApp)</span>
-                <span style={{ fontWeight: "700", color: "var(--primary)" }}>
-                  {validDeliveryRate}%
-                </span>
-              </div>
-              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${validDeliveryRate}%`, background: "var(--primary)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
-              </div>
+      {/* ── Indicadores ── */}
+      <div className="kpi-grid" aria-busy={isLoadingMetrics}>
+        {kpis.map((k) =>
+          isLoadingMetrics ? (
+            <div key={k.label} className="skeleton" style={{ height: "96px", borderRadius: "var(--radius-lg)" }} />
+          ) : (
+            <div key={k.label} className="glass kpi">
+              <span className="kpi__label">{k.label}</span>
+              <span className="kpi__value">{k.value}</span>
+              <span className={`kpi__detail${k.detailTone === "error" ? " kpi__detail--error" : ""}`}>{k.detail}</span>
             </div>
+          )
+        )}
+      </div>
 
-            {/* Taxa de Entrega Bruta */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                <span>Taxa de Entrega Bruta (Recebimento)</span>
-                <span style={{ fontWeight: "600", color: "#06b6d4" }}>
-                  {totalAll > 0 ? Math.round((totalDelivered / totalAll) * 100) : 0}%
-                </span>
-              </div>
-              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalDelivered / totalAll) * 100 : 0}%`, background: "#06b6d4", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
-              </div>
-            </div>
-
-            {/* Taxa de Leitura */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                <span>Taxa de Leitura (Abertura)</span>
-                <span style={{ fontWeight: "600", color: "var(--success)" }}>
-                  {totalAll > 0 ? Math.round((totalRead / totalAll) * 100) : 0}%
-                </span>
-              </div>
-              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${totalAll > 0 ? (totalRead / totalAll) * 100 : 0}%`, background: "var(--success)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
-              </div>
-            </div>
-
-            {/* Taxa de Resposta */}
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "0.9rem" }}>
-                <span>💬 Taxa de Resposta (Interação do Cliente)</span>
-                <span style={{ fontWeight: "700", color: "#c084fc" }}>
-                  {responseRate}%
-                </span>
-              </div>
-              <div style={{ height: "10px", background: "var(--border-color)", borderRadius: "5px", overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${Math.min(100, responseRate * 3)}%`, background: "linear-gradient(to right, #9333ea, #c084fc)", borderRadius: "5px", transition: "width 0.4s ease" }}></div>
-              </div>
-            </div>
+      {/* ── Envios por dia ── */}
+      <section className="glass panel" aria-labelledby="chart-title">
+        <div className="panel__header">
+          <h2 id="chart-title" className="panel__title">Envios por {metricsPeriod === "today" || metricsPeriod === "yesterday" ? "horário" : "dia"}</h2>
+          <div className="chart-legend" aria-hidden="true">
+            <span><i style={{ background: "var(--primary)" }} /> Enviadas</span>
+            <span><i style={{ background: "var(--info)" }} /> Lidas</span>
+            <span><i style={{ background: "var(--error)" }} /> Falhas</span>
           </div>
         </div>
 
-        {/* HTML/CSS-based Daily Trends Bar Chart */}
-        <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Histórico de Envio Diário</h3>
-            <div style={{ display: "flex", gap: "12px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "var(--primary)" }}></span> Enviados
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "#06b6d4" }}></span> Lidos
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <span style={{ width: "10px", height: "10px", borderRadius: "2px", background: "var(--error)" }}></span> Falhas
-              </div>
-            </div>
-          </div>
+        {metricsData.chartData.length === 0 ? (
+          <p className="panel__empty">Nenhum envio neste período.</p>
+        ) : (() => {
+          const maxRaw = Math.max(...metricsData.chartData.map(d => Math.max(d.sent, d.failed)), 10);
+          const maxVal = maxRaw <= 10 ? 10 : Math.ceil(maxRaw / 5) * 5;
+          const ticks = [1, 0.75, 0.5, 0.25, 0].map((f) => Math.round(maxVal * f));
+          const mid = Math.floor(metricsData.chartData.length / 2);
 
-          {metricsData.chartData.length === 0 ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flex: 1, minHeight: "220px", color: "var(--text-muted)", fontSize: "0.95rem" }}>
-              Nenhum envio registrado neste período.
-            </div>
-          ) : (() => {
-            const maxRaw = Math.max(...metricsData.chartData.map(d => Math.max(d.sent, d.failed)), 10);
-            const maxVal = maxRaw <= 10 ? 10 : Math.ceil(maxRaw / 5) * 5;
-
-            return (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1, justifyContent: "flex-end" }}>
-                <div style={{ display: "flex", gap: "12px", height: "220px", position: "relative" }}>
-                  {/* Y-Axis Labels */}
-                  <div style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    alignItems: "flex-end",
-                    width: "35px",
-                    color: "var(--text-muted)",
-                    fontSize: "0.75rem",
-                    paddingBottom: "8px",
-                    userSelect: "none"
-                  }}>
-                    <span>{maxVal >= 1000 ? (maxVal / 1000).toFixed(1) + 'k' : maxVal}</span>
-                    <span>{Math.round(maxVal * 0.75) >= 1000 ? (Math.round(maxVal * 0.75) / 1000).toFixed(1) + 'k' : Math.round(maxVal * 0.75)}</span>
-                    <span>{Math.round(maxVal * 0.50) >= 1000 ? (Math.round(maxVal * 0.50) / 1000).toFixed(1) + 'k' : Math.round(maxVal * 0.50)}</span>
-                    <span>{Math.round(maxVal * 0.25) >= 1000 ? (Math.round(maxVal * 0.25) / 1000).toFixed(1) + 'k' : Math.round(maxVal * 0.25)}</span>
-                    <span>0</span>
+          return (
+            <div className="bar-chart">
+              <div className="bar-chart__plot">
+                <div className="bar-chart__ticks" aria-hidden="true">
+                  {ticks.map((t) => <span key={t}>{formatTick(t)}</span>)}
+                </div>
+                <div className="bar-chart__area">
+                  <div className="bar-chart__grid" aria-hidden="true">
+                    {ticks.map((t) => <div key={t} />)}
                   </div>
-
-                  {/* Chart Area */}
-                  <div style={{
-                    flex: 1,
-                    position: "relative",
-                    height: "100%"
-                  }}>
-                    {/* Gridlines */}
-                    <div style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: "8px",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      pointerEvents: "none"
-                    }}>
-                      <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
-                      <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
-                      <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
-                      <div style={{ borderBottom: "1px dashed rgba(255,255,255,0.06)", width: "100%", height: 0 }}></div>
-                      <div style={{ borderBottom: "1px solid var(--border-color)", width: "100%", height: 0 }}></div>
-                    </div>
-
-                    {/* Bars columns wrapper */}
-                    <div style={{
-                      display: "flex",
-                      alignItems: "flex-end",
-                      justifyContent: "space-between",
-                      height: "100%",
-                      paddingBottom: "8px",
-                      gap: "8px",
-                      position: "relative",
-                      zIndex: 2
-                    }}>
-                      {metricsData.chartData.map((d, index) => {
-                        const dayMax = Math.max(d.sent, d.failed);
-                        const heightPercent = dayMax > 0 ? (dayMax / maxVal) * 100 : 0;
-                        const readPercent = d.sent > 0 ? (d.read / d.sent) * 100 : 0;
-
-                        const tooltip = `${d.date.includes("T") ? d.date.split("T")[1].slice(0, 5) : d.date}:\n• Enviados: ${d.sent.toLocaleString("pt-BR")}\n• Lidos: ${d.read.toLocaleString("pt-BR")}\n• Falhas: ${d.failed}`;
-
-                        return (
-                          <div
-                            key={index}
-                            title={tooltip}
-                            style={{
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "center",
-                              flex: 1,
-                              height: `${heightPercent}%`,
-                              minWidth: "16px",
-                              position: "relative",
-                              cursor: "pointer"
-                            }}
-                          >
-                            <div style={{
-                              display: "flex",
-                              justifyContent: "center",
-                              alignItems: "flex-end",
-                              width: "100%",
-                              height: "100%",
-                              gap: "2px"
-                            }}>
-                              {/* Successful + Read Column */}
-                              {d.sent > 0 && (
-                                <div style={{
-                                  width: "45%",
-                                  height: "100%",
-                                  position: "relative",
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  justifyContent: "flex-end"
-                                }}>
-                                  {/* Read Layer (Cyan Overlay) */}
-                                  {d.read > 0 && (
-                                    <div style={{
-                                      width: "100%",
-                                      height: `${readPercent}%`,
-                                      background: "linear-gradient(to top, #06b6d4, #22d3ee)",
-                                      borderRadius: "2px 2px 0 0",
-                                      position: "absolute",
-                                      bottom: 0,
-                                      zIndex: 2,
-                                      boxShadow: "0 0 8px rgba(6,182,212,0.2)"
-                                    }}></div>
-                                  )}
-                                  {/* Sent Base Layer (Green) */}
-                                  <div style={{
-                                    width: "100%",
-                                    height: "100%",
-                                    background: "linear-gradient(to top, var(--primary), #10b981)",
-                                    borderRadius: "2px 2px 0 0",
-                                    zIndex: 1,
-                                    boxShadow: "0 0 8px rgba(0,194,107,0.2)"
-                                  }}></div>
-                                </div>
-                              )}
-
-                              {/* Failed Column (Red) */}
-                              {d.failed > 0 && (
-                                <div style={{
-                                  width: "45%",
-                                  height: `${(d.failed / dayMax) * 100}%`,
-                                  background: "linear-gradient(to top, var(--error), #ef4444)",
-                                  borderRadius: "2px 2px 0 0",
-                                  boxShadow: "0 0 8px rgba(239,68,68,0.2)"
-                                }}></div>
-                              )}
+                  <div className="bar-chart__bars">
+                    {metricsData.chartData.map((d, index) => {
+                      const dayMax = Math.max(d.sent, d.failed);
+                      const heightPercent = dayMax > 0 ? (dayMax / maxVal) * 100 : 0;
+                      const readPercent = d.sent > 0 ? (d.read / d.sent) * 100 : 0;
+                      const label = `${formatAxisDate(d.date)}: ${d.sent.toLocaleString("pt-BR")} enviadas, ${d.read.toLocaleString("pt-BR")} lidas, ${d.failed} falhas`;
+                      return (
+                        <div key={index} className="bar-chart__group" style={{ height: `${heightPercent}%` }} title={label} aria-label={label} role="img">
+                          {d.sent > 0 && (
+                            <div className="bar-chart__bar bar-chart__bar--sent">
+                              {d.read > 0 && <div className="bar-chart__bar bar-chart__bar--read" style={{ height: `${readPercent}%` }} />}
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          )}
+                          {d.failed > 0 && <div className="bar-chart__bar bar-chart__bar--failed" style={{ height: `${(d.failed / dayMax) * 100}%` }} />}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-
-                {/* X Axis labels */}
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "0.75rem",
-                  color: "var(--text-muted)",
-                  padding: "0 4px",
-                  marginLeft: "42px"
-                }}>
-                  <span>
-                    {metricsData.chartData[0].date.includes("T")
-                      ? metricsData.chartData[0].date.split("T")[1].slice(0, 5)
-                      : new Date(metricsData.chartData[0].date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                  </span>
-                  {metricsData.chartData.length > 2 && (
-                    <span>
-                      {metricsData.chartData[Math.floor(metricsData.chartData.length / 2)].date.includes("T")
-                        ? metricsData.chartData[Math.floor(metricsData.chartData.length / 2)].date.split("T")[1].slice(0, 5)
-                        : new Date(metricsData.chartData[Math.floor(metricsData.chartData.length / 2)].date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                    </span>
-                  )}
-                  <span>
-                    {metricsData.chartData[metricsData.chartData.length - 1].date.includes("T")
-                      ? metricsData.chartData[metricsData.chartData.length - 1].date.split("T")[1].slice(0, 5)
-                      : new Date(metricsData.chartData[metricsData.chartData.length - 1].date + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}
-                  </span>
-                </div>
               </div>
-            );
-          })()}
-        </div>
+              <div className="bar-chart__axis" aria-hidden="true">
+                <span>{formatAxisDate(metricsData.chartData[0].date)}</span>
+                {metricsData.chartData.length > 2 && <span>{formatAxisDate(metricsData.chartData[mid].date)}</span>}
+                <span>{formatAxisDate(metricsData.chartData[metricsData.chartData.length - 1].date)}</span>
+              </div>
+            </div>
+          );
+        })()}
+      </section>
+
+      {/* ── Custos e saúde da entrega ── */}
+      <div className="panel-grid">
+        <section className="glass panel" aria-labelledby="costs-title">
+          <div className="panel__header">
+            <h2 id="costs-title" className="panel__title">Custos na Meta</h2>
+            <span className="panel__hint">Falhas não são cobradas</span>
+          </div>
+          <dl className="stat-list">
+            <div><dt>{periodLabel}</dt><dd>{formatBRL(periodSpentBrl)}</dd></div>
+            <div><dt>Gasto no mês</dt><dd>{formatBRL(monthSpentBrl)}</dd></div>
+            <div><dt>Previsão do mês</dt><dd>{formatBRL(monthForecastBrl)}</dd></div>
+            <div><dt>Próxima cobrança</dt><dd>{nextBilling}</dd></div>
+          </dl>
+        </section>
+
+        <section className="glass panel" aria-labelledby="health-title">
+          <div className="panel__header">
+            <h2 id="health-title" className="panel__title">Saúde da entrega</h2>
+            <span className="panel__hint">{totalFailed.toLocaleString("pt-BR")} falhas</span>
+          </div>
+          <dl className="stat-list">
+            {deliveryHealth.map((h) => (
+              <div key={h.label} title={h.hint}>
+                <dt>{h.label}</dt>
+                <dd>{h.value.toLocaleString("pt-BR")}</dd>
+              </div>
+            ))}
+            <div title="Contatos que pediram para não receber mais mensagens (PARAR, SAIR).">
+              <dt>Descadastros</dt>
+              <dd>{optOutsCount.toLocaleString("pt-BR")} <small>({optOutRate}%)</small></dd>
+            </div>
+          </dl>
+        </section>
       </div>
 
-      {/* Painel Financeiro & Prévia de Cobrança Meta API */}
-      <FinancialMetricsSection
-        costs={metricsData.costs}
-        periodLabel={periodLabel}
-        templateMetrics={metricsData.templateMetrics}
-        isLoading={isLoadingMetrics}
-      />
-
-      {/* Quadro de Auditoria & Diagnóstico da Base */}
-      <div className="glass" style={{ padding: "26px 30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
-          <div>
-            <h3 style={{ fontSize: "1.15rem", fontWeight: "600", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <span>🎯</span> Diagnóstico Assertivo de Entrega & Saúde da Lista
-            </h3>
-            <p style={{ margin: "4px 0 0 0", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
-              Transparência detalhada: entenda o motivo exato de cada não-entrega e a conformidade da base
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 14px", background: "rgba(0,194,107,0.1)", border: "1px solid rgba(0,194,107,0.25)", borderRadius: "20px", color: "var(--success)", fontSize: "0.82rem", fontWeight: "700" }}>
-            <span>✓</span> Base Válida: {validDeliveryRate}% entregue com sucesso
-          </div>
+      {/* ── Templates ── */}
+      <section className="glass panel" aria-labelledby="templates-title" style={{ padding: 0 }}>
+        <div className="panel__header" style={{ padding: "var(--space-5) var(--space-6) 0" }}>
+          <h2 id="templates-title" className="panel__title">Templates</h2>
         </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "14px" }}>
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Números Inválidos / Sem WhatsApp</span>
-              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(239,68,68,0.1)", color: "#f87171", borderRadius: "4px" }}>Erro 131026</span>
-            </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#f87171" }}>
-              {failureDiagnosis.invalidNumbers.toLocaleString("pt-BR")}
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Contatos desativados ou fixos na lista cadastral (auto-bloqueados para proteger seu chip).
-            </div>
-          </div>
-
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Limite de Frequência Meta</span>
-              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(234,179,8,0.1)", color: "#facc15", borderRadius: "4px" }}>Sem custo</span>
-            </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#facc15" }}>
-              {failureDiagnosis.frequencyCapped.toLocaleString("pt-BR")}
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Destinatários que atingiram limite de marketing nas últimas 24h pela Meta (não tarifado).
-            </div>
-          </div>
-
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Experimentos / Teste Meta</span>
-              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(99,102,241,0.1)", color: "#818cf8", borderRadius: "4px" }}>Sem custo</span>
-            </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#818cf8" }}>
-              {failureDiagnosis.metaExperiment.toLocaleString("pt-BR")}
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Usuários em grupos de controle interno da Meta (não tarifado).
-            </div>
-          </div>
-
-          <div style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border-color)", borderRadius: "12px", padding: "14px 16px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
-              <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>Descadastros Solicitados</span>
-              <span style={{ fontSize: "0.7rem", padding: "2px 6px", background: "rgba(16,185,129,0.1)", color: "#34d399", borderRadius: "4px" }}>Compliance</span>
-            </div>
-            <div style={{ fontSize: "1.35rem", fontWeight: "700", color: "#34d399" }}>
-              {optOutsCount.toLocaleString("pt-BR")} <span style={{ fontSize: "0.82rem", fontWeight: "500", color: "var(--text-muted)" }}>({optOutRate}%)</span>
-            </div>
-            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "4px" }}>
-              Clientes que pediram para não receber mensagens ("PARAR", "SAIR").
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Desempenho por Template */}
-      <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-        <h3 style={{ fontSize: "1.2rem", fontWeight: "600" }}>Desempenho por Template</h3>
         {!metricsData.templateMetrics || metricsData.templateMetrics.length === 0 ? (
-          <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma métrica de template registrada neste período.</p>
+          <p className="panel__empty" style={{ padding: "var(--space-6)" }}>Nenhum template enviado neste período.</p>
         ) : (
-          <div style={{ overflowX: "auto" }}>
+          <div className="table-container" style={{ borderRadius: 0 }}>
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Nome do Template</th>
-                  <th>Disparados</th>
-                  <th>Entregues</th>
-                  <th>Lidos</th>
-                  <th>Falhas</th>
-                  <th>Taxa de Leitura</th>
+                  <th scope="col">Template</th>
+                  <th scope="col">Categoria</th>
+                  <th scope="col" className="num">Entregues</th>
+                  <th scope="col" className="num">Leitura</th>
+                  <th scope="col" className="num">Falhas</th>
+                  <th scope="col" className="num">Custo</th>
                 </tr>
               </thead>
               <tbody>
-                {metricsData.templateMetrics.map((t, idx) => {
-                  const deliveredCount = t.delivered || t.sent || 0;
-                  const readRate = deliveredCount > 0 ? Math.round((t.read / deliveredCount) * 100) : 0;
+                {metricsData.templateMetrics.map((t) => {
+                  const delivered = t.delivered || t.sent || 0;
+                  const rate = pct(t.read, delivered);
+                  const cost = costByTemplate.get(t.templateName);
                   return (
-                    <tr key={idx}>
-                      <td style={{ fontWeight: "600" }}>{t.templateName}</td>
-                      <td>{t.total.toLocaleString("pt-BR")}</td>
-                      <td style={{ color: "#0891b2" }}>{deliveredCount.toLocaleString("pt-BR")}</td>
-                      <td style={{ color: "var(--success)" }}>{t.read.toLocaleString("pt-BR")}</td>
-                      <td style={{ color: "var(--error)" }}>{t.failed}</td>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ fontWeight: "600", minWidth: "35px" }}>{readRate}%</span>
-                          <div style={{ width: "80px", height: "6px", background: "rgba(255,255,255,0.05)", borderRadius: "3px", overflow: "hidden" }}>
-                            <div style={{ height: "100%", width: `${readRate}%`, background: "var(--success)", borderRadius: "3px" }}></div>
-                          </div>
-                        </div>
+                    <tr key={t.templateName}>
+                      <td style={{ fontWeight: 600 }}>{t.templateName}</td>
+                      <td style={{ color: "var(--text-muted)" }}>{cost ? CATEGORY_LABELS[cost.category] ?? cost.category : "—"}</td>
+                      <td className="num">{delivered.toLocaleString("pt-BR")}</td>
+                      <td className="num">
+                        <span className="inline-meter" aria-label={`${rate}% lidas`}>
+                          <span className="inline-meter__track"><span style={{ width: `${rate}%` }} /></span>
+                          {rate}%
+                        </span>
                       </td>
+                      <td className="num" style={{ color: t.failed > 0 ? "var(--error)" : "var(--text-muted)" }}>{t.failed.toLocaleString("pt-BR")}</td>
+                      <td className="num">{cost ? formatBRL(cost.totalCostBrl) : "—"}</td>
                     </tr>
                   );
                 })}
@@ -798,9 +526,20 @@ export default function DashboardPage() {
             </table>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Modal de Relatório Executivo (Imprimível em PDF A4) */}
+      {/* ── Referência (recolhida): tarifas, simulador e regras de cobrança ── */}
+      <details className="glass panel disclosure">
+        <summary>Tarifas da Meta, simulador de custo e regras de cobrança</summary>
+        <FinancialMetricsSection
+          costs={metricsData.costs}
+          periodLabel={periodLabel}
+          templateMetrics={metricsData.templateMetrics}
+          isLoading={isLoadingMetrics}
+          referenceOnly
+        />
+      </details>
+
       <ExecutiveReportModal
         isOpen={showExecutiveReport}
         onClose={() => setShowExecutiveReport(false)}
