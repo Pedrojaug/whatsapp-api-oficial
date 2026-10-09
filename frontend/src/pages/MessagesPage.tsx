@@ -698,6 +698,7 @@ export default function MessagesPage() {
                   variables={resolvedPreviewVars}
                   footerText={footerComp ? footerComp.text : ""}
                   buttons={buttonsComp ? buttonsComp.buttons : []}
+                  businessName={selectedAccount?.name}
                 />
               );
             })() : (
