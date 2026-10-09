@@ -14,7 +14,7 @@
   /* Text colors */
   --text-primary: #f7f8f9; /* Branco */
   --text-secondary: #e6e8ea; /* Cinza Claro */
-  --text-muted: #6b7177; /* Cinza Médio */
+  --text-muted: #8b929a; /* Cinza Médio — 5:1 sobre os cartões (antes #6b7177, 3,4:1) */
   
   /* Accent colors */
   --primary: #25d366; /* Verde Principal */
@@ -96,6 +96,14 @@
 
   --radius-xs: 4px;
   --radius-full: 999px;
+
+  /* ── Cores de destaque usadas como TEXTO (≥ 4,5:1 sobre cartões e selos) ── */
+  --primary-text: var(--primary);
+  --primary-strong: var(--primary);   /* fundo de item selecionado, com --on-primary por cima */
+  --violet-text: #c084fc;
+  --info-text: var(--info);
+  --warning-text: var(--warning);
+  --error-text: #f87171;
 }
 
 * {
@@ -167,6 +175,17 @@ body.light-theme {
   --chat-bubble-out: #d9fdd3;
   --chat-bubble-out-fg: #111b21;
   --chat-read-tick: #0284c7;
+  --primary-text: #047857;
+  --primary-strong: #047857;
+  --violet-text: #6d28d9;
+  --info-text: #0369a1;
+  --warning-text: #92400e;
+  --error-text: #b91c1c;
+  --role-owner: var(--warning);
+  --role-admin: var(--warning);
+  --role-manager: var(--blue);
+  --role-attendant: var(--primary);
+  --role-viewer: var(--violet);
 
   background: #ffffff !important;
   color: #0f172a !important;
@@ -1482,7 +1501,7 @@ body.light-theme .data-table tbody tr:hover { background: #f8fafc !important; }
   letter-spacing: 0.04em;
   text-transform: uppercase;
   background: rgba(0, 194, 107, 0.08);
-  color: #00c26b;
+  color: var(--primary-text);
   border: 1px solid rgba(0, 194, 107, 0.22);
 }
 
@@ -1527,7 +1546,7 @@ body.light-theme .data-table tbody tr:hover { background: #f8fafc !important; }
 }
 
 .brand-logo span {
-  color: #00c26b;
+  color: var(--primary-text);
   font-weight: 700;
 }
 
@@ -2793,7 +2812,7 @@ body.light-theme .page-heading {
 .segmented__option:hover { color: var(--text-primary); }
 .segmented__option[aria-checked="true"] {
   color: var(--on-primary);
-  background: var(--primary);
+  background: var(--primary-strong);
 }
 .segmented__option:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
@@ -2814,7 +2833,7 @@ body.light-theme .page-heading {
 .kpi__label { font-size: var(--fs-xs); font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .kpi__value { font-size: var(--fs-2xl); font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; line-height: 1.2; overflow-wrap: anywhere; }
 .kpi__detail { font-size: var(--fs-sm); color: var(--text-secondary); }
-.kpi__detail--error { color: var(--error); }
+.kpi__detail--error { color: var(--error-text); }
 
 /* Painéis */
 .panel { border-radius: var(--radius-lg); padding: var(--space-5) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
@@ -2895,7 +2914,7 @@ body.light-theme .page-heading {
   border-radius: var(--radius-full);
   font-size: var(--fs-xs);
   font-weight: 600;
-  color: var(--primary);
+  color: var(--primary-text);
   background: color-mix(in srgb, var(--primary) 12%, transparent);
 }
 .live-badge__dot {
@@ -3044,12 +3063,12 @@ body.light-theme .page-heading {
   --cat-color: var(--text-muted);
   display: inline-flex; align-items: center; padding: var(--space-0-5) var(--space-2);
   border-radius: var(--radius-full); font-size: var(--fs-xs); font-weight: 600;
-  color: var(--cat-color); background: color-mix(in srgb, var(--cat-color) 12%, transparent);
+  color: var(--cat-text, var(--cat-color)); background: color-mix(in srgb, var(--cat-color) 12%, transparent);
 }
-.cat-chip--marketing { --cat-color: var(--violet); }
-.cat-chip--utility { --cat-color: var(--info); }
-.cat-chip--authentication { --cat-color: var(--warning); }
-.cat-chip--service { --cat-color: var(--primary); }
+.cat-chip--marketing { --cat-color: var(--violet); --cat-text: var(--violet-text); }
+.cat-chip--utility { --cat-color: var(--info); --cat-text: var(--info-text); }
+.cat-chip--authentication { --cat-color: var(--warning); --cat-text: var(--warning-text); }
+.cat-chip--service { --cat-color: var(--primary); --cat-text: var(--primary-text); }
 .inline-meter__track > span { background: linear-gradient(90deg, color-mix(in srgb, var(--primary) 55%, transparent), var(--primary)); }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3135,7 +3154,7 @@ body.light-theme .page-heading {
   transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
 }
 .pricing-sim__preset:hover { color: var(--text-primary); border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
-.pricing-sim__preset.is-active { color: var(--on-primary); background: var(--primary); border-color: var(--primary); }
+.pricing-sim__preset.is-active { color: var(--on-primary); background: var(--primary-strong); border-color: var(--primary-strong); }
 .pricing-sim__preset:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .pricing-sim__result {
   container-type: inline-size;
@@ -3197,3 +3216,29 @@ body.light-theme .page-heading {
 @media (max-width: 1179px) {
   .kpi-grid > .kpi:last-child { grid-column: 1 / -1; }
 }
+
+/* ═══ Acessibilidade ═══ */
+
+/* Atalho "Pular para o conteúdo": invisível até receber foco pelo teclado */
+.skip-link {
+  position: fixed;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 10001;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--primary-strong);
+  color: var(--on-primary);
+  font-weight: 700;
+  transform: translateY(-150%);
+  transition: transform var(--transition-fast);
+}
+.skip-link:focus { transform: none; outline: 2px solid var(--text-primary); outline-offset: 2px; }
+#conteudo:focus { outline: none; }
+
+/* Gráfico navegável pelo teclado */
+.area-chart__plot:focus { outline: none; }
+.area-chart__plot:focus-visible { outline: 2px solid var(--primary); outline-offset: 4px; border-radius: var(--radius-xs); }
+
+/* Texto dos selos de cargo: a cor do cargo puxada para o tom do texto do tema (legível nos dois) */
+.role-badge, .avatar--role, .role-option__label { color: color-mix(in srgb, var(--role-color) 62%, var(--text-primary)); }

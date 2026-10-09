@@ -112,6 +112,26 @@ export function AreaChart({ data, formatLabel }: { data: AreaPoint[]; formatLabe
   const xOf = (i: number) => (data.length > 1 ? (i / (data.length - 1)) * 100 : 50);
   const fmt = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(v));
   const hovered = hover !== null ? data[hover] : null;
+  const summaryId = useId();
+  const describe = (d: AreaPoint) =>
+    `${formatLabel(d.date)}: ${d.sent.toLocaleString("pt-BR")} enviadas, ${d.read.toLocaleString("pt-BR")} lidas` +
+    (d.replies !== undefined ? `, ${d.replies.toLocaleString("pt-BR")} respostas` : "") +
+    `, ${d.failed.toLocaleString("pt-BR")} falhas`;
+
+  // Teclado: setas percorrem os dias (mesma leitura da passagem do mouse); Home/End vão às pontas.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const last = data.length - 1;
+    const cur = hover ?? last;
+    let next: number | null = null;
+    if (e.key === "ArrowRight" || e.key === "ArrowUp") next = Math.min(last, cur + 1);
+    else if (e.key === "ArrowLeft" || e.key === "ArrowDown") next = Math.max(0, cur - 1);
+    else if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = last;
+    else if (e.key === "Escape") { setHover(null); return; }
+    if (next === null) return;
+    e.preventDefault();
+    setHover(next);
+  };
 
   return (
     <div className="area-chart">
@@ -126,9 +146,18 @@ export function AreaChart({ data, formatLabel }: { data: AreaPoint[]; formatLabe
           setHover(Math.round(ratio * (data.length - 1)));
         }}
         onMouseLeave={() => setHover(null)}
-        role="img"
-        aria-label={`Envios no período: ${data.map((d) => `${formatLabel(d.date)}, ${d.sent} enviadas e ${d.read} lidas`).join("; ")}`}
+        tabIndex={0}
+        role="group"
+        aria-roledescription="gráfico"
+        aria-label="Envios no período. Use as setas para ver cada dia."
+        aria-describedby={summaryId}
+        onKeyDown={onKeyDown}
+        onFocus={() => setHover((h) => h ?? data.length - 1)}
+        onBlur={() => setHover(null)}
       >
+        {/* Resumo completo para leitores de tela + anúncio do dia escolhido pelas setas */}
+        <span id={summaryId} className="sr-only">{data.map(describe).join("; ")}</span>
+        <span className="sr-only" aria-live="polite">{hovered ? describe(hovered) : ""}</span>
         <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true">
           <defs>
             <linearGradient id={gidSent} x1="0" y1="0" x2="0" y2="1">

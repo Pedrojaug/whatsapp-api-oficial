@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import { Send, Activity, BarChart3, MessageSquare } from "lucide-react";
+import SegmentedControl from "./SegmentedControl";
 import { formatBRL, formatUSD, formatUnitBRL, formatUnitUSD, META_RATES_BRL, META_RATES_USD } from "../utils/pricing";
 
 // Referência de cobrança da Meta no Painel de Métricas: tarifas, simulador e regras.
@@ -60,20 +61,12 @@ export default function MetaPricingReference() {
       <section className="pricing-ref__block" aria-labelledby="pricing-sim-title">
         <h3 id="pricing-sim-title" className="pricing-ref__title">Simular um disparo</h3>
 
-        <div className="segmented" role="radiogroup" aria-label="Categoria do template">
-          {CATEGORIES.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              role="radio"
-              aria-checked={category === c.key}
-              className="segmented__option"
-              onClick={() => setCategory(c.key)}
-            >
-              {c.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          ariaLabel="Categoria do template"
+          value={category}
+          onChange={setCategory}
+          options={CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
+        />
 
         <div className="pricing-sim__qty">
           <label htmlFor={inputId} className="field-label">Contatos</label>

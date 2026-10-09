@@ -121,6 +121,7 @@ export default function Layout() {
 
   return (
     <div className={`app-shell${isChatRoute ? " app-shell--chat" : ""}`}>
+      <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
 
       {/* ── Email verification banner ── */}
       {user && !user.emailVerified && !dismissEmailBanner && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
@@ -313,7 +314,7 @@ export default function Layout() {
           </div>
 
           {/* Navigation Items */}
-          <nav className="sidebar-nav">
+          <nav className="sidebar-nav" aria-label="Menu principal">
             <span className="sidebar-section-label">Comunicação</span>
 
             {/* Painel de Métricas: Visível para Dono, Admin, Gerente e Visualizador */}
@@ -509,7 +510,7 @@ export default function Layout() {
                 <button
                   onClick={logout}
                   className="nav-item"
-                  style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
+                  style={{ color: "var(--error-text)", background: "color-mix(in srgb, var(--error) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--error) 12%, transparent)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
                 >
                   <LogOut size={18} className="nav-icon" /> Sair da Conta
                 </button>
@@ -542,7 +543,7 @@ export default function Layout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className={`app-main${location.pathname.startsWith("/chat") ? " app-main--chat" : ""}`} ref={mainRef}>
+        <main id="conteudo" tabIndex={-1} className={`app-main${location.pathname.startsWith("/chat") ? " app-main--chat" : ""}`} ref={mainRef}>
           <div className={`app-main-inner${location.pathname.startsWith("/chat") ? " app-main-inner--chat" : ""}`}>
             <Outlet />
           </div>
@@ -566,7 +567,7 @@ export default function Layout() {
             alignItems: "center",
             gap: "10px",
             background: "#25D366",
-            color: "#fff",
+            color: "#0d0e11",
             border: "none",
             borderRadius: "50px",
             padding: "12px 20px 12px 16px",

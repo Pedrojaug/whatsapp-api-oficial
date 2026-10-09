@@ -8,6 +8,7 @@ import { useAlert } from "../contexts/AlertContext";
 import { useCountup } from "../hooks/useCountup";
 import ExecutiveReportModal from "../components/ExecutiveReportModal";
 import MetaPricingReference from "../components/MetaPricingReference";
+import SegmentedControl from "../components/SegmentedControl";
 import { formatBRL } from "../utils/pricing";
 import { RefreshCw, Send, Check, Eye, MessageSquare, BarChart3, Activity } from "lucide-react";
 import { AreaChart, RingGauge, Sparkline } from "../components/DashboardCharts";
@@ -355,20 +356,18 @@ export default function DashboardPage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center", flexWrap: "wrap" }}>
-          <div className="segmented" role="radiogroup" aria-label="Período">
-            {(["today", "yesterday", "7days", "30days", "custom"] as const).map((p) => (
-              <button
-                key={p}
-                type="button"
-                role="radio"
-                aria-checked={metricsPeriod === p}
-                className="segmented__option"
-                onClick={() => setMetricsPeriod(p)}
-              >
-                {{ today: "Hoje", yesterday: "Ontem", "7days": "7 dias", "30days": "30 dias", custom: "Período" }[p]}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            ariaLabel="Período"
+            value={metricsPeriod}
+            onChange={setMetricsPeriod}
+            options={[
+              { value: "today", label: "Hoje" },
+              { value: "yesterday", label: "Ontem" },
+              { value: "7days", label: "7 dias" },
+              { value: "30days", label: "30 dias" },
+              { value: "custom", label: "Período" },
+            ]}
+          />
           <button type="button" onClick={() => setShowExecutiveReport(true)} className="btn btn-secondary btn-sm">
             Relatório PDF
           </button>
@@ -542,12 +541,12 @@ export default function DashboardPage() {
                       <td>{cost ? <span className={`cat-chip cat-chip--${cost.category.toLowerCase()}`}>{CATEGORY_LABELS[cost.category] ?? cost.category}</span> : "—"}</td>
                       <td className="num">{delivered.toLocaleString("pt-BR")}</td>
                       <td className="num">
-                        <span className="inline-meter" aria-label={`${rate}% lidas`}>
+                        <span className="inline-meter">
                           <span className="inline-meter__track"><span style={{ width: `${rate}%` }} /></span>
                           {rate}%
                         </span>
                       </td>
-                      <td className="num" style={{ color: t.failed > 0 ? "var(--error)" : "var(--text-muted)" }}>{t.failed.toLocaleString("pt-BR")}</td>
+                      <td className="num" style={{ color: t.failed > 0 ? "var(--error-text)" : "var(--text-muted)" }}>{t.failed.toLocaleString("pt-BR")}</td>
                       <td className="num">{cost ? formatBRL(cost.totalCostBrl) : "—"}</td>
                     </tr>
                   );
