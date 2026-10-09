@@ -1,10 +1,11 @@
 import { useId, useState } from "react";
-import { Send, Activity, BarChart3, MessageSquare } from "lucide-react";
-import SegmentedControl from "./SegmentedControl";
-import { formatBRL, formatUSD, formatUnitBRL, formatUnitUSD, META_RATES_BRL, META_RATES_USD } from "../utils/pricing";
+import { Check } from "lucide-react";
+import { formatBRL, formatUnitBRL, META_RATES_BRL } from "../utils/pricing";
 
-// Referência de cobrança da Meta no Painel de Métricas: tarifas, simulador e regras.
-// Mesmo visual do restante do painel (tokens, .segmented, .stat-list, .cat-chip).
+// Calculadora de custo do Painel de Métricas.
+// Tarifas e simulador eram dois blocos que repetiam as mesmas três categorias; agora a lista de
+// tarifas É o seletor da simulação, e cada categoria mostra o total para a quantidade digitada,
+// então dá para comparar sem trocar de opção.
 
 type TemplateCategory = "MARKETING" | "UTILITY" | "AUTHENTICATION";
 
@@ -14,117 +15,145 @@ const CATEGORIES: Array<{ key: TemplateCategory; label: string; use: string }> =
   { key: "AUTHENTICATION", label: "Autenticação", use: "Códigos de verificação" },
 ];
 
-const PRESETS = [500, 1000, 2500, 5000, 10000, 25000];
+const PRESETS = [1000, 5000, 10000, 50000];
+const MAX_CONTACTS = 1_000_000;
 
 const RULES = [
-  { icon: Send, title: "Cobrança por template entregue", text: "Mensagens que falham não são cobradas." },
-  { icon: MessageSquare, title: "Atendimento sem custo", text: "Responder o cliente dentro da janela de 24 h não gera cobrança." },
-  { icon: BarChart3, title: "Fatura da Meta", text: "Debitada no cartão do Business Manager no fim do mês ou ao atingir o limite de cobrança." },
-  { icon: Activity, title: "Valores de referência", text: "As estimativas usam esta tabela; o valor final é o da fatura da Meta." },
+  "A Meta cobra só templates entregues; falhas não são cobradas.",
+  "Responder o cliente dentro da janela de 24 h não gera cobrança.",
+  "A fatura é debitada no cartão do Business Manager no fim do mês ou ao atingir o limite de cobrança.",
 ];
 
 const formatCount = (n: number) => n.toLocaleString("pt-BR");
+const formatPreset = (n: number) => `${formatCount(n / 1000)} mil`;
 
-export default function MetaPricingReference() {
+interface MetaPricingReferenceProps {
+  /** Taxa de entrega real da conta no período (0–100); estima quantas mensagens serão cobradas. */
+  deliveryRate?: number;
+}
+
+export default function MetaPricingReference({ deliveryRate }: MetaPricingReferenceProps) {
   const [category, setCategory] = useState<TemplateCategory>("MARKETING");
   const [contacts, setContacts] = useState(1000);
+  const [draft, setDraft] = useState(formatCount(1000));
   const inputId = useId();
-  const rangeId = useId();
+  const groupLabelId = useId();
 
-  const unitBrl = META_RATES_BRL[category];
-  const unitUsd = META_RATES_USD[category];
-  const totalBrl = contacts * unitBrl;
-  const totalUsd = contacts * unitUsd;
+  const rate = deliveryRate && deliveryRate > 0 ? Math.min(100, deliveryRate) : 100;
+  const delivered = Math.round((contacts * rate) / 100);
+  const failed = contacts - delivered;
+  const totalFor = (c: TemplateCategory) => delivered * META_RATES_BRL[c];
+  const selected = CATEGORIES.find((c) => c.key === category)!;
+
+  const setQuantity = (n: number) => {
+    const clamped = Math.max(1, Math.min(MAX_CONTACTS, Math.round(n)));
+    setContacts(clamped);
+    setDraft(formatCount(clamped));
+  };
+
+  // Teclado no grupo de categorias (radiogroup): setas trocam a opção.
+  const onCategoryKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const i = CATEGORIES.findIndex((c) => c.key === category);
+    const delta = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!delta) return;
+    e.preventDefault();
+    const next = CATEGORIES[(i + delta + CATEGORIES.length) % CATEGORIES.length];
+    setCategory(next.key);
+    e.currentTarget.querySelector<HTMLButtonElement>(`[data-cat="${next.key}"]`)?.focus();
+  };
 
   return (
-    <div className="pricing-ref">
-      {/* Tarifas por categoria */}
-      <section className="pricing-ref__block" aria-labelledby="pricing-rates-title">
-        <h3 id="pricing-rates-title" className="pricing-ref__title">Tarifa por mensagem</h3>
-        <dl className="stat-list">
-          {CATEGORIES.map((c) => (
-            <div key={c.key}>
-              <dt className="pricing-ref__rate-label">
-                <span className={`cat-chip cat-chip--${c.key.toLowerCase()}`}>{c.label}</span>
-                <span className="pricing-ref__use">{c.use}</span>
-              </dt>
-              <dd>
-                {formatUnitBRL(META_RATES_BRL[c.key])}
-                <small> · {formatUnitUSD(META_RATES_USD[c.key])}</small>
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-
-      {/* Simulador */}
-      <section className="pricing-ref__block" aria-labelledby="pricing-sim-title">
-        <h3 id="pricing-sim-title" className="pricing-ref__title">Simular um disparo</h3>
-
-        <SegmentedControl
-          ariaLabel="Categoria do template"
-          value={category}
-          onChange={setCategory}
-          options={CATEGORIES.map((c) => ({ value: c.key, label: c.label }))}
-        />
-
-        <div className="pricing-sim__qty">
-          <label htmlFor={inputId} className="field-label">Contatos</label>
-          <input
-            id={inputId}
-            type="number"
-            min={1}
-            max={1000000}
-            step={100}
-            value={contacts}
-            onChange={(e) => setContacts(Math.max(1, Math.min(1000000, parseInt(e.target.value, 10) || 1)))}
-            className="field-input pricing-sim__input"
-          />
-        </div>
-        <input
-          id={rangeId}
-          type="range"
-          min={100}
-          max={50000}
-          step={100}
-          value={Math.min(contacts, 50000)}
-          onChange={(e) => setContacts(parseInt(e.target.value, 10))}
-          className="pricing-sim__range"
-          aria-label="Quantidade de contatos"
-        />
-        <div className="pricing-sim__presets">
-          {PRESETS.map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`pricing-sim__preset${contacts === n ? " is-active" : ""}`}
-              aria-pressed={contacts === n}
-              onClick={() => setContacts(n)}
-            >
-              {n >= 1000 ? `${n / 1000} mil` : n}
-            </button>
-          ))}
-        </div>
-
-        <div className="pricing-sim__result" aria-live="polite">
-          <span className="pricing-sim__result-label">{formatCount(contacts)} mensagens entregues</span>
-          <span className="pricing-sim__result-value">{formatBRL(totalBrl)}</span>
-          <span className="pricing-sim__result-sub">{formatUSD(totalUsd)} · {formatUnitBRL(unitBrl)} cada</span>
-        </div>
-      </section>
-
-      {/* Regras de cobrança */}
-      <section className="pricing-ref__rules" aria-label="Regras de cobrança da Meta">
-        {RULES.map(({ icon: Icon, title, text }) => (
-          <div key={title} className="pricing-rule">
-            <span className="pricing-rule__icon" aria-hidden="true"><Icon size={15} /></span>
-            <div>
-              <strong>{title}</strong>
-              <p>{text}</p>
+    <div className="calc">
+      <div className="calc__inputs">
+        {/* Quantidade */}
+        <div className="calc__qty">
+          <label htmlFor={inputId} className="calc__step">Quantos contatos?</label>
+          <div className="calc__qty-row">
+            <input
+              id={inputId}
+              inputMode="numeric"
+              autoComplete="off"
+              value={draft}
+              onChange={(e) => {
+                const digits = e.target.value.replace(/\D/g, "");
+                setDraft(digits ? formatCount(Math.min(MAX_CONTACTS, parseInt(digits, 10))) : "");
+                if (digits) setContacts(Math.max(1, Math.min(MAX_CONTACTS, parseInt(digits, 10))));
+              }}
+              onBlur={() => setDraft(formatCount(contacts))}
+              className="field-input calc__qty-input"
+            />
+            <div className="calc__presets" role="group" aria-label="Quantidades comuns">
+              {PRESETS.map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`pricing-sim__preset${contacts === n ? " is-active" : ""}`}
+                  aria-pressed={contacts === n}
+                  onClick={() => setQuantity(n)}
+                >
+                  {formatPreset(n)}
+                </button>
+              ))}
             </div>
           </div>
+        </div>
+
+        {/* Categoria: a própria lista de tarifas, com o total para a quantidade digitada */}
+        <div>
+          <span id={groupLabelId} className="calc__step">Categoria do template</span>
+          <div className="calc__cats" role="radiogroup" aria-labelledby={groupLabelId} onKeyDown={onCategoryKey}>
+            {CATEGORIES.map((c) => {
+              const checked = c.key === category;
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={checked}
+                  tabIndex={checked ? 0 : -1}
+                  data-cat={c.key}
+                  className={`calc-cat cat-chip--${c.key.toLowerCase()}`}
+                  onClick={() => setCategory(c.key)}
+                >
+                  <span className="calc-cat__head">
+                    <span className="calc-cat__name">{c.label}</span>
+                    <span className="calc-cat__rate">{formatUnitBRL(META_RATES_BRL[c.key])}<small>/msg</small></span>
+                  </span>
+                  <span className="calc-cat__use">{c.use}</span>
+                  <span className="calc-cat__total">{formatBRL(totalFor(c.key))}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Resultado */}
+      <div className="calc__result" aria-live="polite">
+        <span className="calc__result-label">Custo estimado · {selected.label}</span>
+        <span className="calc__result-value">{formatBRL(totalFor(category))}</span>
+        <dl className="calc__breakdown">
+          <div>
+            <dt>Entregues{rate < 100 ? ` (${rate}% de entrega)` : ""}</dt>
+            <dd>≈ {formatCount(delivered)} × {formatUnitBRL(META_RATES_BRL[category])}</dd>
+          </div>
+          {failed > 0 && (
+            <div>
+              <dt>Falhas, sem custo</dt>
+              <dd>≈ {formatCount(failed)}</dd>
+            </div>
+          )}
+        </dl>
+        <p className="calc__hint">Ao criar uma campanha ou disparo, o custo aparece calculado com o template e a lista escolhidos.</p>
+      </div>
+
+      {/* Regras de cobrança: fatos curtos, não cartões */}
+      <ul className="calc__rules">
+        {RULES.map((r) => (
+          <li key={r}><Check size={14} aria-hidden="true" />{r}</li>
         ))}
-      </section>
+        <li className="calc__rules-note">Valores de referência usados nas estimativas do painel; o valor final é o da fatura da Meta.</li>
+      </ul>
     </div>
   );
 }

@@ -3108,44 +3108,26 @@ body.light-theme .page-heading {
 }
 .month-meter__labels > span { white-space: nowrap; }
 
-/* Referência de cobrança (bloco recolhível) */
-.pricing-ref {
+/* Calculadora de custo (bloco recolhível do Painel de Métricas) */
+.calc {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
-  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
+  gap: var(--space-5) var(--space-6);
   margin-top: var(--space-4);
 }
-.pricing-ref__block {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-4) var(--space-5);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
-}
-.pricing-ref__title {
-  margin: 0;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-.pricing-ref__rate-label { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
-.pricing-ref__use { font-size: var(--fs-xs); color: var(--text-muted); }
-.pricing-ref .stat-list dd { white-space: nowrap; }
+@media (max-width: 900px) { .calc { grid-template-columns: 1fr; } }
+.calc__inputs { display: flex; flex-direction: column; gap: var(--space-5); min-width: 0; }
+.calc__step { display: block; font-size: var(--fs-sm); font-weight: 700; color: var(--text-secondary); margin-bottom: var(--space-2); }
+.calc__qty-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.calc__qty-input { width: 160px; font-size: var(--fs-lg); font-weight: 700; font-variant-numeric: tabular-nums; }
 
-.pricing-sim__qty { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
-.pricing-sim__input { width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
-.pricing-sim__range { width: 100%; accent-color: var(--primary); cursor: pointer; }
-.pricing-sim__presets { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+/* Botões de quantidade comum */
+.calc__presets { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
 .pricing-sim__preset {
   font: inherit;
   font-size: var(--fs-xs);
   font-weight: 600;
-  padding: var(--space-1) var(--space-2-5);
+  padding: var(--space-1-5) var(--space-3);
   border-radius: var(--radius-full);
   border: 1px solid var(--border-color);
   background: transparent;
@@ -3156,58 +3138,82 @@ body.light-theme .page-heading {
 .pricing-sim__preset:hover { color: var(--text-primary); border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
 .pricing-sim__preset.is-active { color: var(--on-primary); background: var(--primary-strong); border-color: var(--primary-strong); }
 .pricing-sim__preset:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-.pricing-sim__result {
-  container-type: inline-size;
-  margin-top: auto;
+
+/* Categorias = tarifas selecionáveis, com o total para a quantidade digitada */
+.calc__cats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: var(--space-2-5); }
+.calc-cat {
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: var(--space-0-5);
-  padding: var(--space-4);
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-3-5);
   border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.calc-cat:hover { border-color: color-mix(in srgb, var(--cat-color) 50%, transparent); }
+.calc-cat[aria-checked="true"] {
+  border-color: var(--cat-color);
+  background: color-mix(in srgb, var(--cat-color) 10%, transparent);
+  box-shadow: inset 0 0 0 1px var(--cat-color);
+}
+.calc-cat:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* No cartão selecionado o fundo é colorido: texto secundário mais forte para manter 4,5:1 */
+.calc-cat[aria-checked="true"] .calc-cat__use, .calc-cat[aria-checked="true"] .calc-cat__rate small { color: var(--text-secondary); }
+.calc-cat__head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.calc-cat__name { font-size: var(--fs-md); font-weight: 700; color: var(--cat-text, var(--cat-color)); }
+.calc-cat__rate { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.calc-cat__rate small { color: var(--text-muted); margin-left: 1px; }
+.calc-cat__use { font-size: var(--fs-xs); color: var(--text-muted); }
+.calc-cat__total { margin-top: var(--space-1-5); font-size: var(--fs-lg); font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+/* Resultado */
+.calc__result {
+  container-type: inline-size;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-5);
+  border-radius: var(--radius-lg);
   border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
   background:
     radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%),
     color-mix(in srgb, var(--primary) 5%, transparent);
 }
-.pricing-sim__result-label { font-size: var(--fs-sm); color: var(--text-muted); }
-.pricing-sim__result-value {
-  font-size: clamp(var(--fs-xl), 12cqi, var(--fs-3xl));
+.calc__result-label { font-size: var(--fs-sm); color: var(--text-muted); }
+.calc__result-value {
+  font-size: clamp(var(--fs-2xl), 14cqi, 2.5rem);
   font-weight: 800;
   letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
   white-space: nowrap;
-  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
 }
-.pricing-sim__result-sub { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.calc__breakdown { margin: 0; display: flex; flex-direction: column; gap: var(--space-1-5); }
+.calc__breakdown > div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.calc__breakdown dt { font-size: var(--fs-sm); color: var(--text-muted); }
+.calc__breakdown dd { margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.calc__hint { margin: 0; padding-top: var(--space-2-5); border-top: 1px solid var(--border-color); font-size: var(--fs-xs); color: var(--text-muted); line-height: 1.45; }
 
-.pricing-ref__rules {
+/* Regras de cobrança: lista de fatos curtos */
+.calc__rules {
   grid-column: 1 / -1;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--border-color);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: var(--space-2) var(--space-5);
 }
-.pricing-rule {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-3-5);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
-  border: 1px solid var(--border-color);
-}
-.pricing-rule__icon {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-}
-.pricing-rule strong { font-size: var(--fs-md); }
-.pricing-rule p { margin: var(--space-0-5) 0 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.45; }
+.calc__rules li { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--fs-sm); color: var(--text-secondary); line-height: 1.45; }
+.calc__rules li svg { color: var(--primary-text); flex-shrink: 0; margin-top: 3px; }
+.calc__rules .calc__rules-note { grid-column: 1 / -1; font-size: var(--fs-xs); color: var(--text-muted); }
 
 /* Telas largas: Investimento (valor em R$, mais longo) ganha mais espaço que os contadores */
 @media (min-width: 1180px) {

@@ -559,8 +559,8 @@ export default function DashboardPage() {
 
       {/* ── Referência (recolhida): tarifas, simulador e regras de cobrança ── */}
       <details className="glass panel disclosure">
-        <summary>Tarifas da Meta, simulador de custo e regras de cobrança</summary>
-        <MetaPricingReference />
+        <summary>Calculadora de custo e tarifas da Meta</summary>
+        <MetaPricingReference deliveryRate={totalAll > 0 ? deliveryRate : undefined} />
       </details>
 
       <ExecutiveReportModal
