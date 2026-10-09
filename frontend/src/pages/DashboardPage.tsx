@@ -491,7 +491,7 @@ export default function DashboardPage() {
             <span className="panel__hint">{totalFailed.toLocaleString("pt-BR")} falhas</span>
           </div>
           <div className="health">
-            <RingGauge value={deliveryRate} color={deliveryRate >= 95 ? "var(--primary)" : deliveryRate >= 85 ? "var(--warning)" : "var(--error)"}>
+            <RingGauge size={112} value={deliveryRate} color={deliveryRate >= 95 ? "var(--primary)" : deliveryRate >= 85 ? "var(--warning)" : "var(--error)"}>
               <strong>{deliveryRate}%</strong>
               <span>entregues</span>
             </RingGauge>
