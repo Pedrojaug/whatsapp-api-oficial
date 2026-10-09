@@ -4,11 +4,14 @@ import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { hasPermission } from "../utils/permissions";
 import { useAlert } from "../contexts/AlertContext";
+import { useConfirm } from "../hooks/useConfirm";
 import { useSSE } from "../hooks/useSSE";
 import { useAuth, API_BASE_URL } from "../contexts/AuthContext";
-import { formatMessageStatus } from "../utils/formatters";
+import { formatMessageStatus, formatPhone, formatDateTime, formatTemplateCategory } from "../utils/formatters";
 import { formatBRL, getTemplateUnitCost } from "../utils/pricing";
 import PhoneSimulator from "../components/PhoneSimulator";
+import SegmentedControl from "../components/SegmentedControl";
+import { RefreshCw, Search } from "lucide-react";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
@@ -43,6 +46,7 @@ export default function MessagesPage() {
   // Visualizador acompanha os logs, mas não dispara nem mexe em agendamentos.
   const canDispatch = hasPermission(selectedAccount?.accountRole, "dispatch");
   const { showAlert } = useAlert();
+  const confirm = useConfirm();
 
   const [templates, setTemplates] = useState<Template[]>([]);
   const [messageLogs, setMessageLogs] = useState<MessageLog[]>([]);
@@ -158,7 +162,14 @@ export default function MessagesPage() {
 
   const handleCancelScheduled = async (messageId: string) => {
     if (!selectedAccount) return;
-    if (!window.confirm("Tem certeza que deseja cancelar e excluir este agendamento?")) return;
+    const ok = await confirm({
+      title: "Cancelar este disparo agendado?",
+      description: "A mensagem não será enviada e o agendamento é excluído.",
+      confirmLabel: "Cancelar disparo",
+      cancelLabel: "Manter",
+      tone: "danger",
+    });
+    if (!ok) return;
 
     try {
       showAlert("Cancelando agendamento...");
@@ -366,129 +377,151 @@ export default function MessagesPage() {
     }
   });
 
+  // Filtros do histórico aplicam na hora (sem botão "Filtrar"); a busca aplica com Enter.
+  const applyLogFilters = (overrides: Partial<{ search: string; status: string; template: string }> = {}) => {
+    if (!selectedAccount) return;
+    setMessagesPage(1);
+    fetchMessages(
+      selectedAccount.id,
+      1,
+      overrides.search ?? messagesSearch,
+      overrides.status ?? messagesStatus,
+      overrides.template ?? messagesTemplateFilter
+    );
+  };
+  const hasLogFilters = !!(messagesSearch || messagesStatus || messagesTemplateFilter);
+
+  const exportLogs = async () => {
+    if (!selectedAccount) return;
+    setExportingXlsx(true);
+    try {
+      const res = await axios.get(
+        `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=messages&period=30days`,
+        { responseType: "blob" }
+      );
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `mensagens_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      showAlert("Erro ao exportar a planilha.", "error");
+    } finally {
+      setExportingXlsx(false);
+    }
+  };
+
+  const selectedTemplate = templates.find((t) => t.name === selectedTemplateName);
+  const mediaHeader = selectedTemplate?.components?.find((c: any) => c.type === "HEADER");
+  const needsMedia = !!mediaHeader && ["IMAGE", "VIDEO", "DOCUMENT"].includes(mediaHeader.format);
+
+  const costPreview = (() => {
+    if (!selectedTemplateName) return null;
+    const { brl: unitRate, category } = getTemplateUnitCost(selectedTemplate?.category);
+    const selList = recipientType === "list" ? contactLists.find((l) => l.id === selectedListId) : null;
+    const count = recipientType === "single" ? 1 : (selList?.contactCount ?? selList?._count?.contacts ?? 0);
+    return { unitRate, category, count, total: count * unitRate };
+  })();
+
   return (
-    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "30px" }}>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
       <div>
-        <h1 className="page-heading">Disparador & Logs</h1>
-        <p className="page-subheading">Realize disparos de teste ou acompanhe a entrega das automações do n8n</p>
+        <h1 className="page-heading">Disparos &amp; Logs</h1>
+        <p className="page-subheading">Envie um template para um número ou uma lista e acompanhe a entrega de cada mensagem.</p>
       </div>
 
-      <div className="messages-grid">
-        {/* Testador Manual de Disparo */}
-        <form onSubmit={handleSendMessage} className="glass" style={{ padding: "24px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "18px" }}>
-          <h3 style={{ fontSize: "1.15rem", fontWeight: "600" }}>Disparo de Mensagens</h3>
+      {/* ── Novo disparo: formulário + prévia lado a lado ── */}
+      <section className="glass panel send-panel" aria-labelledby="send-title">
+        <div className="panel__header">
+          <h2 id="send-title" className="panel__title">Novo disparo</h2>
+          {!canDispatch && <span className="panel__hint">Seu cargo (Visualizador) permite apenas acompanhar os disparos.</span>}
+        </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Template</label>
-            <select
-              value={selectedTemplateName}
-              onChange={(e) => handleTemplateSelectionChange(e.target.value)}
-              className="field-input"
-              style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
-            >
-              <option value="">Selecione um template</option>
-              {templates
-                .filter((t) => t.status === "APPROVED")
-                .map((t) => (
-                  <option key={t.id} value={t.name}>
-                    {t.name}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Destinatário</label>
-            <div style={{ display: "flex", gap: "8px" }}>
-              <button
-                type="button"
-                onClick={() => setRecipientType("single")}
-                className={`btn ${recipientType === "single" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1, padding: "8px", fontSize: "0.85rem" }}
-              >
-                Número Único
-              </button>
-              <button
-                type="button"
-                onClick={() => setRecipientType("list")}
-                className={`btn ${recipientType === "list" ? "btn-primary" : "btn-secondary"}`}
-                style={{ flex: 1, padding: "8px", fontSize: "0.85rem" }}
-              >
-                Lista de Contatos
-              </button>
-            </div>
-          </div>
-
-          {recipientType === "single" ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Celular Destinatário</label>
-              <input
-                type="text"
-                placeholder="DDI + DDD + Número (ex: 5511999999999)"
-                value={recipientNumber}
-                onChange={(e) => setRecipientNumber(e.target.value)}
-                className="field-input"
-                style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
-              />
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {/* Tag filter for lists */}
-              {(() => {
-                const allTags = Array.from(new Set(contactLists.flatMap((l) => l.tags || []))) as string[];
-                return allTags.length > 0 ? (
-                  <select
-                    value={listTagFilter}
-                    onChange={(e) => { setListTagFilter(e.target.value); setSelectedListId(""); }}
-                    className="field-input"
-                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: "0.8rem" }}
-                  >
-                    <option value="">🏷️ Filtrar por tag (todas)</option>
-                    {allTags.map((tag) => (
-                      <option key={tag} value={tag}>#{tag}</option>
-                    ))}
-                  </select>
-                ) : null;
-              })()}
-              <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>Selecionar Lista</label>
-              <select
-                value={selectedListId}
-                onChange={(e) => setSelectedListId(e.target.value)}
-                className="field-input"
-                style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
-              >
-                <option value="">Selecione uma lista</option>
-                {contactLists
-                  .filter((list) => !listTagFilter || (list.tags && list.tags.includes(listTagFilter)))
-                  .map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} ({list._count?.contacts || 0} contatos)
-                    </option>
+        <div className="send-panel__body">
+          <form onSubmit={handleSendMessage} className="send-form">
+            <div className="send-form__row">
+              <div className="field">
+                <label htmlFor="send-template" className="field-label">Template</label>
+                <select id="send-template" value={selectedTemplateName} onChange={(e) => handleTemplateSelectionChange(e.target.value)} className="field-input">
+                  <option value="">Selecione um template aprovado</option>
+                  {templates.filter((t) => t.status === "APPROVED").map((t) => (
+                    <option key={t.id} value={t.name}>{t.name}</option>
                   ))}
-              </select>
+                </select>
+              </div>
+
+              <div className="field">
+                <span id="send-recipient-type" className="field-label">Enviar para</span>
+                <SegmentedControl
+                  ariaLabel="Tipo de destinatário"
+                  value={recipientType}
+                  onChange={setRecipientType}
+                  options={[
+                    { value: "single", label: "Um número" },
+                    { value: "list", label: "Lista de contatos" },
+                  ]}
+                />
+              </div>
             </div>
-          )}
 
-          {/* Media Header URL Input if selected template has media header */}
-          {selectedTemplateName && (() => {
-            const tmpl = templates.find(t => t.name === selectedTemplateName);
-            const headerComp = tmpl?.components?.find((c: any) => c.type === "HEADER");
-            const hasMedia = headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format);
-            if (!hasMedia) return null;
+            {recipientType === "single" ? (
+              <div className="field">
+                <label htmlFor="send-number" className="field-label">Celular com DDI e DDD</label>
+                <input
+                  id="send-number"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="Ex.: 5511999999999"
+                  value={recipientNumber}
+                  onChange={(e) => setRecipientNumber(e.target.value)}
+                  className="field-input"
+                />
+              </div>
+            ) : (
+              <div className="send-form__row">
+                <div className="field">
+                  <label htmlFor="send-list" className="field-label">Lista</label>
+                  <select id="send-list" value={selectedListId} onChange={(e) => setSelectedListId(e.target.value)} className="field-input">
+                    <option value="">Selecione uma lista</option>
+                    {contactLists
+                      .filter((list) => !listTagFilter || (list.tags && list.tags.includes(listTagFilter)))
+                      .map((list) => (
+                        <option key={list.id} value={list.id}>
+                          {list.name} ({list._count?.contacts || 0} contatos)
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                {(() => {
+                  const allTags = Array.from(new Set(contactLists.flatMap((l) => l.tags || []))) as string[];
+                  return allTags.length > 0 ? (
+                    <div className="field">
+                      <label htmlFor="send-list-tag" className="field-label">Filtrar listas por etiqueta</label>
+                      <select id="send-list-tag" value={listTagFilter} onChange={(e) => { setListTagFilter(e.target.value); setSelectedListId(""); }} className="field-input">
+                        <option value="">Todas as etiquetas</option>
+                        {allTags.map((tag) => (
+                          <option key={tag} value={tag}>#{tag}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
 
-            return (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "0.8rem", color: "var(--text-secondary)", fontWeight: "600" }}>
-                  URL da Mídia ({headerComp.format})
-                </label>
-                <div style={{ display: "flex", gap: "8px" }}>
+            {needsMedia && (
+              <div className="field">
+                <label htmlFor="send-media" className="field-label">Mídia do cabeçalho ({mediaHeader.format === "IMAGE" ? "imagem" : mediaHeader.format === "VIDEO" ? "vídeo" : "documento"})</label>
+                <div style={{ display: "flex", gap: "var(--space-2)" }}>
                   <input
-                    type="text"
-                    placeholder={`https://site.com/media.${headerComp.format === "IMAGE" ? "jpg" : headerComp.format === "VIDEO" ? "mp4" : "pdf"}`}
+                    id="send-media"
+                    type="url"
+                    placeholder={`https://site.com/arquivo.${mediaHeader.format === "IMAGE" ? "jpg" : mediaHeader.format === "VIDEO" ? "mp4" : "pdf"}`}
                     value={messageMediaUrl}
                     onChange={(e) => setMessageMediaUrl(e.target.value)}
                     className="field-input"
-                    style={{ flex: 1, padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
+                    style={{ flex: 1 }}
                   />
                   <button
                     type="button"
@@ -498,126 +531,106 @@ export default function MessagesPage() {
                       setShowMediaSelectModal(true);
                     }}
                     className="btn btn-secondary"
-                    style={{ padding: "10px 14px", fontSize: "0.85rem" }}
                   >
-                    🖼️ Galeria
+                    Galeria
                   </button>
                 </div>
               </div>
-            );
-          })()}
+            )}
 
-          {/* Dynamic Variables Inputs / Mapper */}
-          {templateVariables.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase" }}>Variáveis do Template</label>
+            {templateVariables.length > 0 && (
+              <fieldset className="send-form__vars">
+                <legend className="field-label">Variáveis do template</legend>
                 {recipientType === "list" && (
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", lineHeight: "1.5" }}>
-                    Var 1, 2, 3 correspondem às colunas extras da lista (além de nome e telefone).
-                  </span>
+                  <p className="field-hint" style={{ margin: 0 }}>Var 1, 2 e 3 são as colunas extras da lista (além de nome e telefone).</p>
                 )}
-              </div>
-              {templateVariables.map((variable, idx) => {
-                if (recipientType === "single") {
-                  return (
-                    <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <label style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Variável {"{{" + (idx + 1) + "}}"}</label>
-                      <input
-                        type="text"
-                        placeholder={`Valor para {{${idx + 1}}}`}
-                        value={variable}
-                        onChange={(e) => handleVariableChange(idx, e.target.value)}
-                        className="field-input"
-                        style={{ padding: "8px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
-                      />
-                    </div>
-                  );
-                } else {
-                  const mapping = variableMappings[idx] || "STATIC_VALUE";
-                  const isStatic = mapping.startsWith("STATIC:") || mapping === "STATIC_VALUE";
-                  const staticVal = mapping.startsWith("STATIC:") ? mapping.replace("STATIC:", "") : "";
-
-                  return (
-                    <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "6px", background: "rgba(255,255,255,0.02)", padding: "10px", borderRadius: "var(--radius-md)", border: "1px solid rgba(255,255,255,0.03)" }}>
-                      <label style={{ fontSize: "0.8rem", color: "var(--text-muted)", fontWeight: "600" }}>Mapeamento de {"{{" + (idx + 1) + "}}"}</label>
-                      
-                      <select
-                        value={isStatic ? "STATIC_VALUE" : mapping}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const updated = [...variableMappings];
-                          if (val === "STATIC_VALUE") {
-                            updated[idx] = "STATIC:";
-                          } else {
-                            updated[idx] = val;
-                          }
-                          setVariableMappings(updated);
-                        }}
-                        className="field-input"
-                        style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}
-                      >
-                        <option value="STATIC_VALUE">Valor Fixo (Estático)</option>
-                        <option value="CONTACT_NAME">Nome do Contato</option>
-                        <option value="CONTACT_PHONE">Telefone do Contato</option>
-                        <option value="CONTACT_VAR_1">Variável da Lista 1 (var1)</option>
-                        <option value="CONTACT_VAR_2">Variável da Lista 2 (var2)</option>
-                        <option value="CONTACT_VAR_3">Variável da Lista 3 (var3)</option>
-                      </select>
-
-                      {isStatic && (
-                        <input
-                          type="text"
-                          placeholder={`Digite o valor fixo para {{${idx + 1}}}`}
-                          value={staticVal}
+                <div className="send-form__vars-grid">
+                  {templateVariables.map((variable, idx) => {
+                    if (recipientType === "single") {
+                      return (
+                        <div key={idx} className="field">
+                          <label htmlFor={`send-var-${idx}`} className="send-form__var-label">{"{{" + (idx + 1) + "}}"}</label>
+                          <input
+                            id={`send-var-${idx}`}
+                            type="text"
+                            placeholder={`Valor para {{${idx + 1}}}`}
+                            value={variable}
+                            onChange={(e) => handleVariableChange(idx, e.target.value)}
+                            className="field-input"
+                          />
+                        </div>
+                      );
+                    }
+                    const mapping = variableMappings[idx] || "STATIC_VALUE";
+                    const isStatic = mapping.startsWith("STATIC:") || mapping === "STATIC_VALUE";
+                    const staticVal = mapping.startsWith("STATIC:") ? mapping.replace("STATIC:", "") : "";
+                    return (
+                      <div key={idx} className="field">
+                        <label htmlFor={`send-map-${idx}`} className="send-form__var-label">{"{{" + (idx + 1) + "}}"}</label>
+                        <select
+                          id={`send-map-${idx}`}
+                          value={isStatic ? "STATIC_VALUE" : mapping}
                           onChange={(e) => {
+                            const val = e.target.value;
                             const updated = [...variableMappings];
-                            updated[idx] = `STATIC:${e.target.value}`;
+                            updated[idx] = val === "STATIC_VALUE" ? "STATIC:" : val;
                             setVariableMappings(updated);
                           }}
                           className="field-input"
-                          style={{ padding: "6px 10px", borderRadius: "var(--radius-sm)", fontSize: "0.8rem" }}
-                        />
-                      )}
-                    </div>
-                  );
-                }
-              })}
-            </div>
-          )}
+                        >
+                          <option value="STATIC_VALUE">Valor fixo</option>
+                          <option value="CONTACT_NAME">Nome do contato</option>
+                          <option value="CONTACT_PHONE">Telefone do contato</option>
+                          <option value="CONTACT_VAR_1">Coluna var1 da lista</option>
+                          <option value="CONTACT_VAR_2">Coluna var2 da lista</option>
+                          <option value="CONTACT_VAR_3">Coluna var3 da lista</option>
+                        </select>
+                        {isStatic && (
+                          <input
+                            type="text"
+                            aria-label={`Valor fixo para {{${idx + 1}}}`}
+                            placeholder="Digite o valor fixo"
+                            value={staticVal}
+                            onChange={(e) => {
+                              const updated = [...variableMappings];
+                              updated[idx] = `STATIC:${e.target.value}`;
+                              setVariableMappings(updated);
+                            }}
+                            className="field-input"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
 
-          {/* Agendamento */}
-          {selectedTemplateName && (
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "12px", marginTop: "5px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <input
-                  type="checkbox"
-                  id="enable-scheduling-checkbox"
-                  checked={!!scheduledAt}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      const initDate = new Date();
-                      initDate.setHours(initDate.getHours() + 1);
-                      initDate.setMinutes(0);
-                      const pad = (n: number) => String(n).padStart(2, "0");
-                      const formatted = `${initDate.getFullYear()}-${pad(initDate.getMonth() + 1)}-${pad(initDate.getDate())}T${pad(initDate.getHours())}:${pad(initDate.getMinutes())}`;
-                      setScheduledAt(formatted);
-                    } else {
-                      setScheduledAt("");
-                    }
-                  }}
-                  style={{ width: "16px", height: "16px", cursor: "pointer", accentColor: "var(--primary)" }}
-                />
-                <label htmlFor="enable-scheduling-checkbox" style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600", cursor: "pointer" }}>
-                  📅 Agendar Envio?
+            {selectedTemplateName && (
+              <div className="send-form__schedule">
+                <label htmlFor="enable-scheduling-checkbox" className="send-form__check">
+                  <input
+                    type="checkbox"
+                    id="enable-scheduling-checkbox"
+                    checked={!!scheduledAt}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        const initDate = new Date();
+                        initDate.setHours(initDate.getHours() + 1);
+                        initDate.setMinutes(0);
+                        const pad = (n: number) => String(n).padStart(2, "0");
+                        setScheduledAt(`${initDate.getFullYear()}-${pad(initDate.getMonth() + 1)}-${pad(initDate.getDate())}T${pad(initDate.getHours())}:${pad(initDate.getMinutes())}`);
+                      } else {
+                        setScheduledAt("");
+                      }
+                    }}
+                  />
+                  Agendar para depois
                 </label>
-              </div>
-
-              {scheduledAt && (
-                <div className="fade-in" style={{ display: "flex", flexDirection: "column", gap: "4px", marginTop: "4px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Data e Hora de Envio</label>
+                {scheduledAt && (
                   <input
                     type="datetime-local"
+                    aria-label="Data e hora do envio"
                     value={scheduledAt}
                     onChange={(e) => setScheduledAt(e.target.value)}
                     min={(() => {
@@ -626,436 +639,302 @@ export default function MessagesPage() {
                       return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
                     })()}
                     className="field-input"
-                    style={{ padding: "10px", borderRadius: "var(--radius-md)", fontSize: "0.9rem" }}
+                    style={{ width: "auto" }}
                     required
                   />
+                )}
+              </div>
+            )}
+
+            {/* Rodapé: custo estimado + ação */}
+            <div className="send-form__footer">
+              {costPreview ? (
+                <div className="send-cost" aria-live="polite">
+                  <span className="send-cost__label">Custo estimado na Meta</span>
+                  <span className="send-cost__value">{formatBRL(costPreview.total)}</span>
+                  <span className="send-cost__detail">
+                    {costPreview.count.toLocaleString("pt-BR")} {costPreview.count === 1 ? "destinatário" : "destinatários"} × {formatBRL(costPreview.unitRate)} · {formatTemplateCategory(costPreview.category)} · falhas não são cobradas
+                  </span>
                 </div>
+              ) : (
+                <span className="send-cost__detail">Escolha um template para ver a prévia e o custo.</span>
               )}
+              <button type="submit" disabled={loading || !selectedAccount || !canDispatch} className="btn btn-primary send-form__submit">
+                {loading
+                  ? (scheduledAt ? "Agendando..." : "Enviando...")
+                  : scheduledAt
+                  ? "Agendar disparo"
+                  : recipientType === "single" ? "Enviar mensagem" : "Iniciar disparo em lote"}
+              </button>
             </div>
-          )}
+          </form>
 
-          {/* Prévia de Custo Meta */}
-          {selectedTemplateName && (
-            (() => {
-              const tmpl = templates.find((t) => t.name === selectedTemplateName);
-              const { brl: unitRate, category } = getTemplateUnitCost(tmpl?.category);
-              const selList = recipientType === "list" ? contactLists.find((l) => l.id === selectedListId) : null;
-              const count = recipientType === "single" ? 1 : (selList?.contactCount ?? selList?._count?.contacts ?? 0);
-              const totalCost = count * unitRate;
-
+          {/* Prévia */}
+          <aside className="send-preview" aria-label="Prévia da mensagem">
+            {selectedTemplate ? (() => {
+              const componentsList = Array.isArray(selectedTemplate.components) ? selectedTemplate.components : [];
+              const bodyComp = componentsList.find((c: any) => c.type === "BODY");
+              const headerComp = componentsList.find((c: any) => c.type === "HEADER");
+              const footerComp = componentsList.find((c: any) => c.type === "FOOTER");
+              const buttonsComp = componentsList.find((c: any) => c.type === "BUTTONS");
+              const resolvedPreviewVars = recipientType === "list"
+                ? templateVariables.map((_, idx) => {
+                    const mapping = variableMappings[idx] || "STATIC_VALUE";
+                    if (mapping.startsWith("STATIC:")) return mapping.replace("STATIC:", "");
+                    if (mapping === "CONTACT_NAME") return "[Nome]";
+                    if (mapping === "CONTACT_PHONE") return "[Telefone]";
+                    if (mapping === "CONTACT_VAR_1") return "[Var 1]";
+                    if (mapping === "CONTACT_VAR_2") return "[Var 2]";
+                    if (mapping === "CONTACT_VAR_3") return "[Var 3]";
+                    return `{{${idx + 1}}}`;
+                  })
+                : templateVariables;
               return (
-                <div
-                  style={{
-                    background: "rgba(37, 211, 102, 0.08)",
-                    border: "1px solid rgba(37, 211, 102, 0.25)",
-                    borderRadius: "var(--radius-md)",
-                    padding: "12px 14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginTop: "8px",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: "600" }}>
-                      💰 Prévia de Custo Meta API ({category})
-                    </div>
-                    <div style={{ fontSize: "1.15rem", fontWeight: "800", color: "var(--primary)" }}>
-                      ~{formatBRL(totalCost)}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: "right", fontSize: "0.72rem", color: "var(--text-secondary)" }}>
-                    <div>{count} destinatário{count !== 1 ? "s" : ""} × {formatBRL(unitRate)}</div>
-                    <div style={{ color: "var(--text-muted)", marginTop: "2px" }}>Falhas não são cobradas</div>
-                  </div>
-                </div>
+                <PhoneSimulator
+                  headerFormat={headerComp ? headerComp.format : "NONE"}
+                  headerText={headerComp ? headerComp.text : ""}
+                  mediaUrl={messageMediaUrl}
+                  bodyText={bodyComp ? bodyComp.text : ""}
+                  variables={resolvedPreviewVars}
+                  footerText={footerComp ? footerComp.text : ""}
+                  buttons={buttonsComp ? buttonsComp.buttons : []}
+                />
               );
-            })()
-          )}
+            })() : (
+              <div className="send-preview__empty">
+                <span aria-hidden="true">📱</span>
+                A prévia da mensagem aparece aqui quando você escolhe um template.
+              </div>
+            )}
+          </aside>
+        </div>
+      </section>
 
-          {!canDispatch && (
-            <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
-              Seu cargo (Visualizador) permite apenas acompanhar os disparos.
-            </span>
-          )}
-          <button type="submit" disabled={loading || !selectedAccount || !canDispatch} className="btn btn-primary" style={{ width: "100%", marginTop: "10px" }}>
-            {loading ? (scheduledAt ? "Agendando..." : "Enviando...") : scheduledAt ? "Agendar Disparo 📅" : (recipientType === "single" ? "Disparar WhatsApp" : "Iniciar Disparo em Lote")}
-          </button>
-        </form>
-
-        {/* Simulator Preview Column */}
-        <div className="glass" style={{ padding: "20px 24px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Pré-visualização</span>
-          
-          {selectedTemplateName ? (() => {
-            const tmpl = templates.find(t => t.name === selectedTemplateName);
-            if (!tmpl) return null;
-            const componentsList = Array.isArray(tmpl.components) ? tmpl.components : [];
-            const bodyComp = componentsList.find((c: any) => c.type === "BODY");
-            const headerComp = componentsList.find((c: any) => c.type === "HEADER");
-            const footerComp = componentsList.find((c: any) => c.type === "FOOTER");
-            const buttonsComp = componentsList.find((c: any) => c.type === "BUTTONS");
-
-            const resolvedPreviewVars = recipientType === "list"
-              ? templateVariables.map((_, idx) => {
-                  const mapping = variableMappings[idx] || "STATIC_VALUE";
-                  if (mapping.startsWith("STATIC:")) {
-                    return mapping.replace("STATIC:", "");
-                  }
-                  if (mapping === "CONTACT_NAME") return "[Nome]";
-                  if (mapping === "CONTACT_PHONE") return "[Telefone]";
-                  if (mapping === "CONTACT_VAR_1") return "[Var 1]";
-                  if (mapping === "CONTACT_VAR_2") return "[Var 2]";
-                  if (mapping === "CONTACT_VAR_3") return "[Var 3]";
-                  return `{{${idx + 1}}}`;
-                })
-              : templateVariables;
-
-            return (
-              <PhoneSimulator
-                headerFormat={headerComp ? headerComp.format : "NONE"}
-                headerText={headerComp ? headerComp.text : ""}
-                mediaUrl={messageMediaUrl}
-                bodyText={bodyComp ? bodyComp.text : ""}
-                variables={resolvedPreviewVars}
-                footerText={footerComp ? footerComp.text : ""}
-                buttons={buttonsComp ? buttonsComp.buttons : []}
-              />
-            );
-          })() : (
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", flex: 1, minHeight: "300px", color: "var(--text-muted)", fontSize: "0.9rem", textAlign: "center", padding: "0 10px" }}>
-              <span style={{ fontSize: "2.5rem", marginBottom: "10px" }}>📱</span>
-              Selecione um template para ver a simulação da mensagem.
-            </div>
-          )}
+      {/* ── Histórico ── */}
+      <section className="glass panel" aria-labelledby="logs-title">
+        <div className="panel__header">
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexWrap: "wrap" }}>
+            <h2 id="logs-title" className="panel__title">Histórico</h2>
+            <SegmentedControl
+              ariaLabel="Tipo de histórico"
+              value={logsView}
+              onChange={(v) => {
+                setLogsView(v);
+                if (v === "scheduled" && selectedAccount) fetchScheduledMessages(selectedAccount.id);
+              }}
+              options={[
+                { value: "recent", label: "Enviadas" },
+                { value: "scheduled", label: "Agendadas" },
+              ]}
+            />
+          </div>
+          <div style={{ display: "flex", gap: "var(--space-2)", alignItems: "center" }}>
+            {logsView === "recent" && (
+              <button type="button" disabled={exportingXlsx || !selectedAccount} onClick={exportLogs} className="btn btn-secondary btn-sm">
+                {exportingXlsx ? "Exportando..." : "Exportar planilha"}
+              </button>
+            )}
+            <button
+              type="button"
+              className="icon-action"
+              aria-label={logsView === "recent" ? "Atualizar histórico" : "Atualizar agendamentos"}
+              title="Atualizar"
+              onClick={() => {
+                if (!selectedAccount) return;
+                if (logsView === "recent") fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
+                else fetchScheduledMessages(selectedAccount.id);
+              }}
+            >
+              <RefreshCw size={15} aria-hidden="true" />
+            </button>
+          </div>
         </div>
 
-        {/* Logs de Mensagens */}
-        <div className="glass" style={{ padding: "30px", borderRadius: "var(--radius-xl)", display: "flex", flexDirection: "column", gap: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "15px" }}>
-            <div style={{ display: "flex", gap: "6px", background: "rgba(255,255,255,0.03)", padding: "4px", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
-              <button
-                type="button"
-                onClick={() => setLogsView("recent")}
-                className={`btn ${logsView === "recent" ? "btn-primary" : "btn-secondary"}`}
-                style={{ padding: "6px 14px", fontSize: "0.8rem", border: "none" }}
+        {logsView === "recent" ? (
+          <>
+            <div className="logs-filters" role="search" aria-label="Filtrar histórico">
+              <div className="field-with-icon logs-filters__search">
+                <Search size={15} aria-hidden="true" />
+                <label htmlFor="logs-search" className="sr-only">Buscar por número ou template</label>
+                <input
+                  id="logs-search"
+                  type="search"
+                  placeholder="Buscar por número ou template (Enter)"
+                  value={messagesSearch}
+                  onChange={(e) => setMessagesSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyLogFilters(); }}
+                  className="field-input"
+                />
+              </div>
+              <label htmlFor="logs-status" className="sr-only">Status</label>
+              <select
+                id="logs-status"
+                value={messagesStatus}
+                onChange={(e) => { setMessagesStatus(e.target.value); applyLogFilters({ status: e.target.value }); }}
+                className="field-input logs-filters__select"
               >
-                📋 Histórico Recente
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setLogsView("scheduled");
-                  if (selectedAccount) fetchScheduledMessages(selectedAccount.id);
-                }}
-                className={`btn ${logsView === "scheduled" ? "btn-primary" : "btn-secondary"}`}
-                style={{ padding: "6px 14px", fontSize: "0.8rem", border: "none" }}
+                <option value="">Todos os status</option>
+                <option value="PENDING">Pendente</option>
+                <option value="SENT">Enviada</option>
+                <option value="DELIVERED">Entregue</option>
+                <option value="READ">Lida</option>
+                <option value="FAILED">Falhou</option>
+              </select>
+              <label htmlFor="logs-template" className="sr-only">Template</label>
+              <select
+                id="logs-template"
+                value={messagesTemplateFilter}
+                onChange={(e) => { setMessagesTemplateFilter(e.target.value); applyLogFilters({ template: e.target.value }); }}
+                className="field-input logs-filters__select"
               >
-                📅 Agendamentos Futuros
-              </button>
-            </div>
-            <div style={{ display: "flex", gap: "8px" }}>
-              {logsView === "recent" && (
+                <option value="">Todos os templates</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.name}>{t.name}</option>
+                ))}
+              </select>
+              {hasLogFilters && (
                 <button
                   type="button"
-                  disabled={exportingXlsx || !selectedAccount}
-                  onClick={async () => {
-                    if (!selectedAccount) return;
-                    setExportingXlsx(true);
-                    try {
-                      const res = await axios.get(
-                        `${API_BASE_URL}/accounts/${selectedAccount.id}/reports/export?type=messages&period=30days`,
-                        { responseType: "blob" }
-                      );
-                      const url = URL.createObjectURL(res.data);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `mensagens_${new Date().toISOString().slice(0, 10)}.xlsx`;
-                      a.click();
-                      URL.revokeObjectURL(url);
-                    } catch {
-                      alert("Erro ao exportar XLSX.");
-                    } finally {
-                      setExportingXlsx(false);
-                    }
+                  onClick={() => {
+                    setMessagesSearch("");
+                    setMessagesStatus("");
+                    setMessagesTemplateFilter("");
+                    applyLogFilters({ search: "", status: "", template: "" });
                   }}
-                  className="btn btn-secondary"
-                  style={{ padding: "8px 14px", fontSize: "0.8rem" }}
+                  className="btn btn-secondary btn-sm"
                 >
-                  {exportingXlsx ? "Exportando..." : "📊 Exportar XLSX"}
+                  Limpar filtros
                 </button>
               )}
-              <button
-                onClick={() => {
-                  if (selectedAccount) {
-                    if (logsView === "recent") {
-                      fetchMessages(selectedAccount.id, messagesPage, messagesSearch, messagesStatus, messagesTemplateFilter);
-                    } else {
-                      fetchScheduledMessages(selectedAccount.id);
-                    }
-                  }
-                }}
-                className="btn btn-secondary"
-                style={{ padding: "8px 14px", fontSize: "0.8rem" }}
-              >
-                🔄 {logsView === "recent" ? "Atualizar Logs" : "Atualizar Agendamentos"}
-              </button>
             </div>
-          </div>
 
-          {logsView === "recent" ? (
-            <>
-              {/* Filtros e Busca */}
-              <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "flex-end", background: "rgba(255,255,255,0.02)", padding: "16px", borderRadius: "var(--radius-lg)", border: "1px solid rgba(255,255,255,0.04)" }}>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px", flex: 1, minWidth: "180px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "600" }}>Buscar por Contato / Template</label>
-                  <input
-                    type="text"
-                    placeholder="Pesquisar..."
-                    value={messagesSearch}
-                    onChange={(e) => setMessagesSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && selectedAccount) {
-                        setMessagesPage(1);
-                        fetchMessages(selectedAccount.id, 1, messagesSearch, messagesStatus, messagesTemplateFilter);
-                      }
-                    }}
-                    className="field-input"
-                    style={{ padding: "8px 12px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
-                  />
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "130px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "600" }}>Filtrar Status</label>
-                  <select
-                    value={messagesStatus}
-                    onChange={(e) => setMessagesStatus(e.target.value)}
-                    className="field-input"
-                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
-                  >
-                    <option value="">Todos</option>
-                    <option value="PENDING">Pendente (Enviando)</option>
-                    <option value="SENT">Enviada</option>
-                    <option value="DELIVERED">Entregue</option>
-                    <option value="READ">Lida</option>
-                    <option value="FAILED">Falhou / Erro</option>
-                  </select>
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "170px" }}>
-                  <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)", fontWeight: "600" }}>Filtrar Template</label>
-                  <select
-                    value={messagesTemplateFilter}
-                    onChange={(e) => setMessagesTemplateFilter(e.target.value)}
-                    className="field-input"
-                    style={{ padding: "8px 10px", borderRadius: "var(--radius-md)", fontSize: "0.85rem" }}
-                  >
-                    <option value="">Todos</option>
-                    {templates.map(t => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <button
-                    onClick={() => {
-                      if (selectedAccount) {
-                        setMessagesPage(1);
-                        fetchMessages(selectedAccount.id, 1, messagesSearch, messagesStatus, messagesTemplateFilter);
-                      }
-                    }}
-                    className="btn btn-primary"
-                    style={{ padding: "8px 14px", fontSize: "0.85rem" }}
-                  >
-                    🔍 Filtrar
-                  </button>
-                  <button
-                    onClick={() => {
-                      setMessagesSearch("");
-                      setMessagesStatus("");
-                      setMessagesTemplateFilter("");
-                      setMessagesPage(1);
-                      if (selectedAccount) {
-                        fetchMessages(selectedAccount.id, 1, "", "", "");
-                      }
-                    }}
-                    className="btn btn-secondary"
-                    style={{ padding: "8px 12px", fontSize: "0.85rem" }}
-                  >
-                    Limpar
-                  </button>
-                </div>
-              </div>
-
-              {messageLogs.length === 0 ? (
-                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhuma mensagem enviada por esta conta.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                  <div className="table-scroll-container">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Destinatário</th>
-                          <th>Template</th>
-                          <th>Data/Hora</th>
-                          <th>Status</th>
-                          <th>Detalhes</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {messageLogs.map((log) => (
-                          <tr key={log.id}>
-                            <td style={{ fontWeight: "500" }}>{log.to}</td>
-                            <td>
-                              {log.templateName || (
-                                <span
-                                  title={log.body || "Mensagem de texto livre enviada pelo chat"}
-                                  style={{ color: "var(--text-muted)", fontSize: "0.8rem", whiteSpace: "nowrap" }}
-                                >
-                                  💬 Chat{log.variables?.sentBy === "SDR" ? " (bot)" : ""}
-                                </span>
-                              )}
-                            </td>
-                            <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
-                              {new Date(log.createdAt).toLocaleString()}
-                            </td>
-                            <td>
-                              <span className={`badge badge-${log.status.toLowerCase()}`}>
-                                {formatMessageStatus(log.status)}
-                              </span>
-                            </td>
-                            <td style={{ color: "var(--text-muted)", fontSize: "0.8rem", maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                              {log.errorMessage ? (
-                                <span style={{ color: "var(--error)" }} title={log.errorMessage}>
-                                  ⚠️ {log.errorMessage}
-                                </span>
-                              ) : (
-                                <span title={log.wamid || ""}>{log.wamid ? `${log.wamid.slice(0, 15)}...` : "-"}</span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Paginação */}
-                  {(() => {
-                    const totalPages = Math.max(1, Math.ceil(totalMessages / messagesLimit));
-                    const goTo = (p: number) => {
-                      setMessagesPage(p);
-                      if (selectedAccount) fetchMessages(selectedAccount.id, p, messagesSearch, messagesStatus, messagesTemplateFilter);
-                    };
-
-                    const pageNumbers: (number | "...")[] = [];
-                    for (let p = 1; p <= totalPages; p++) {
-                      if (p === 1 || p === totalPages || Math.abs(p - messagesPage) <= 1) {
-                        pageNumbers.push(p);
-                      } else if (pageNumbers[pageNumbers.length - 1] !== "...") {
-                        pageNumbers.push("...");
-                      }
-                    }
-
-                    return (
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "16px", marginTop: "10px", flexWrap: "wrap", gap: "10px" }}>
-                        <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
-                          {totalMessages === 0 ? "Nenhum registro" : `${((messagesPage - 1) * messagesLimit) + 1}–${Math.min(messagesPage * messagesLimit, totalMessages)} de ${totalMessages} disparos`}
-                        </span>
-                        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
-                          <button aria-label="Primeira página" disabled={messagesPage === 1} onClick={() => goTo(1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>«</button>
-                          <button aria-label="Página anterior" disabled={messagesPage === 1} onClick={() => goTo(messagesPage - 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>‹</button>
-                          {pageNumbers.map((p, i) =>
-                            p === "..." ? (
-                              <span key={`ellipsis-${i}`} style={{ padding: "5px 8px", color: "var(--text-muted)", fontSize: "0.82rem" }}>…</span>
-                            ) : (
-                              <button
-                                key={p}
-                                onClick={() => goTo(p as number)}
-                                className="btn"
-                                style={{
-                                  padding: "5px 10px",
-                                  fontSize: "0.82rem",
-                                  background: p === messagesPage ? "var(--primary)" : "rgba(255,255,255,0.05)",
-                                  border: p === messagesPage ? "1px solid var(--primary)" : "1px solid rgba(255,255,255,0.1)",
-                                  color: p === messagesPage ? "#fff" : "var(--text-secondary)",
-                                  fontWeight: p === messagesPage ? "700" : "400",
-                                  minWidth: "34px"
-                                }}
-                              >{p}</button>
-                            )
-                          )}
-                          <button aria-label="Próxima página" disabled={messagesPage >= totalPages} onClick={() => goTo(messagesPage + 1)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>›</button>
-                          <button aria-label="Última página" disabled={messagesPage >= totalPages} onClick={() => goTo(totalPages)} className="btn btn-secondary" style={{ padding: "5px 10px", fontSize: "0.78rem" }}>»</button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {loadingScheduled ? (
-                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Carregando agendamentos futuros...</p>
-              ) : scheduledMessages.length === 0 ? (
-                <p style={{ color: "var(--text-muted)", fontSize: "0.95rem" }}>Nenhum agendamento futuro encontrado para esta conta.</p>
-              ) : (
-                <div className="table-scroll-container">
+            {messageLogs.length === 0 ? (
+              <p className="panel__empty">{hasLogFilters ? "Nenhuma mensagem com esses filtros." : "Nenhuma mensagem enviada por esta conta."}</p>
+            ) : (
+              <>
+                <div className="table-scroll-container" tabIndex={0} role="region" aria-label="Mensagens enviadas">
                   <table className="data-table">
                     <thead>
                       <tr>
-                        <th>Destinatário</th>
-                        <th>Template</th>
-                        <th>Data/Hora de Envio</th>
-                        <th>Status</th>
-                        <th style={{ textAlign: "right" }}>Ações</th>
+                        <th scope="col">Destinatário</th>
+                        <th scope="col">Template</th>
+                        <th scope="col">Data e hora</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Erro</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {scheduledMessages.map((msg) => (
-                        <tr key={msg.id}>
-                          <td style={{ fontWeight: "500" }}>{msg.to}</td>
-                          <td>{msg.templateName}</td>
-                          <td style={{ color: "var(--text-secondary)", fontSize: "0.8rem" }}>
-                            {new Date(msg.scheduledAt).toLocaleString()}
-                          </td>
+                      {messageLogs.map((log) => (
+                        <tr key={log.id} title={log.wamid ? `ID da mensagem na Meta: ${log.wamid}` : undefined}>
+                          <td style={{ fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatPhone(log.to)}</td>
                           <td>
-                            <span className="badge badge-pending">PENDING</span>
+                            {log.templateName || (
+                              <span className="logs-chat-tag" title={log.body || "Mensagem de texto livre enviada pelo chat"}>
+                                Resposta no chat{log.variables?.sentBy === "SDR" ? " (bot)" : ""}
+                              </span>
+                            )}
                           </td>
-                          <td style={{ textAlign: "right" }}>
-                            {canDispatch && <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const date = new Date(msg.scheduledAt);
-                                  const pad = (n: number) => String(n).padStart(2, "0");
-                                  const formatted = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-                                  setRescheduleDate(formatted);
-                                  setShowRescheduleModal(msg.id);
-                                }}
-                                className="btn btn-secondary"
-                                style={{ padding: "6px 12px", fontSize: "0.78rem", background: "rgba(59, 130, 246, 0.1)", border: "1px solid rgba(59, 130, 246, 0.2)", color: "#3b82f6", cursor: "pointer" }}
-                              >
-                                📅 Reagendar
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleCancelScheduled(msg.id)}
-                                className="btn btn-secondary"
-                                style={{ padding: "6px 12px", fontSize: "0.78rem", background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.2)", color: "var(--error)", cursor: "pointer" }}
-                              >
-                                🗑️ Cancelar
-                              </button>
-                            </div>}
+                          <td style={{ color: "var(--text-secondary)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatDateTime(log.createdAt)}</td>
+                          <td>
+                            <span className={`badge badge-${log.status.toLowerCase()}`}>{formatMessageStatus(log.status)}</span>
+                          </td>
+                          <td className="logs-error">
+                            {log.errorMessage ? <span title={log.errorMessage}>{log.errorMessage}</span> : <span aria-label="Sem erro">—</span>}
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
+
+                {(() => {
+                  const totalPages = Math.max(1, Math.ceil(totalMessages / messagesLimit));
+                  const goTo = (p: number) => {
+                    setMessagesPage(p);
+                    if (selectedAccount) fetchMessages(selectedAccount.id, p, messagesSearch, messagesStatus, messagesTemplateFilter);
+                  };
+                  const pageNumbers: (number | "...")[] = [];
+                  for (let p = 1; p <= totalPages; p++) {
+                    if (p === 1 || p === totalPages || Math.abs(p - messagesPage) <= 1) pageNumbers.push(p);
+                    else if (pageNumbers[pageNumbers.length - 1] !== "...") pageNumbers.push("...");
+                  }
+                  return (
+                    <nav className="pager" aria-label="Paginação do histórico">
+                      <span className="pager__info">
+                        {totalMessages === 0 ? "Nenhum registro" : `${((messagesPage - 1) * messagesLimit) + 1}–${Math.min(messagesPage * messagesLimit, totalMessages)} de ${totalMessages.toLocaleString("pt-BR")}`}
+                      </span>
+                      <div className="pager__buttons">
+                        <button aria-label="Página anterior" disabled={messagesPage === 1} onClick={() => goTo(messagesPage - 1)} className="pager__btn">‹</button>
+                        {pageNumbers.map((p, i) =>
+                          p === "..." ? (
+                            <span key={`e-${i}`} className="pager__ellipsis" aria-hidden="true">…</span>
+                          ) : (
+                            <button
+                              key={p}
+                              onClick={() => goTo(p as number)}
+                              className={`pager__btn${p === messagesPage ? " is-active" : ""}`}
+                              aria-current={p === messagesPage ? "page" : undefined}
+                              aria-label={`Página ${p}`}
+                            >{p}</button>
+                          )
+                        )}
+                        <button aria-label="Próxima página" disabled={messagesPage >= totalPages} onClick={() => goTo(messagesPage + 1)} className="pager__btn">›</button>
+                      </div>
+                    </nav>
+                  );
+                })()}
+              </>
+            )}
+          </>
+        ) : loadingScheduled ? (
+          <p className="panel__empty">Carregando agendamentos...</p>
+        ) : scheduledMessages.length === 0 ? (
+          <p className="panel__empty">Nenhum disparo agendado.</p>
+        ) : (
+          <div className="table-scroll-container" tabIndex={0} role="region" aria-label="Disparos agendados">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th scope="col">Destinatário</th>
+                  <th scope="col">Template</th>
+                  <th scope="col">Envio previsto</th>
+                  {canDispatch && <th scope="col" style={{ textAlign: "right" }}>Ações</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {scheduledMessages.map((msg) => (
+                  <tr key={msg.id}>
+                    <td style={{ fontWeight: 600, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatPhone(msg.to)}</td>
+                    <td>{msg.templateName}</td>
+                    <td style={{ color: "var(--text-secondary)", whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums" }}>{formatDateTime(msg.scheduledAt)}</td>
+                    {canDispatch && (
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "inline-flex", gap: "var(--space-1-5)" }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const date = new Date(msg.scheduledAt);
+                              const pad = (n: number) => String(n).padStart(2, "0");
+                              setRescheduleDate(`${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`);
+                              setShowRescheduleModal(msg.id);
+                            }}
+                            className="btn btn-secondary btn-sm"
+                          >
+                            Reagendar
+                          </button>
+                          <button type="button" onClick={() => handleCancelScheduled(msg.id)} className="btn btn-danger btn-sm">
+                            Cancelar
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {/* Reschedule Modal */}
       {showRescheduleModal !== null && (

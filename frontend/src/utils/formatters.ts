@@ -156,3 +156,18 @@ export function getInitials(name: string | null | undefined, fallback = "?"): st
     .filter((ch) => /\p{L}|\p{N}/u.test(ch));
   return letters.length ? letters.slice(0, 2).join("").toUpperCase() : fallback;
 }
+
+// Telefone legível: 5584991817947 → +55 (84) 99181-7947. Números de fora do Brasil ficam como vieram.
+export function formatPhone(raw: string | null | undefined): string {
+  const d = (raw || "").replace(/\D/g, "");
+  const br = d.match(/^55(\d{2})(\d{4,5})(\d{4})$/);
+  if (br) return `+55 (${br[1]}) ${br[2]}-${br[3]}`;
+  return raw ? (d ? `+${d}` : raw) : "-";
+}
+
+// Data e hora curtas no padrão brasileiro: 09/10/2026 13:32
+export function formatDateTime(value: string | number | Date): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}

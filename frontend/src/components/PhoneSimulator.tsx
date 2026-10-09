@@ -158,13 +158,13 @@ export default function PhoneSimulator({
 
             {/* Footer Text */}
             {footerText && (
-              <div style={{ color: "#8696a0", fontSize: "0.7rem", marginTop: "6px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "4px" }}>
+              <div style={{ color: "rgba(233, 237, 239, 0.85)", fontSize: "0.7rem", marginTop: "6px", borderTop: "1px solid rgba(255,255,255,0.05)", paddingTop: "4px" }}>
                 {footerText}
               </div>
             )}
 
             {/* Time Stamp & Double Checkmarks */}
-            <div style={{ display: "flex", justifySelf: "flex-end", alignItems: "center", gap: "3px", fontSize: "0.6rem", color: "#8696a0", marginTop: "4px", float: "right" }}>
+            <div style={{ display: "flex", justifySelf: "flex-end", alignItems: "center", gap: "3px", fontSize: "0.6rem", color: "rgba(233, 237, 239, 0.85)", marginTop: "4px", float: "right" }}>
               <span>14:25</span>
               <span style={{ color: "#53bdeb" }}>✓✓</span>
             </div>
