@@ -558,6 +558,54 @@ export interface LeadCrmData {
   notes: string;
 }
 
+interface SourceList {
+  id: string;
+  name: string;
+  tags: string[];
+}
+
+/** Etiquetas de origem do lead: tags das listas em que o número está (ou o nome da lista, se ela não tiver tags). */
+function getSourceLabels(sourceLists?: SourceList[]) {
+  const out: { key: string; label: string; title: string; isList: boolean }[] = [];
+  if (!sourceLists?.length) return out;
+  const seen = new Set<string>();
+  for (const list of sourceLists) {
+    if (list.tags.length === 0) {
+      out.push({ key: `list:${list.id}`, label: list.name, title: `Lista: ${list.name}`, isList: true });
+      continue;
+    }
+    for (const tag of list.tags) {
+      const k = tag.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const names = sourceLists.filter((l) => l.tags.includes(tag)).map((l) => l.name).join(", ");
+      out.push({ key: `tag:${k}`, label: tag, title: `Lista: ${names}`, isList: false });
+    }
+  }
+  return out;
+}
+
+function SourceTags({ sourceLists, max }: { sourceLists?: SourceList[]; max?: number }) {
+  const labels = getSourceLabels(sourceLists);
+  if (labels.length === 0) return null;
+  const shown = max ? labels.slice(0, max) : labels;
+  const rest = labels.slice(shown.length);
+  return (
+    <ul className="lead-tags" aria-label="Origem do lead">
+      {shown.map((l) => (
+        <li key={l.key} className={`lead-tag${l.isList ? " lead-tag--list" : ""}`} title={l.title}>
+          {l.isList ? l.label : `#${l.label}`}
+        </li>
+      ))}
+      {rest.length > 0 && (
+        <li className="lead-tag lead-tag--more" title={rest.map((l) => l.label).join(", ")}>
+          +{rest.length}
+        </li>
+      )}
+    </ul>
+  );
+}
+
 interface Template {
   id: string;
   metaId: string | null;
@@ -1202,7 +1250,11 @@ export default function ChatPage() {
         const nameMatch = c.profileName && c.profileName.toLowerCase().includes(q);
         const phoneMatch = c.phone.includes(q) || (qDigits.length >= 3 && c.phone.includes(qDigits));
         const msgMatch = c.lastMessage && c.lastMessage.toLowerCase().includes(q);
-        return Boolean(nameMatch || phoneMatch || msgMatch);
+        const qTag = q.replace(/^#/, "");
+        const originMatch = (c.sourceLists as SourceList[] | undefined)?.some(
+          (l) => l.name.toLowerCase().includes(q) || l.tags.some((t) => t.toLowerCase().includes(qTag))
+        );
+        return Boolean(nameMatch || phoneMatch || msgMatch || originMatch);
       });
     }
 
@@ -2113,6 +2165,7 @@ export default function ChatPage() {
                               return null;
                             }
                           })()}
+                          <SourceTags sourceLists={c.sourceLists} max={2} />
                         </div>
                       </div>
                     </div>
@@ -2183,6 +2236,8 @@ export default function ChatPage() {
                           </option>
                         ))}
                       </select>
+
+                      <SourceTags sourceLists={conversations.find(c => c.phone === selectedPhone)?.sourceLists} max={3} />
 
                       {/* SLA do Lead Ativo (se estiver aguardando resposta) */}
                       {(() => {
@@ -2872,6 +2927,25 @@ export default function ChatPage() {
                 <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)", fontFamily: "monospace" }}>
                   {selectedPhone}
                 </div>
+                {(() => {
+                  const lists: SourceList[] = conversations.find(c => c.phone === selectedPhone)?.sourceLists || [];
+                  if (lists.length === 0) return null;
+                  return (
+                    <div className="lead-origin">
+                      <span className="lead-origin__label">{lists.length > 1 ? "Veio das listas" : "Veio da lista"}</span>
+                      {lists.map((l) => (
+                        <div key={l.id} className="lead-origin__item">
+                          <span className="lead-origin__name">{l.name}</span>
+                          {l.tags.length > 0 && (
+                            <ul className="lead-tags" aria-label={`Tags da lista ${l.name}`}>
+                              {l.tags.map((t) => <li key={t} className="lead-tag">#{t}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
                 <div style={{ marginTop: "var(--space-1-5)", display: "flex", gap: "var(--space-2)" }}>
                   <a
                     href={`https://wa.me/${selectedPhone}`}

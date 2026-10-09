@@ -3363,3 +3363,30 @@ body.light-theme .page-heading {
 .pager__btn.is-active { color: var(--on-primary); background: var(--primary-strong); border-color: var(--primary-strong); font-weight: 700; }
 .pager__btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .pager__ellipsis { color: var(--text-muted); padding: 0 var(--space-1); }
+
+/* ─── Etiquetas de origem do lead (tags das listas de contatos) ─── */
+.lead-tags { display: inline-flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; margin: 0; padding: 0; min-width: 0; }
+.lead-tag {
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 0 var(--space-1-5);
+  border-radius: var(--radius-full);
+  color: var(--info-text);
+  background: color-mix(in srgb, var(--info) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
+}
+.lead-tag--list, .lead-tag--more {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-primary) 6%, transparent);
+  border-color: color-mix(in srgb, var(--text-primary) 12%, transparent);
+}
+.lead-origin { display: flex; flex-direction: column; gap: var(--space-1-5); margin-top: var(--space-1-5); padding-top: var(--space-2); border-top: 1px solid var(--border-color); }
+.lead-origin__label { font-size: var(--fs-xs); font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.lead-origin__item { display: flex; flex-direction: column; gap: var(--space-1); }
+.lead-origin__name { font-size: var(--fs-sm); font-weight: 600; color: var(--text-primary); overflow-wrap: anywhere; }

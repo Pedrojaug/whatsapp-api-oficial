@@ -47,6 +47,43 @@ interface ConversationRow {
   hasDelivered: boolean;
   hasRead: boolean;
   isHandled: boolean;
+  // Listas de contatos em que o número está (origem do lead), com as tags de cada lista
+  sourceLists: { id: string; name: string; tags: string[] }[];
+}
+
+// Liga cada conversa às listas de contatos que contêm o número, para o atendente
+// saber de qual lista/disparo o lead veio.
+async function attachSourceLists(accountId: string, conversations: ConversationRow[]): Promise<void> {
+  if (conversations.length === 0) return;
+  const variants = new Set<string>();
+  for (const c of conversations) {
+    for (const v of phoneVariants(c.phone)) variants.add(v);
+  }
+
+  // Um único parâmetro de array: contas com dezenas de milhares de conversas não
+  // estouram o limite de parâmetros do PostgreSQL.
+  const rows = await prisma.$queryRaw<{ phone: string; id: string; name: string; tags: string[]; createdAt: Date }[]>`
+    SELECT DISTINCT c.phone, l.id, l.name, l.tags, l."createdAt"
+    FROM "Contact" c
+    JOIN "ContactList" l ON l.id = c."contactListId"
+    WHERE l."accountId" = ${accountId} AND c.phone = ANY(${Array.from(variants)}::text[])
+  `;
+
+  const byPhone = new Map<string, Map<string, { id: string; name: string; tags: string[]; createdAt: Date }>>();
+  for (const row of rows) {
+    const key = normalizePhone(row.phone);
+    if (!byPhone.has(key)) byPhone.set(key, new Map());
+    byPhone.get(key)!.set(row.id, { id: row.id, name: row.name, tags: row.tags || [], createdAt: new Date(row.createdAt) });
+  }
+
+  for (const c of conversations) {
+    const lists = byPhone.get(c.phone);
+    if (!lists) continue;
+    // Lista mais recente primeiro (geralmente a do último disparo)
+    c.sourceLists = Array.from(lists.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(({ id, name, tags }) => ({ id, name, tags }));
+  }
 }
 
 // Monta a lista de conversas (última mensagem por contato + agregados de status),
@@ -113,6 +150,7 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
         hasDelivered: Boolean(row.hasDelivered),
         hasRead: Boolean(row.hasRead),
         isHandled: Boolean(contactInfo?.isHandled),
+        sourceLists: [],
       });
     } else {
       if (isNewer) {
@@ -135,6 +173,12 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
   // Oculta contatos na Lista Negra por padrão e ordena pelas interações mais recentes
   const visible = Array.from(convMap.values()).filter((c) => !blacklistedSet.has(c.phone));
   visible.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  try {
+    await attachSourceLists(accountId, visible);
+  } catch (err: any) {
+    // As etiquetas são complementares: uma falha aqui não pode derrubar o Live Chat
+    console.error("[conversations] falha ao buscar listas de origem:", err?.message || err);
+  }
   return visible;
 }
 
@@ -240,13 +284,15 @@ router.get("/accounts/:accountId/conversations/export", async (req: Request, res
     const conversations = await buildConversations(accountId, dateRange);
     const filtered = conversations.filter((c) => matchesConvFilter(c, String(filter)));
 
-    const lines = ["Telefone;Nome;Data da última interação;Status"];
+    const lines = ["Telefone;Nome;Data da última interação;Status;Listas de origem;Etiquetas"];
     for (const c of filtered) {
       lines.push([
         csvCell(c.phone),
         csvCell(c.profileName || ""),
         csvCell(new Date(c.updatedAt).toLocaleString("pt-BR")),
         csvCell(conversationStatusLabel(c)),
+        csvCell(c.sourceLists.map((l) => l.name).join(", ")),
+        csvCell(Array.from(new Set(c.sourceLists.flatMap((l) => l.tags))).join(", ")),
       ].join(";"));
     }
     const csv = "\uFEFF" + lines.join("\r\n");
