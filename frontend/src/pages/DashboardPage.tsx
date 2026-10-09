@@ -7,7 +7,7 @@ import { API_BASE_URL } from "../contexts/AuthContext";
 import { useAlert } from "../contexts/AlertContext";
 import { useCountup } from "../hooks/useCountup";
 import ExecutiveReportModal from "../components/ExecutiveReportModal";
-import FinancialMetricsSection from "../components/FinancialMetricsSection";
+import MetaPricingReference from "../components/MetaPricingReference";
 import { formatBRL } from "../utils/pricing";
 import { RefreshCw, Send, Check, Eye, MessageSquare, BarChart3, Activity } from "lucide-react";
 import { AreaChart, RingGauge, Sparkline } from "../components/DashboardCharts";
@@ -328,7 +328,7 @@ export default function DashboardPage() {
     { label: "Entregues", value: countDelivered.toLocaleString("pt-BR"), detail: `${deliveryRate}% das enviadas`, color: "var(--info)", icon: Check, spark: series.map((d) => Math.max(0, d.sent - d.failed)) },
     { label: "Lidas", value: countRead.toLocaleString("pt-BR"), detail: `${readRate}% das entregues`, color: "var(--chat-read-tick)", icon: Eye, spark: series.map((d) => d.read) },
     { label: "Responderam", value: countReplies.toLocaleString("pt-BR"), detail: `${responseRate}% das entregues`, color: "var(--violet)", icon: MessageSquare, spark: hasReplySeries ? series.map((d) => d.replies ?? 0) : undefined },
-    { label: "Investimento", value: formatBRL(periodSpentBrl), detail: `${monthProgress}% da previsão do mês`, color: "var(--warning)", icon: BarChart3, progress: monthProgress },
+    { label: "Investimento", value: formatBRL(periodSpentBrl), detail: `${monthProgress}% da previsão`, color: "var(--warning)", icon: BarChart3, progress: monthProgress },
   ];
 
   const deliveryHealth = [
@@ -410,7 +410,7 @@ export default function DashboardPage() {
                 <span className="kpi__label">{k.label}</span>
                 <span className="kpi__icon" aria-hidden="true"><k.icon size={15} /></span>
               </div>
-              <span className="kpi__value">{k.value}</span>
+              <span className="kpi__value" style={{ "--chars": Math.max(k.value.length, 6) } as React.CSSProperties} title={k.value}>{k.value}</span>
               <span className={`kpi__detail${k.detailTone === "error" ? " kpi__detail--error" : ""}`}>{k.detail}</span>
               {k.spark && k.spark.length > 0 && (
                 <Sparkline values={k.spark} color={k.color} label={`Tendência de ${k.label.toLowerCase()} no período`} />
@@ -561,13 +561,7 @@ export default function DashboardPage() {
       {/* ── Referência (recolhida): tarifas, simulador e regras de cobrança ── */}
       <details className="glass panel disclosure">
         <summary>Tarifas da Meta, simulador de custo e regras de cobrança</summary>
-        <FinancialMetricsSection
-          costs={metricsData.costs}
-          periodLabel={periodLabel}
-          templateMetrics={metricsData.templateMetrics}
-          isLoading={isLoadingMetrics}
-          referenceOnly
-        />
+        <MetaPricingReference />
       </details>
 
       <ExecutiveReportModal

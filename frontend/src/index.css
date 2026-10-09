@@ -2801,7 +2801,6 @@ body.light-theme .page-heading {
 .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
 @media (max-width: 480px) {
   .kpi { padding: var(--space-3) var(--space-3-5); }
-  .kpi__value { font-size: var(--fs-xl); }
   .kpi:last-child { grid-column: 1 / -1; }
 }
 .kpi {
@@ -3066,3 +3065,135 @@ body.light-theme .page-heading {
 .cost-split__legend > span { display: inline-flex; align-items: center; gap: var(--space-1-5); }
 .cost-split__legend i { width: 8px; height: 8px; border-radius: 50%; background: var(--cat-color, var(--text-muted)); display: inline-block; }
 .cost-split__legend strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAINEL DE MÉTRICAS — números que cabem + referência de cobrança da Meta
+═══════════════════════════════════════════════════════════════════════════ */
+
+/* Números grandes encolhem conforme o espaço do cartão e o comprimento do valor:
+   nunca quebram no meio nem passam por cima de outros elementos. */
+.kpi { container-type: inline-size; }
+.kpi__value {
+  font-size: clamp(var(--fs-base), calc(155cqi / var(--chars, 8)), var(--fs-2xl));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  overflow-wrap: normal;
+}
+.kpi__detail { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.panel { container-type: inline-size; }
+.cost-hero__value {
+  font-size: clamp(var(--fs-xl), 11cqi, var(--fs-3xl));
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+.month-meter__labels > span { white-space: nowrap; }
+
+/* Referência de cobrança (bloco recolhível) */
+.pricing-ref {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr));
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+.pricing-ref__block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+}
+.pricing-ref__title {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.pricing-ref__rate-label { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.pricing-ref__use { font-size: var(--fs-xs); color: var(--text-muted); }
+.pricing-ref .stat-list dd { white-space: nowrap; }
+
+.pricing-sim__qty { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.pricing-sim__input { width: 140px; text-align: right; font-variant-numeric: tabular-nums; }
+.pricing-sim__range { width: 100%; accent-color: var(--primary); cursor: pointer; }
+.pricing-sim__presets { display: flex; flex-wrap: wrap; gap: var(--space-1-5); }
+.pricing-sim__preset {
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  padding: var(--space-1) var(--space-2-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color var(--transition-fast), background var(--transition-fast), border-color var(--transition-fast);
+}
+.pricing-sim__preset:hover { color: var(--text-primary); border-color: color-mix(in srgb, var(--primary) 50%, transparent); }
+.pricing-sim__preset.is-active { color: var(--on-primary); background: var(--primary); border-color: var(--primary); }
+.pricing-sim__preset:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.pricing-sim__result {
+  container-type: inline-size;
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 60%),
+    color-mix(in srgb, var(--primary) 5%, transparent);
+}
+.pricing-sim__result-label { font-size: var(--fs-sm); color: var(--text-muted); }
+.pricing-sim__result-value {
+  font-size: clamp(var(--fs-xl), 12cqi, var(--fs-3xl));
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  line-height: 1.15;
+}
+.pricing-sim__result-sub { font-size: var(--fs-sm); color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+
+.pricing-ref__rules {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: var(--space-3);
+}
+.pricing-rule {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-3-5);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--text-primary) 2%, transparent);
+  border: 1px solid var(--border-color);
+}
+.pricing-rule__icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+.pricing-rule strong { font-size: var(--fs-md); }
+.pricing-rule p { margin: var(--space-0-5) 0 0; font-size: var(--fs-sm); color: var(--text-muted); line-height: 1.45; }
+
+/* Telas largas: Investimento (valor em R$, mais longo) ganha mais espaço que os contadores */
+@media (min-width: 1180px) {
+  .kpi-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.4fr); }
+}
+@media (max-width: 1179px) {
+  .kpi-grid > .kpi:last-child { grid-column: 1 / -1; }
+}
