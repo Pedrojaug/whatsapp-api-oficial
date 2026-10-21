@@ -3291,6 +3291,8 @@ body.light-theme .page-heading {
 
 .send-form__schedule { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; min-height: 40px; }
 .send-form__check { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--fs-md); font-weight: 600; color: var(--text-secondary); cursor: pointer; }
+.send-form__schedule-hint { flex-basis: 100%; font-size: var(--fs-sm); color: var(--text-secondary); }
+.send-form__schedule-hint.is-error { color: var(--error-text); font-weight: 600; }
 .send-form__check input { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
 
 .send-form__footer {

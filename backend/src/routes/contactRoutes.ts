@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { normalizePhone } from "../services/phoneService";
+import { parseScheduledAt, formatBrt } from "../utils/scheduling";
 import { findAccountForUser, getAccountWithPermission } from "../utils/accountAccess";
 import { triggerDispatcher } from "../workers/dispatcher";
 
@@ -242,6 +243,11 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
     return res.status(400).json({ error: "Template é obrigatório." });
   }
 
+  const schedule = parseScheduledAt(scheduledAt);
+  if (!schedule.ok) {
+    return res.status(400).json({ error: schedule.error, code: "INVALID_SCHEDULE" });
+  }
+
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
@@ -255,11 +261,11 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
       return res.status(404).json({ error: "Lista de contatos não encontrada." });
     }
 
-    const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : null;
+    const scheduledAtDate = schedule.date;
 
     const messagesData = list.contacts.map(contact => {
       const normalizedContactPhone = normalizePhone(contact.phone);
-      const resolvedVars = variables.map((v: string) => {
+      const resolvedVars = (Array.isArray(variables) ? variables : []).map((v: string) => {
         if (v === "CONTACT_NAME") return contact.name || "";
         if (v === "CONTACT_PHONE") return normalizedContactPhone;
         if (v.startsWith("CONTACT_VAR_")) {
@@ -290,7 +296,7 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
     res.json({
       success: true,
       message: scheduledAtDate
-        ? `Disparo em lote agendado com sucesso para ${list.contacts.length} contatos para ${scheduledAtDate.toLocaleString()}.`
+        ? `Disparo em lote agendado com sucesso para ${list.contacts.length} contatos para ${formatBrt(scheduledAtDate)} (horário de Brasília).`
         : `Disparo em lote enfileirado com sucesso para ${list.contacts.length} contatos.`
     });
   } catch (error: any) {

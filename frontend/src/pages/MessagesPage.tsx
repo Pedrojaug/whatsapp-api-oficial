@@ -13,6 +13,31 @@ import PhoneSimulator from "../components/PhoneSimulator";
 import SegmentedControl from "../components/SegmentedControl";
 import { RefreshCw, Search } from "lucide-react";
 
+// Agendamento: o datetime-local chega no fuso do navegador ("2026-10-21T07:30").
+// Vai ao servidor em ISO (com fuso) para não ser reinterpretado no fuso dele (UTC).
+const MIN_SCHEDULE_LEAD_MS = 60 * 1000;
+
+function parseLocalDateTime(value: string): Date | null {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function describeSchedule(date: Date): string {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const dayMonth = date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const time = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (date.toDateString() === today.toDateString()) return `hoje (${dayMonth}) às ${time}`;
+  if (date.toDateString() === tomorrow.toDateString()) return `amanhã (${dayMonth}) às ${time}`;
+  return `${date.toLocaleDateString("pt-BR", { weekday: "long" })}, ${dayMonth} às ${time}`;
+}
+
+function focusField(id: string) {
+  document.getElementById(id)?.focus();
+}
+
 function ModalPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
 }
@@ -73,6 +98,8 @@ export default function MessagesPage() {
   const [templateVariables, setTemplateVariables] = useState<string[]>([]);
   const [messageMediaUrl, setMessageMediaUrl] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  // Referência de "agora" para o aviso do campo; atualizada quando o campo muda (o envio revalida com o relógio real)
+  const [scheduleCheckedAt, setScheduleCheckedAt] = useState(0);
 
   // Bulk / single sender states
   const [recipientType, setRecipientType] = useState<"single" | "list">("single");
@@ -184,10 +211,16 @@ export default function MessagesPage() {
 
   const handleReschedule = async (messageId: string) => {
     if (!selectedAccount || !rescheduleDate) return;
+    const when = parseLocalDateTime(rescheduleDate);
+    if (!when || when.getTime() < Date.now() + MIN_SCHEDULE_LEAD_MS) {
+      showAlert(when ? `O horário escolhido já passou: ${describeSchedule(when)}.` : "Data e hora inválidas.", "error");
+      focusField("reschedule-at");
+      return;
+    }
     try {
       showAlert("Reagendando...");
       await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/scheduled/${messageId}/reschedule`, {
-        scheduledAt: rescheduleDate
+        scheduledAt: when.toISOString()
       });
       showAlert("Mensagem reagendada com sucesso!", "success");
       setShowRescheduleModal(null);
@@ -238,8 +271,30 @@ export default function MessagesPage() {
     const hasMedia = headerComp && ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerComp.format);
     if (hasMedia && !messageMediaUrl.trim()) {
       showAlert(`Este template exige uma URL de mídia (${headerComp.format}).`, "error");
+      focusField("send-media");
       return;
     }
+    if (hasMedia && !/^https?:\/\/\S+$/i.test(messageMediaUrl.trim())) {
+      showAlert("A URL da mídia precisa começar com https:// (use a Galeria para escolher o arquivo).", "error");
+      focusField("send-media");
+      return;
+    }
+
+    let scheduledWhen: Date | null = null;
+    if (scheduledAt) {
+      scheduledWhen = parseLocalDateTime(scheduledAt);
+      if (!scheduledWhen) {
+        showAlert("Data e hora do agendamento inválidas.", "error");
+        focusField("send-schedule-at");
+        return;
+      }
+      if (scheduledWhen.getTime() < Date.now() + MIN_SCHEDULE_LEAD_MS) {
+        showAlert(`O horário escolhido já passou: ${describeSchedule(scheduledWhen)}. Ajuste a data do agendamento.`, "error");
+        focusField("send-schedule-at");
+        return;
+      }
+    }
+    const scheduledIso = scheduledWhen ? scheduledWhen.toISOString() : undefined;
 
     if (recipientType === "single") {
       if (!recipientNumber) {
@@ -253,11 +308,13 @@ export default function MessagesPage() {
           templateName: selectedTemplateName,
           variables: templateVariables,
           mediaUrl: messageMediaUrl || undefined,
-          scheduledAt: scheduledAt || undefined,
+          scheduledAt: scheduledIso,
         });
 
-        if (scheduledAt) {
-          showAlert("Mensagem agendada com sucesso!", "success");
+        if (scheduledWhen) {
+          showAlert(`Mensagem agendada para ${describeSchedule(scheduledWhen)}.`, "success");
+          setLogsView("scheduled");
+          fetchScheduledMessages(selectedAccount.id);
         } else {
           showAlert("Mensagem enviada com sucesso!", "success");
         }
@@ -298,11 +355,13 @@ export default function MessagesPage() {
           templateName: selectedTemplateName,
           variables: mappedVars,
           mediaUrl: messageMediaUrl || undefined,
-          scheduledAt: scheduledAt || undefined,
+          scheduledAt: scheduledIso,
         });
 
-        if (scheduledAt) {
-          showAlert("Disparo em lote agendado com sucesso!", "success");
+        if (scheduledWhen) {
+          showAlert(`Disparo agendado para ${describeSchedule(scheduledWhen)}. Ele aparece em Histórico → Agendadas.`, "success");
+          setLogsView("scheduled");
+          fetchScheduledMessages(selectedAccount.id);
         } else {
           showAlert("Disparo em lote iniciado com sucesso!", "success");
         }
@@ -439,7 +498,7 @@ export default function MessagesPage() {
         </div>
 
         <div className="send-panel__body">
-          <form onSubmit={handleSendMessage} className="send-form">
+          <form onSubmit={handleSendMessage} className="send-form" noValidate>
             <div className="send-form__row">
               <div className="field">
                 <label htmlFor="send-template" className="field-label">Template</label>
@@ -614,6 +673,7 @@ export default function MessagesPage() {
                     id="enable-scheduling-checkbox"
                     checked={!!scheduledAt}
                     onChange={(e) => {
+                      setScheduleCheckedAt(Date.now());
                       if (e.target.checked) {
                         const initDate = new Date();
                         initDate.setHours(initDate.getHours() + 1);
@@ -629,10 +689,15 @@ export default function MessagesPage() {
                 </label>
                 {scheduledAt && (
                   <input
+                    id="send-schedule-at"
                     type="datetime-local"
                     aria-label="Data e hora do envio"
+                    aria-describedby="send-schedule-hint"
                     value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
+                    onChange={(e) => {
+                      setScheduleCheckedAt(Date.now());
+                      setScheduledAt(e.target.value);
+                    }}
                     min={(() => {
                       const now = new Date();
                       const pad = (n: number) => String(n).padStart(2, "0");
@@ -643,6 +708,19 @@ export default function MessagesPage() {
                     required
                   />
                 )}
+                {scheduledAt && (() => {
+                  const when = parseLocalDateTime(scheduledAt);
+                  const past = !when || when.getTime() < scheduleCheckedAt + MIN_SCHEDULE_LEAD_MS;
+                  return (
+                    <span id="send-schedule-hint" className={`send-form__schedule-hint${past ? " is-error" : ""}`} aria-live="polite">
+                      {!when
+                        ? "Data inválida."
+                        : past
+                          ? `Esse horário já passou: ${describeSchedule(when)}. Ajuste a data.`
+                          : `Será enviado ${describeSchedule(when)} (horário do seu computador).`}
+                    </span>
+                  );
+                })()}
               </div>
             )}
 
@@ -949,11 +1027,13 @@ export default function MessagesPage() {
                 <button type="button" onClick={() => { setShowRescheduleModal(null); setRescheduleDate(""); }} style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "1.2rem", cursor: "pointer", opacity: 0.8 }}>✕</button>
               </div>
 
-              <form onSubmit={(e) => { e.preventDefault(); if (showRescheduleModal) handleReschedule(showRescheduleModal); }} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
+              <form noValidate onSubmit={(e) => { e.preventDefault(); if (showRescheduleModal) handleReschedule(showRescheduleModal); }} style={{ padding: "24px 30px", display: "flex", flexDirection: "column", gap: "18px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={{ fontSize: "0.85rem", color: "var(--text-secondary)", fontWeight: "600" }}>Nova Data e Hora de Envio</label>
                   <input
+                    id="reschedule-at"
                     type="datetime-local"
+                    aria-label="Nova data e hora de envio"
                     value={rescheduleDate}
                     onChange={(e) => setRescheduleDate(e.target.value)}
                     min={(() => {

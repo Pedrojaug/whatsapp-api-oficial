@@ -4,6 +4,7 @@ import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { checkSubscriptionActive, checkMonthlyMessageLimit } from "../middlewares/planLimits";
 import { decryptToken } from "../utils/crypto";
+import { parseScheduledAt } from "../utils/scheduling";
 import { messageEventEmitter } from "../utils/emitter";
 import { metaService } from "../services/metaService";
 import { resolveMetaMediaId } from "../utils/mediaUpload";
@@ -46,6 +47,11 @@ router.post("/accounts/:accountId/messages/send", checkSubscriptionActive, check
     return res.status(400).json({ error: "Número de telefone destinatário inválido." });
   }
 
+  const schedule = parseScheduledAt(scheduledAt);
+  if (!schedule.ok) {
+    return res.status(400).json({ error: schedule.error, code: "INVALID_SCHEDULE" });
+  }
+
   try {
     const userId = (req as AuthenticatedRequest).userId;
     const account = await getAccountWithPermission(res, accountId, userId, "chat");
@@ -62,7 +68,7 @@ router.post("/accounts/:accountId/messages/send", checkSubscriptionActive, check
       return res.status(422).json({ error: "Este número está na lista de opt-out (LGPD).", code: "OPT_OUT" });
     }
 
-    const scheduledAtDate = scheduledAt ? new Date(scheduledAt) : null;
+    const scheduledAtDate = schedule.date;
     const isFutureScheduled = scheduledAtDate && scheduledAtDate.getTime() > Date.now();
 
     // Criar o log no banco local como PENDING
@@ -692,10 +698,11 @@ router.post("/accounts/:accountId/scheduled/:messageId/reschedule", async (req: 
       return res.status(400).json({ error: "Esta mensagem já foi processada e não pode ser reagendada." });
     }
 
-    const newDate = new Date(scheduledAt);
-    if (isNaN(newDate.getTime()) || newDate <= new Date()) {
-      return res.status(400).json({ error: "A data de agendamento deve ser uma data válida e futura." });
+    const parsed = parseScheduledAt(scheduledAt);
+    if (!parsed.ok || !parsed.date) {
+      return res.status(400).json({ error: parsed.ok ? "A data de agendamento deve ser uma data válida e futura." : parsed.error });
     }
+    const newDate = parsed.date;
 
     const updatedMsg = await prisma.message.update({
       where: { id: messageId },
