@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import type { AuthUser } from "../contexts/AuthContext";
 import { BrandIcon } from "./Brand";
+import LoginChatDemo from "./LoginChatDemo";
 
 const getApiUrl = () => {
   if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
@@ -32,34 +33,14 @@ function GoogleIcon() {
 }
 
 // ─── Painel de produto (lado direito, só desktop) ─────────────────────────────
-// Números ilustrativos: mostram o que o painel entrega, não dados reais da conta.
+// Conversa simulada com loja e cliente fictícias: mostra o que um disparo gera.
 function ProductShowcase() {
   return (
     <aside className="auth-showcase" aria-hidden="true">
       <div className="auth-showcase-inner">
-        <p className="auth-showcase-eyebrow">Exemplo do painel</p>
-        <h2 className="auth-showcase-title">Seus disparos continuam rodando enquanto você está fora.</h2>
-
-        <div className="auth-campaign">
-          <div className="auth-campaign-head">
-            <span>Campanha Black Friday</span>
-            <span className="auth-badge">Ativa</span>
-          </div>
-          <div className="auth-progress"><div className="auth-progress-bar" style={{ width: "72%" }} /></div>
-          <span className="auth-campaign-meta">3.612 de 5.000 mensagens enviadas</span>
-        </div>
-
-        <div className="auth-stats">
-          <div className="auth-stat"><span>Taxa de entrega</span><strong>98,4%</strong></div>
-          <div className="auth-stat"><span>Lidas</span><strong>71%</strong></div>
-        </div>
-
-        <div className="auth-bubble">
-          Oi, Ana! Seu cupom de 20% chegou.
-          <svg width="16" height="11" viewBox="0 0 16 11" fill="none" aria-hidden="true">
-            <path d="M1 5.5L4.5 9L11 1.5M7 8L8.5 9.5L15 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
+        <p className="auth-showcase-eyebrow">Simulação de disparo</p>
+        <h2 className="auth-showcase-title">Cada disparo vira uma conversa.</h2>
+        <LoginChatDemo />
       </div>
     </aside>
   );

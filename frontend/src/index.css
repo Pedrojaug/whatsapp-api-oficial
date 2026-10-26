@@ -3403,7 +3403,6 @@ body.light-theme .page-heading {
   --auth-field: #16181c;
   --auth-field-border: #2f343a;
   --auth-showcase-bg: #0f1d16;
-  --auth-showcase-card: #13261c;
   --auth-showcase-border: #1d3a2a;
 
   display: grid;
@@ -3688,74 +3687,271 @@ body.light-theme .page-heading {
   margin-bottom: 6px;
 }
 
-.auth-campaign,
-.auth-stat {
-  background: var(--auth-showcase-card);
-  border: 1px solid var(--auth-showcase-border);
-  border-radius: 12px;
+/* Conversa simulada (LoginChatDemo): cores do WhatsApp no modo escuro */
+.wa-demo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.auth-campaign { padding: 16px; }
-.auth-campaign-head {
+.wa-demo-stages {
+  display: flex;
+  gap: 18px;
+  list-style: none;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #6b7f74;
+}
+.wa-demo-stages li {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  gap: 6px;
+  transition: color 0.4s ease;
 }
-.auth-badge {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #0d0e11;
-  background: var(--primary);
-  padding: 2px 10px;
-  border-radius: 999px;
-}
-.auth-progress {
+.wa-demo-stages li.is-done { color: var(--text-primary); }
+.wa-demo-stage-dot {
+  width: 8px;
   height: 8px;
-  background: #0b1610;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  transition: background-color 0.4s ease, border-color 0.4s ease;
 }
-.auth-progress-bar {
-  height: 100%;
-  background: var(--primary);
-  border-radius: 4px;
-  transform-origin: left;
-  animation: authProgress 1.2s 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.auth-campaign-meta { font-size: 0.8rem; color: var(--text-muted); }
+.wa-demo-stages li.is-done .wa-demo-stage-dot { background: var(--primary); border-color: var(--primary); }
 
-.auth-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.auth-stat { padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; }
-.auth-stat span { font-size: 0.8rem; color: var(--text-muted); }
-.auth-stat strong { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); }
-
-.auth-bubble {
-  align-self: flex-end;
-  max-width: 85%;
+.wa-demo-phone {
+  width: 100%;
+  max-width: 360px;
+  height: clamp(400px, calc(100dvh - 290px), 600px);
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  background: #1f5c3d;
-  color: #e9f7ef;
-  font-size: 0.9rem;
-  padding: 10px 12px;
-  border-radius: 12px 12px 4px 12px;
+  flex-direction: column;
+  border: 8px solid #1c2226;
+  border-radius: 28px;
+  overflow: hidden;
+  background: #0b141a;
 }
-.auth-bubble svg { color: #7dd3fc; flex-shrink: 0; margin-bottom: 2px; }
+
+.wa-demo-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: #1f2c34;
+  color: #aebac1;
+  flex-shrink: 0;
+}
+.wa-demo-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #c8956b;
+  color: #2b1a0e;
+  font-size: 0.75rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.wa-demo-contact { display: flex; flex-direction: column; min-width: 0; }
+.wa-demo-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #e9edef;
+  white-space: nowrap;
+}
+.wa-demo-status { font-size: 0.72rem; color: #8696a0; }
+
+.wa-demo-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 12px 10px;
+  overflow: hidden;
+  background-color: #0b141a;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 18px 18px;
+  transition: opacity 0.6s ease;
+}
+.wa-demo-chat.is-fading { opacity: 0; }
+
+.wa-demo-date {
+  align-self: center;
+  margin-bottom: auto;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: #182229;
+  color: #8696a0;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.wa-demo-row {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+  flex-shrink: 0;
+  animation: waDemoIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.wa-demo-row--biz { align-self: flex-start; transform-origin: left bottom; }
+.wa-demo-row--me { align-self: flex-end; transform-origin: right bottom; }
+
+.wa-demo-bubble {
+  padding: 6px 8px 4px;
+  border-radius: 8px;
+  color: #e9edef;
+  font-size: 0.82rem;
+  line-height: 1.38;
+}
+.wa-demo-bubble--biz { background: #202c33; border-top-left-radius: 2px; }
+.wa-demo-bubble--me { background: #005c4b; border-top-right-radius: 2px; }
+.wa-demo-bubble--template { padding: 4px 4px 4px; }
+.wa-demo-bubble--template .wa-demo-text,
+.wa-demo-bubble--template .wa-demo-footer,
+.wa-demo-bubble--template .wa-demo-meta { padding: 0 4px; }
+
+.wa-demo-banner {
+  height: 84px;
+  margin-bottom: 6px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a1a 0%, #3a2a1c 100%);
+  color: #f3d9b1;
+  letter-spacing: 0.08em;
+}
+.wa-demo-banner span { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; }
+.wa-demo-banner strong { font-size: 1.7rem; font-weight: 900; line-height: 1; color: #ffd89b; }
+
+.wa-demo-quote {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+  padding: 4px 8px;
+  border-left: 3px solid #06cf9c;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.2);
+  color: #aebac1;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wa-demo-quote span { color: #06cf9c; font-weight: 700; }
+
+.wa-demo-text { white-space: pre-line; }
+.wa-demo-text strong { font-weight: 800; }
+.wa-demo-text s { color: #8696a0; }
+
+.wa-demo-footer { margin-top: 4px; font-size: 0.68rem; color: #8696a0; }
+
+.wa-demo-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  margin-top: 2px;
+  font-size: 0.65rem;
+  color: #8696a0;
+}
+.wa-demo-bubble--me .wa-demo-meta { color: #a0c4bb; }
+.wa-demo-ticks { color: #a0c4bb; transition: color 0.3s ease; }
+.wa-demo-ticks.is-read { color: #53bdeb; }
+
+.wa-demo-buttons { display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
+.wa-demo-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: #202c33;
+  color: #00a884;
+  font-size: 0.8rem;
+  font-weight: 700;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+.wa-demo-button.is-pressed { background: #2a3942; transform: scale(0.97); }
+
+.wa-demo-typing {
+  display: flex;
+  gap: 4px;
+  padding: 10px 12px;
+}
+.wa-demo-typing span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8696a0;
+  animation: waDemoDot 1.2s ease-in-out infinite;
+}
+.wa-demo-typing span:nth-child(2) { animation-delay: 0.15s; }
+.wa-demo-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+.wa-demo-composer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  background: #0b141a;
+  flex-shrink: 0;
+}
+.wa-demo-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 14px;
+  border-radius: 20px;
+  background: #202c33;
+  color: #8696a0;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wa-demo-input.has-text { color: #e9edef; }
+.wa-demo-input.has-text::after {
+  content: "";
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: -2px;
+  background: #00a884;
+  animation: waDemoCaret 1s step-end infinite;
+}
+.wa-demo-send {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #00a884;
+  color: #0b141a;
+  flex-shrink: 0;
+}
 
 @keyframes authFadeIn {
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-@keyframes authProgress {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
+@keyframes waDemoIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
+@keyframes waDemoDot {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30%           { opacity: 1;    transform: translateY(-3px); }
+}
+@keyframes waDemoCaret { 50% { opacity: 0; } }
 @keyframes authSpin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {
