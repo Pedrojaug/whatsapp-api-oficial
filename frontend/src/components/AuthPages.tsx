@@ -37,11 +37,7 @@ function GoogleIcon() {
 function ProductShowcase() {
   return (
     <aside className="auth-showcase" aria-hidden="true">
-      <div className="auth-showcase-inner">
-        <p className="auth-showcase-eyebrow">Simulação de disparo</p>
-        <h2 className="auth-showcase-title">Cada disparo vira uma conversa.</h2>
-        <LoginChatDemo />
-      </div>
+      <LoginChatDemo />
     </aside>
   );
 }

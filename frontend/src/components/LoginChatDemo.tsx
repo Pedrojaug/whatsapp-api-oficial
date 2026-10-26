@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 // ─── Conversa simulada do painel direito do login ─────────────────────────────
 // Tela do WhatsApp de uma cliente fictícia (Ana) recebendo um disparo de uma loja
@@ -64,6 +64,9 @@ const MSG = {
 } satisfies Record<string, ChatMsg>;
 
 const STAGES = ["Enviado", "Lido", "Respondeu", "Venda"];
+
+const DEVICE_W = 390;
+const DEVICE_H = 844;
 
 const FINAL_TRANSCRIPT: ChatMsg[] = [MSG.template, MSG.tapReply, MSG.offer, MSG.ask, MSG.answer, MSG.confirm, MSG.done]
   .map(m => (m.from === "me" ? { ...m, read: true } : m));
@@ -208,18 +211,82 @@ export default function LoginChatDemo() {
     };
   }, [animate]);
 
+  // O aparelho é desenhado em 390×844 (proporção real) e escalado para caber no espaço livre,
+  // em vez de esticar a largura ou a altura e perder o formato de celular.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.8);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width && height) setScale(Math.min(1, width / DEVICE_W, height / DEVICE_H));
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const chatScreen = <ChatScreen messages={messages} typing={typing} draft={draft} pressed={pressed} fading={fading} />;
+
   return (
     <div className="wa-demo">
-      <ol className="wa-demo-stages">
-        {STAGES.map((label, i) => (
-          <li key={label} className={i < stage ? "is-done" : undefined}>
-            <span className="wa-demo-stage-dot" />
-            {label}
-          </li>
-        ))}
-      </ol>
+      <div className="wa-demo-copy">
+        <p className="auth-showcase-eyebrow">Simulação de disparo</p>
+        <h2 className="auth-showcase-title">Cada disparo vira uma conversa.</h2>
+        <ol className="wa-demo-stages">
+          {STAGES.map((label, i) => (
+            <li key={label} className={i < stage ? "is-done" : undefined}>
+              <span className="wa-demo-stage-dot" />
+              {label}
+            </li>
+          ))}
+        </ol>
+      </div>
 
-      <div className="wa-demo-phone">
+      <div className="wa-demo-stage" ref={stageRef}>
+        <div className="wa-demo-slot" style={{ width: DEVICE_W * scale, height: DEVICE_H * scale }}>
+          <div className="wa-demo-device" style={{ transform: `scale(${scale})` }}>
+            <div className="wa-demo-screen">
+              <PhoneStatusBar />
+              {chatScreen}
+              <div className="wa-demo-home" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Barra de status do aparelho (hora, ilha da câmera, sinal, Wi-Fi e bateria)
+function PhoneStatusBar() {
+  return (
+    <div className="wa-demo-statusbar">
+      <span className="wa-demo-clock">14:35</span>
+      <span className="wa-demo-island" />
+      <span className="wa-demo-sysicons">
+        <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor" aria-hidden="true">
+          <rect x="0" y="8" width="3" height="4" rx="1" /><rect x="5" y="5.5" width="3" height="6.5" rx="1" />
+          <rect x="10" y="3" width="3" height="9" rx="1" /><rect x="15" y="0" width="3" height="12" rx="1" />
+        </svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="currentColor" aria-hidden="true">
+          <path d="M8 2.2c2.3 0 4.4.9 6 2.4l1.3-1.4A10.5 10.5 0 0 0 8 .3 10.5 10.5 0 0 0 .7 3.2L2 4.6a8.6 8.6 0 0 1 6-2.4zm0 3.6c1.3 0 2.5.5 3.4 1.3l1.3-1.4A6.8 6.8 0 0 0 8 3.9a6.8 6.8 0 0 0-4.7 1.8l1.3 1.4C5.5 6.3 6.7 5.8 8 5.8zm0 3.5L5.9 7.4a3 3 0 0 1 4.2 0L8 9.3z" />
+        </svg>
+        <span className="wa-demo-battery"><span /></span>
+      </span>
+    </div>
+  );
+}
+
+function ChatScreen({ messages, typing, draft, pressed, fading }: {
+  messages: ChatMsg[];
+  typing: boolean;
+  draft: string;
+  pressed: string | null;
+  fading: boolean;
+}) {
+  return (
+    <>
         <div className="wa-demo-header">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 18l-6-6 6-6" />
@@ -250,21 +317,31 @@ export default function LoginChatDemo() {
         </div>
 
         <div className="wa-demo-composer">
-          <div className={`wa-demo-input${draft ? " has-text" : ""}`}>{draft || "Mensagem"}</div>
+          <svg className="wa-demo-composer-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          <div className={`wa-demo-input${draft ? " has-text" : ""}`}>
+            <span className="wa-demo-input-text">{draft || "Mensagem"}</span>
+            {!draft && (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 8h3l2-3h6l2 3h3v11H4z" />
+                <circle cx="12" cy="13" r="3.5" />
+              </svg>
+            )}
+          </div>
           <div className="wa-demo-send">
             {draft ? (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M3.4 20.4l17.45-7.48a1 1 0 0 0 0-1.84L3.4 3.6a.99.99 0 0 0-1.39.91L2 9.12c0 .5.37.93.87.99L17 12 2.87 13.88c-.5.07-.87.5-.87 1l.01 4.61c0 .71.73 1.2 1.39.91z" />
               </svg>
             ) : (
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="9" y="3" width="6" height="11" rx="3" />
                 <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
               </svg>
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </>
   );
 }
