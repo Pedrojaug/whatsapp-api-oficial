@@ -3773,9 +3773,11 @@ body.light-theme .page-heading {
 
 /* Telas largas: texto à esquerda, celular com a altura toda à direita */
 @media (min-width: 1100px) {
-  .auth-screen { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
-  .wa-demo { flex-direction: row; align-items: center; gap: clamp(20px, 2.5vw, 40px); }
-  .wa-demo-copy { width: clamp(240px, 22vw, 360px); flex-shrink: 0; }
+  /* Coluna do login só com o necessário para o formulário (380px); o resto vai para o painel */
+  .auth-screen { grid-template-columns: clamp(440px, 34vw, 540px) minmax(0, 1fr); }
+  .auth-form-panel { padding-left: clamp(28px, 3vw, 56px); padding-right: clamp(28px, 3vw, 56px); }
+  .wa-demo { flex-direction: row; align-items: center; gap: clamp(24px, 3vw, 56px); }
+  .wa-demo-copy { width: clamp(260px, 25vw, 420px); flex-shrink: 0; }
   .wa-demo-stage { align-self: stretch; }
   .auth-showcase-title { font-size: clamp(1.9rem, 3.2vw, 3.2rem); }
   .wa-demo-lead { display: block; }
@@ -3786,13 +3788,20 @@ body.light-theme .page-heading {
   .wa-demo-stage-dot { width: 16px; height: 16px; margin-top: 4px; }
   .wa-demo-stage-text { gap: 2px; }
   .wa-demo-stage-text strong { font-size: clamp(1.05rem, 1.3vw, 1.3rem); }
+  /* Descrição invisível (com o espaço reservado, para nada pular) até o ponto da etapa acender */
   .wa-demo-stage-text span {
     display: block;
     font-size: clamp(0.85rem, 0.95vw, 0.95rem);
-    color: #4f6157;
-    transition: color 0.4s ease;
+    color: var(--text-muted);
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
   }
-  .wa-demo-stages li.is-done .wa-demo-stage-text span { color: var(--text-muted); }
+  .wa-demo-stages li.is-done .wa-demo-stage-text span {
+    opacity: 1;
+    transform: none;
+    transition-delay: 0.25s;
+  }
 }
 
 .wa-demo-device {
