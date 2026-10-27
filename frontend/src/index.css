@@ -3417,7 +3417,7 @@ body.light-theme .page-heading {
 .auth-form-panel {
   display: flex;
   flex-direction: column;
-  padding: clamp(24px, 5vw, 48px) clamp(20px, 6vw, 72px);
+  padding: clamp(20px, 4vh, 48px) clamp(20px, 6vw, 72px);
 }
 
 .auth-brand {
@@ -3433,7 +3433,7 @@ body.light-theme .page-heading {
   justify-content: center;
   width: 100%;
   max-width: 380px;
-  margin: 40px auto;
+  margin: clamp(16px, 4vh, 40px) auto;
   animation: authFadeIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
@@ -3655,7 +3655,7 @@ body.light-theme .page-heading {
 /* Painel direito: fundo estático (sem canvas/Three.js) com grade de pontos sutil */
 .auth-showcase {
   display: flex;
-  padding: clamp(28px, 4vw, 56px);
+  padding: clamp(20px, 4vh, 48px) clamp(28px, 4vw, 56px);
   background-color: var(--auth-showcase-bg);
   background-image:
     radial-gradient(ellipse 60% 50% at 70% 50%, rgba(37, 211, 102, 0.12), transparent 70%),
@@ -3666,17 +3666,43 @@ body.light-theme .page-heading {
 }
 
 .auth-showcase-eyebrow {
-  font-size: 0.8rem;
-  font-weight: 600;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px 6px 12px;
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  border-radius: 999px;
+  background: rgba(37, 211, 102, 0.1);
   color: var(--primary);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .auth-showcase-title {
-  font-size: clamp(1.4rem, 2.2vw, 2.1rem);
+  font-size: 1.75rem;
   font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: -0.02em;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
   color: var(--text-primary);
+}
+.auth-showcase-title em { font-style: normal; color: var(--primary); }
+
+.wa-demo-lead {
+  display: none;
+  max-width: 34ch;
+  font-size: clamp(0.95rem, 1.15vw, 1.15rem);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+/* Ponto "ao vivo" do selo e da etapa atual */
+.wa-demo-live {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+  animation: waDemoPulse 1.8s ease-out infinite;
 }
 
 /* Conversa simulada (LoginChatDemo): cores do WhatsApp no modo escuro.
@@ -3693,39 +3719,44 @@ body.light-theme .page-heading {
 .wa-demo-copy {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
   flex-shrink: 0;
 }
 
+/* Etapas: em linha quando empilhado; viram linha do tempo vertical em telas largas */
 .wa-demo-stages {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px 18px;
-  margin-top: 6px;
+  gap: 8px 22px;
   list-style: none;
-  font-size: 0.85rem;
-  font-weight: 600;
   color: #6b7f74;
 }
 .wa-demo-stages li {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   transition: color 0.4s ease;
 }
 .wa-demo-stages li.is-done { color: var(--text-primary); }
+.wa-demo-stage-text { display: flex; flex-direction: column; }
+.wa-demo-stage-text strong { font-size: 1rem; font-weight: 700; }
+.wa-demo-stage-text span { display: none; }
 .wa-demo-stage-dot {
-  width: 9px;
-  height: 9px;
+  position: relative;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 1.5px solid currentColor;
+  border: 2px solid currentColor;
+  flex-shrink: 0;
   transition: background-color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
 }
 .wa-demo-stages li.is-done .wa-demo-stage-dot {
   background: var(--primary);
   border-color: var(--primary);
-  box-shadow: 0 0 0 4px rgba(37, 211, 102, 0.15);
+  box-shadow: 0 0 0 5px rgba(37, 211, 102, 0.15);
 }
+.wa-demo-stages li.is-current .wa-demo-stage-dot { animation: waDemoPulse 1.8s ease-out infinite; }
 
 /* Área que o aparelho ocupa: o slot fica absoluto para não influenciar a altura da página */
 .wa-demo-stage {
@@ -3744,9 +3775,24 @@ body.light-theme .page-heading {
 @media (min-width: 1100px) {
   .auth-screen { grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); }
   .wa-demo { flex-direction: row; align-items: center; gap: clamp(20px, 2.5vw, 40px); }
-  .wa-demo-copy { width: clamp(200px, 18vw, 280px); flex-shrink: 0; }
+  .wa-demo-copy { width: clamp(240px, 22vw, 360px); flex-shrink: 0; }
   .wa-demo-stage { align-self: stretch; }
-  .wa-demo-stages { flex-direction: column; gap: 14px; margin-top: 18px; }
+  .auth-showcase-title { font-size: clamp(1.9rem, 3.2vw, 3.2rem); }
+  .wa-demo-lead { display: block; }
+
+  .wa-demo-stages { flex-direction: column; flex-wrap: nowrap; gap: 0; margin-top: 10px; }
+  .wa-demo-stages li { align-items: flex-start; gap: 16px; padding-bottom: 22px; }
+  .wa-demo-stages li:last-child { padding-bottom: 0; }
+  .wa-demo-stage-dot { width: 16px; height: 16px; margin-top: 4px; }
+  .wa-demo-stage-text { gap: 2px; }
+  .wa-demo-stage-text strong { font-size: clamp(1.05rem, 1.3vw, 1.3rem); }
+  .wa-demo-stage-text span {
+    display: block;
+    font-size: clamp(0.85rem, 0.95vw, 0.95rem);
+    color: #4f6157;
+    transition: color 0.4s ease;
+  }
+  .wa-demo-stages li.is-done .wa-demo-stage-text span { color: var(--text-muted); }
 }
 
 .wa-demo-device {
@@ -3797,7 +3843,7 @@ body.light-theme .page-heading {
   background: #1f2c34;
   color: #f2f4f5;
 }
-.wa-demo-clock { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.wa-demo-clock { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
 .wa-demo-island {
   position: absolute;
   top: 11px;
@@ -3840,15 +3886,15 @@ body.light-theme .page-heading {
 }
 .wa-demo-header > svg { width: 24px; height: 24px; }
 .wa-demo-avatar {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #c8956b;
   color: #2b1a0e;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 800;
   flex-shrink: 0;
 }
@@ -3857,13 +3903,13 @@ body.light-theme .page-heading {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 600;
   color: #e9edef;
   white-space: nowrap;
 }
-.wa-demo-name svg { width: 16px; height: 16px; }
-.wa-demo-status { font-size: 13px; color: #8696a0; }
+.wa-demo-name svg { width: 18px; height: 18px; }
+.wa-demo-status { font-size: 15px; color: #8696a0; }
 
 .wa-demo-chat {
   flex: 1;
@@ -3888,14 +3934,14 @@ body.light-theme .page-heading {
   border-radius: 8px;
   background: #182229;
   color: #8696a0;
-  font-size: 12.5px;
+  font-size: 14.5px;
   font-weight: 600;
 }
 
 .wa-demo-row {
   display: flex;
   flex-direction: column;
-  max-width: 82%;
+  max-width: 85%;
   flex-shrink: 0;
   animation: waDemoIn 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -3903,11 +3949,11 @@ body.light-theme .page-heading {
 .wa-demo-row--me { align-self: flex-end; transform-origin: right bottom; }
 
 .wa-demo-bubble {
-  padding: 7px 10px 5px;
-  border-radius: 10px;
+  padding: 8px 12px 6px;
+  border-radius: 12px;
   color: #e9edef;
-  font-size: 15.5px;
-  line-height: 1.36;
+  font-size: 19px;
+  line-height: 1.32;
 }
 .wa-demo-bubble--biz { background: #202c33; border-top-left-radius: 3px; }
 .wa-demo-bubble--me { background: #005c4b; border-top-right-radius: 3px; }
@@ -3917,7 +3963,7 @@ body.light-theme .page-heading {
 .wa-demo-bubble--template .wa-demo-meta { padding: 0 5px; }
 
 .wa-demo-banner {
-  height: 150px;
+  height: 112px;
   margin-bottom: 8px;
   border-radius: 7px;
   display: flex;
@@ -3928,8 +3974,8 @@ body.light-theme .page-heading {
   color: #f3d9b1;
   letter-spacing: 0.08em;
 }
-.wa-demo-banner span { font-size: 13px; font-weight: 700; text-transform: uppercase; }
-.wa-demo-banner strong { font-size: 52px; font-weight: 900; line-height: 1; color: #ffd89b; }
+.wa-demo-banner span { font-size: 14px; font-weight: 700; text-transform: uppercase; }
+.wa-demo-banner strong { font-size: 46px; font-weight: 900; line-height: 1; color: #ffd89b; }
 
 .wa-demo-quote {
   display: flex;
@@ -3940,7 +3986,7 @@ body.light-theme .page-heading {
   border-radius: 5px;
   background: rgba(0, 0, 0, 0.2);
   color: #aebac1;
-  font-size: 13.5px;
+  font-size: 15.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3951,7 +3997,7 @@ body.light-theme .page-heading {
 .wa-demo-text strong { font-weight: 700; }
 .wa-demo-text s { color: #8696a0; }
 
-.wa-demo-footer { margin-top: 5px; font-size: 12.5px; color: #8696a0; }
+.wa-demo-footer { margin-top: 5px; font-size: 14.5px; color: #8696a0; }
 
 .wa-demo-meta {
   display: flex;
@@ -3959,11 +4005,11 @@ body.light-theme .page-heading {
   justify-content: flex-end;
   gap: 4px;
   margin-top: 2px;
-  font-size: 11.5px;
+  font-size: 13.5px;
   color: #8696a0;
 }
 .wa-demo-bubble--me .wa-demo-meta { color: #a0c4bb; }
-.wa-demo-ticks { width: 18px; height: 12px; color: #a0c4bb; transition: color 0.3s ease; }
+.wa-demo-ticks { width: 20px; height: 13px; color: #a0c4bb; transition: color 0.3s ease; }
 .wa-demo-ticks.is-read { color: #53bdeb; }
 
 .wa-demo-buttons { display: flex; flex-direction: column; gap: 3px; margin-top: 3px; }
@@ -3972,15 +4018,15 @@ body.light-theme .page-heading {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 11px;
-  border-radius: 10px;
+  padding: 12px;
+  border-radius: 12px;
   background: #202c33;
   color: #00a884;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 600;
   transition: background-color 0.2s ease, transform 0.2s ease;
 }
-.wa-demo-button svg { width: 17px; height: 17px; }
+.wa-demo-button svg { width: 19px; height: 19px; }
 .wa-demo-button.is-pressed { background: #2a3942; transform: scale(0.97); }
 
 .wa-demo-typing {
@@ -3989,8 +4035,8 @@ body.light-theme .page-heading {
   padding: 13px 14px;
 }
 .wa-demo-typing span {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   background: #8696a0;
   animation: waDemoDot 1.2s ease-in-out infinite;
@@ -4018,7 +4064,7 @@ body.light-theme .page-heading {
   border-radius: 24px;
   background: #202c33;
   color: #8696a0;
-  font-size: 16px;
+  font-size: 18.5px;
 }
 .wa-demo-input-text {
   flex: 1;
@@ -4039,8 +4085,8 @@ body.light-theme .page-heading {
   animation: waDemoCaret 1s step-end infinite;
 }
 .wa-demo-send {
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -4079,6 +4125,11 @@ body.light-theme .page-heading {
   30%           { opacity: 1;    transform: translateY(-3px); }
 }
 @keyframes waDemoCaret { 50% { opacity: 0; } }
+@keyframes waDemoPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.55); }
+  70%  { box-shadow: 0 0 0 10px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
 @keyframes authSpin { to { transform: rotate(360deg); } }
 
 @media (max-width: 900px) {

@@ -63,7 +63,12 @@ const MSG = {
   },
 } satisfies Record<string, ChatMsg>;
 
-const STAGES = ["Enviado", "Lido", "Respondeu", "Venda"];
+const STAGES = [
+  { label: "Enviado", detail: "Disparo entregue no WhatsApp" },
+  { label: "Lido", detail: "A cliente abriu a mensagem" },
+  { label: "Respondeu", detail: "Tocou em “Ver ofertas” e puxou conversa" },
+  { label: "Venda", detail: "Pedido #4821 reservado" },
+];
 
 const DEVICE_W = 390;
 const DEVICE_H = 844;
@@ -231,13 +236,17 @@ export default function LoginChatDemo() {
   return (
     <div className="wa-demo">
       <div className="wa-demo-copy">
-        <p className="auth-showcase-eyebrow">Simulação de disparo</p>
-        <h2 className="auth-showcase-title">Cada disparo vira uma conversa.</h2>
+        <p className="auth-showcase-eyebrow"><span className="wa-demo-live" />Simulação de disparo</p>
+        <h2 className="auth-showcase-title">Cada disparo vira uma <em>conversa.</em></h2>
+        <p className="wa-demo-lead">Do envio pela API oficial até a venda: acompanhe cada etapa da conversa com o seu cliente.</p>
         <ol className="wa-demo-stages">
-          {STAGES.map((label, i) => (
-            <li key={label} className={i < stage ? "is-done" : undefined}>
+          {STAGES.map(({ label, detail }, i) => (
+            <li key={label} className={[i < stage && "is-done", i === stage - 1 && "is-current"].filter(Boolean).join(" ") || undefined}>
               <span className="wa-demo-stage-dot" />
-              {label}
+              <span className="wa-demo-stage-text">
+                <strong>{label}</strong>
+                <span>{detail}</span>
+              </span>
             </li>
           ))}
         </ol>
