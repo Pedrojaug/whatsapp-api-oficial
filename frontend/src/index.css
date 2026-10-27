@@ -2029,6 +2029,91 @@ body.light-theme .chat-panel-msg {
   flex-shrink: 0;
   height: 100% !important;
   min-height: 0 !important;
+  animation: crmPanelIn 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes crmPanelIn {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Com a Ficha aberta a lista de conversas recolhe, para o chat não ficar espremido
+   entre três colunas. Telas muito largas mantêm as três lado a lado. */
+@media (min-width: 768px) and (max-width: 1699px) {
+  .chat-glass-container.is-crm-open .chat-panel-list { display: none; }
+}
+
+/* ─── Filtros da lista de conversas ─── */
+.conv-filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-2-5);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+.conv-filter-chip {
+  height: 28px;
+  padding: 0 var(--space-2-5);
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.conv-filter-chip { display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; }
+.conv-filter-chip:hover { border-color: rgba(255, 255, 255, 0.18); color: var(--text-primary); }
+.conv-filter-count { font-weight: 500; opacity: 0.75; }
+.conv-filter-chip.is-highlight {
+  border-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  color: var(--primary);
+}
+.conv-filter-chip.is-active {
+  border-color: var(--primary);
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--primary);
+}
+/* Seletor "Mais filtros" (fica na linha do período): destacado quando um filtro dele está ativo */
+.conv-filter-more.is-active {
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+  background-color: color-mix(in srgb, var(--primary) 12%, transparent) !important;
+}
+
+/* ─── Rodapé quando só é possível enviar template (fora da janela de 24h) ─── */
+.chat-template-only {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2-5) var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--text-primary) 3%, transparent);
+}
+.chat-template-only.is-expired {
+  border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+}
+.chat-template-only__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--fs-sm, 0.85rem);
+  line-height: 1.4;
+  color: var(--text-secondary);
+}
+.chat-template-only__text strong { color: var(--text-primary); }
+.chat-template-only.is-expired .chat-template-only__text strong { color: var(--warning); }
+.chat-template-only .btn { flex-shrink: 0; height: 40px; white-space: nowrap; }
+@media (max-width: 767px) {
+  .chat-template-only { flex-direction: column; align-items: stretch; }
 }
 
 body.light-theme .chat-input-container {

@@ -672,6 +672,14 @@ export default function ChatPage() {
   const [crmData, setCrmData] = useState<LeadCrmData>({ stage: 'NEW', tags: [], notes: '' });
   const [newTagInput, setNewTagInput] = useState("");
 
+  // Esc fecha a Ficha do lead
+  useEffect(() => {
+    if (!showCrmDrawer) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setShowCrmDrawer(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showCrmDrawer]);
+
   // Cache O(1) de atendidos locais (carregado 1 única vez ao selecionar conta)
   const [localHandledMap, setLocalHandledMap] = useState<Set<string>>(new Set());
 
@@ -1213,6 +1221,8 @@ export default function ChatPage() {
     { key: "UNDELIVERED", label: "✉️ Não entregues", title: "Apenas enviadas — nunca chegaram ao cliente" },
     { key: "FAILED", label: "⚠️ Com falha", title: "Chats com pelo menos uma mensagem que falhou" },
   ];
+  // Filtros sempre visíveis; os demais (histórico e status de entrega) ficam no seletor "Mais filtros"
+  const PRIMARY_CONV_FILTERS = ["ALL", "UNANSWERED", "ANSWERED"];
 
   const matchesConvFilter = useCallback((c: any, filterOverride?: string) => {
     const filter = filterOverride || convFilter;
@@ -1787,7 +1797,7 @@ export default function ChatPage() {
           </div>
         </div>
       ) : (
-        <div className="glass chat-glass-container" style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
+        <div className={`glass chat-glass-container${selectedPhone && showCrmDrawer ? " is-crm-open" : ""}`} style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
           
           {/* 1. Lista de Conversas (Esquerda) */}
           <div className={`chat-panel-list${selectedPhone ? " mobile-hidden" : ""}`}>
@@ -1885,6 +1895,28 @@ export default function ChatPage() {
                   <option value="7days">Últimos 7 dias</option>
                   <option value="custom">Personalizado...</option>
                 </select>
+                {/* Filtros de histórico e de entrega, fora da faixa de chips */}
+                {(() => {
+                  const moreFilters = CONV_FILTERS.filter(f => !PRIMARY_CONV_FILTERS.includes(f.key));
+                  const activeMore = moreFilters.find(f => f.key === convFilter);
+                  return (
+                    <select
+                      value={activeMore ? activeMore.key : ""}
+                      onChange={(e) => setConvFilter(e.target.value || "ALL")}
+                      className={`field-input conv-filter-more${activeMore ? " is-active" : ""}`}
+                      style={{ fontSize: "var(--fs-xs)", padding: "var(--space-1) var(--space-1-5)", cursor: "pointer", height: "28px", flex: 1, minWidth: 0 }}
+                      aria-label="Mais filtros de conversa"
+                      title={activeMore ? activeMore.title : "Filtrar por outros status"}
+                    >
+                      <option value="">Mais filtros</option>
+                      {moreFilters.map(f => (
+                        <option key={f.key} value={f.key}>
+                          {f.label} ({convFilterCounts[f.key as keyof typeof convFilterCounts] ?? 0})
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
                 <button
                   type="button"
                   onClick={exportCsv}
@@ -1944,9 +1976,9 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Filtros de conversas (chats) */}
-            <div style={{ display: "flex", gap: "var(--space-1)", padding: "var(--space-1-5) var(--space-2-5)", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
-              {CONV_FILTERS.map(f => {
+            {/* Filtros de conversas: os três da rotina de atendimento à vista, o resto em "Mais filtros" */}
+            <div className="conv-filters">
+              {CONV_FILTERS.filter(f => PRIMARY_CONV_FILTERS.includes(f.key)).map(f => {
                 const isActive = convFilter === f.key;
                 const count = convFilterCounts[f.key as keyof typeof convFilterCounts] ?? 0;
                 return (
@@ -1954,34 +1986,11 @@ export default function ChatPage() {
                     key={f.key}
                     type="button"
                     title={f.title}
+                    aria-pressed={isActive}
                     onClick={() => setConvFilter(f.key)}
-                    style={{
-                      padding: "var(--space-0-5) var(--space-2)",
-                      borderRadius: "var(--radius-md)",
-                      fontSize: "var(--fs-2xs)",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      cursor: "pointer",
-                      border: isActive
-                        ? "1px solid var(--primary)"
-                        : f.highlight && count > 0
-                          ? "1px solid color-mix(in srgb, var(--primary) 55%, transparent)"
-                          : "1px solid var(--border-color)",
-                      background: isActive
-                        ? "color-mix(in srgb, var(--primary) 22%, transparent)"
-                        : f.highlight && count > 0
-                          ? "color-mix(in srgb, var(--primary) 12%, transparent)"
-                          : "transparent",
-                      color: isActive
-                        ? "var(--primary)"
-                        : f.highlight && count > 0
-                          ? "var(--primary)"
-                          : "var(--text-muted)",
-                      transition: "all 0.15s",
-                      flexShrink: 0,
-                    }}
+                    className={`conv-filter-chip${isActive ? " is-active" : ""}${f.highlight && count > 0 ? " is-highlight" : ""}`}
                   >
-                    {f.label} ({count})
+                    {f.label} <span className="conv-filter-count">{count}</span>
                   </button>
                 );
               })}
@@ -2032,8 +2041,8 @@ export default function ChatPage() {
                           <button
                             type="button"
                             className={`conv-action-btn ${isHandledLead ? "conv-action-btn--active" : "conv-action-btn--success"}`}
-                            title={isHandledLead ? "Reabrir conversa (voltar para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila)"}
-                            aria-label={isHandledLead ? "Reabrir conversa" : "Marcar conversa como atendida"}
+                            title={isHandledLead ? "Voltar para a fila de aguardando" : "Marcar como Atendido / Concluído (retira da fila)"}
+                            aria-label={isHandledLead ? "Voltar conversa para a fila" : "Marcar conversa como atendida"}
                             onClick={(e) => toggleHandled(c.phone, e)}
                           >
                             {isHandledLead ? "↩️" : "✅"}
@@ -2296,9 +2305,9 @@ export default function ChatPage() {
                         cursor: "pointer",
                         transition: "all 0.18s ease"
                       }}
-                      title={isConversationHandled(selectedPhone) ? "Reabrir atendimento (retorna para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila de espera)"}
+                      title={isConversationHandled(selectedPhone) ? "Devolve a conversa para a fila de aguardando" : "Marcar como Atendido / Concluído (retira da fila de espera)"}
                     >
-                      <span>{isConversationHandled(selectedPhone) ? "↩️ Reabrir" : "✅ Atendido"}</span>
+                      <span>{isConversationHandled(selectedPhone) ? "↩️ Voltar para a fila" : "✅ Atendido"}</span>
                     </button>
 
                     {/* Botão de Abrir/Fechar Mini-CRM */}
@@ -2565,6 +2574,8 @@ export default function ChatPage() {
                       timeRemainingStr = `${remHrs}h ${remMins}m`;
                     }
                   }
+                  // Texto livre só com a janela de 24h aberta; fora dela, apenas template
+                  const canReplyFreely = !!lastInc && isWindowActive;
 
                   return (
                     <div className="chat-input-container" style={{
@@ -2579,8 +2590,7 @@ export default function ChatPage() {
                       zIndex: 10
                     }}>
                       
-                      {lastInc ? (
-                        isWindowActive ? (
+                      {canReplyFreely ? (
                           <div style={{
                             background: "color-mix(in srgb, var(--primary) 8%, transparent)",
                             border: "1px solid color-mix(in srgb, var(--primary) 22%, transparent)",
@@ -2597,40 +2607,32 @@ export default function ChatPage() {
                             <span className="window-badge" style={{ fontSize: "var(--fs-2xs)", padding: "1px var(--space-1-5)" }}><span className="dot" />Janela aberta</span>
                             <span style={{ fontSize: "var(--fs-xs)" }}>Responda livremente · Expira em <strong>{timeRemainingStr}</strong></span>
                           </div>
-                        ) : (
-                          <div style={{
-                            background: "color-mix(in srgb, var(--warning) 8%, transparent)",
-                            border: "1px solid color-mix(in srgb, var(--warning) 22%, transparent)",
-                            borderRadius: "var(--radius-xs)",
-                            padding: "var(--space-1) var(--space-2)",
-                            fontSize: "var(--fs-xs)",
-                            color: "var(--warning)",
-                            fontWeight: "500",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "var(--space-1-5)"
-                          }}>
-                            <span>⚠️ <strong>Janela Expirada:</strong> Envie um Template para reabrir.</span>
-                          </div>
-                        )
                       ) : (
-                        <div style={{
-                          background: "color-mix(in srgb, var(--text-primary) 2%, transparent)",
-                          border: "1px solid var(--border-color)",
-                          borderRadius: "var(--radius-xs)",
-                          padding: "var(--space-1) var(--space-2)",
-                          fontSize: "var(--fs-xs)",
-                          color: "var(--text-secondary)",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "var(--space-1-5)"
-                        }}>
-                          <span>ℹ️ O cliente ainda não respondeu ao disparo. Respostas de texto livre disponíveis após interação dele.</span>
+                        // Fora da janela de 24h (ou sem resposta do cliente) só template é aceito:
+                        // um aviso e uma ação, em vez de aviso + campo bloqueado + botão desabilitado.
+                        <div className={`chat-template-only${lastInc ? " is-expired" : ""}`}>
+                          <div className="chat-template-only__text">
+                            <strong>{lastInc ? "A janela de 24h expirou." : "O cliente ainda não respondeu."}</strong>
+                            <span>
+                              {lastInc
+                                ? "Para falar com o cliente de novo, envie um template aprovado."
+                                : "Para iniciar a conversa, envie um template aprovado. O texto livre libera quando ele responder."}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { if (!isViewer) setShowChatTemplateModal(true); }}
+                            className="btn btn-primary"
+                            disabled={isViewer}
+                            title={isViewer ? "Somente leitura" : "Escolher e enviar um template de mensagem"}
+                          >
+                            📝 Enviar template
+                          </button>
                         </div>
                       )}
 
                       {/* Barra de Respostas Rápidas (1-Clique / Canned Responses) */}
-                      {(!lastInc || isWindowActive) && (
+                      {canReplyFreely && (
                         <div className="quick-replies-toolbar" style={{ padding: "0", gap: "var(--space-1)" }}>
                           <div className="quick-replies-scroll-area" style={{ gap: "var(--space-1)" }}>
                             <span className="quick-replies-label" style={{ fontSize: "var(--fs-2xs)" }}>
@@ -2683,7 +2685,7 @@ export default function ChatPage() {
                       )}
 
                       {/* Barra de Formatação estilo WhatsApp e Botão de Prévia */}
-                      {(!lastInc || isWindowActive) && (
+                      {canReplyFreely && (
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-0-5)", padding: "0 var(--space-0-5)" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
                             <button
@@ -2789,16 +2791,15 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      {/* Campo de digitação de mensagem e botões */}
+                      {/* Campo de digitação de mensagem e botões (só com a janela de 24h aberta) */}
+                      {canReplyFreely && (
                       <form onSubmit={sendReply} style={{ display: "flex", gap: "var(--space-2-5)", alignItems: "flex-end" }}>
                         <textarea
                           ref={replyTextareaRef}
                           placeholder={
                             isViewer
                               ? "Acesso em modo somente leitura (Visualizador). Respostas desabilitadas."
-                              : !lastInc || isWindowActive 
-                                ? "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)" 
-                                : "Janela expirada — envie um template para reabrir..."
+                              : "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)"
                           }
                           value={replyBody}
                           onChange={(e) => {
@@ -2837,7 +2838,7 @@ export default function ChatPage() {
                               if (!isViewer) sendReply();
                             }
                           }}
-                          disabled={isViewer || (lastInc ? !isWindowActive : true)}
+                          disabled={isViewer}
                           className="chat-textarea"
                           aria-label="Mensagem para o cliente"
                           rows={1}
@@ -2860,7 +2861,7 @@ export default function ChatPage() {
                           type="submit"
                           className="chat-send-btn btn btn-primary"
                           style={{ height: "40px", flexShrink: 0, opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
-                          disabled={isViewer || isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
+                          disabled={isViewer || isSendingReply || !replyBody.trim()}
                         >
                           {isSendingReply ? "Enviando..." : "Enviar ✈️"}
                         </button>
@@ -2873,11 +2874,12 @@ export default function ChatPage() {
                           className="btn btn-secondary"
                           style={{ padding: "0 var(--space-3-5)", borderRadius: "var(--radius-md)", whiteSpace: "nowrap", height: "40px", flexShrink: 0, fontSize: "var(--fs-md)", opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
                           disabled={isViewer}
-                          title={isViewer ? "Somente leitura" : "Enviar Template de Mensagem"}
+                          title={isViewer ? "Somente leitura" : "Enviar um template de mensagem"}
                         >
-                          📝 Reabrir
+                          📝 Template
                         </button>
                       </form>
+                      )}
                     </div>
                   );
                 })()}
