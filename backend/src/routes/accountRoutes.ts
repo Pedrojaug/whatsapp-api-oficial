@@ -11,6 +11,7 @@ import {
   validateMemberPassword,
   loadCredentialTarget,
   isManagedCollaborator,
+  invalidateAccountAccess,
 } from "../utils/accountAccess";
 
 const router = Router();
@@ -67,6 +68,7 @@ router.post("/accounts", checkSubscriptionActive, checkAccountLimit, async (req:
       update: { wabaId, phoneNumberId, accessToken: encryptedToken },
       create: { userId, name, wabaId, phoneNumberId, accessToken: encryptedToken },
     });
+    invalidateAccountAccess(account.id);
 
     const raw = decryptToken(account.accessToken);
     res.status(201).json({
@@ -125,6 +127,7 @@ router.delete("/accounts/:id", async (req: Request, res: Response) => {
     const account = await prisma.account.findFirst({ where: { id, userId } });
     if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
     await prisma.account.delete({ where: { id } });
+    invalidateAccountAccess(id);
     res.json({ message: "Account deleted successfully" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -272,6 +275,7 @@ router.post(["/accounts/:accountId/shares", "/accounts/:accountId/team"], async 
       create: { accountId, userId: target.id, role: assignedRole },
       include: { user: { select: { id: true, email: true, name: true, avatarUrl: true } } },
     });
+    invalidateAccountAccess(accountId);
 
     res.status(201).json({
       id: share.id,
@@ -342,6 +346,7 @@ router.patch(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/team
         where: { id: shareId },
         data: { role: updatedRole },
       });
+      invalidateAccountAccess(accountId);
     }
 
     if (Object.keys(userUpdateData).length > 0) {
@@ -379,6 +384,7 @@ router.delete(["/accounts/:accountId/shares/:shareId", "/accounts/:accountId/tea
     // Escopo por accountId: impede revogar acessos de outra conta pelo shareId
     const { count } = await prisma.accountShare.deleteMany({ where: { id: shareId, accountId } });
     if (count === 0) return res.status(404).json({ error: "Colaborador não encontrado nesta conta." });
+    invalidateAccountAccess(accountId);
     res.json({ success: true, message: "Acesso do colaborador revogado com sucesso." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

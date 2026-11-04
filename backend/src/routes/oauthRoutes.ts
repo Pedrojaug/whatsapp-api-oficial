@@ -3,6 +3,7 @@ import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { encryptToken, decryptToken } from "../utils/crypto";
 import { metaService } from "../services/metaService";
+import { invalidateAccountAccess } from "../utils/accountAccess";
 
 const router = Router();
 
@@ -148,6 +149,7 @@ router.post("/accounts/facebook-onboard/save", async (req: Request, res: Respons
       update: { wabaId, phoneNumberId, accessToken: encryptedToken },
       create: { userId, name, wabaId, phoneNumberId, accessToken: encryptedToken },
     });
+    invalidateAccountAccess(account.id);
 
     const raw = decryptToken(account.accessToken);
     res.status(201).json({

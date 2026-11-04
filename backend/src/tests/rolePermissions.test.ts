@@ -3,11 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const prismaMock = vi.hoisted(() => ({
   account: { findFirst: vi.fn() },
   user: { findUnique: vi.fn() },
-  accountShare: { findFirst: vi.fn() },
 }));
 vi.mock("../db", () => ({ prisma: prismaMock }));
 
-import { hasPermission, getAccountWithPermission, AccountPermission } from "../utils/accountAccess";
+import { hasPermission, getAccountWithPermission, invalidateAccountAccess, AccountPermission } from "../utils/accountAccess";
 
 const ALL: AccountPermission[] = ["view", "viewReports", "chat", "dispatch", "manageTeam", "manageSettings"];
 const allowed = (role: string) => ALL.filter(p => hasPermission(role, p));
@@ -46,12 +45,13 @@ function fakeRes() {
 describe("getAccountWithPermission", () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    prismaMock.account.findFirst.mockResolvedValue({ id: "acc-1", userId: "owner-1", name: "Loja" });
+    invalidateAccountAccess(); // o acesso fica em cache por conta+usuário
+    prismaMock.account.findFirst.mockResolvedValue({ id: "acc-1", userId: "owner-1", name: "Loja", shares: [] });
     prismaMock.user.findUnique.mockResolvedValue({ id: "member-1", role: "USER" });
   });
 
   it("libera o Gerente (colaborador) para listar e criar templates — o bug reportado", async () => {
-    prismaMock.accountShare.findFirst.mockResolvedValue({ role: "MANAGER" });
+    prismaMock.account.findFirst.mockResolvedValue({ id: "acc-1", userId: "owner-1", name: "Loja", shares: [{ role: "MANAGER" }] });
     for (const perm of ["view", "dispatch"] as const) {
       const res = fakeRes();
       const account = await getAccountWithPermission(res, "acc-1", "member-1", perm);
@@ -61,7 +61,7 @@ describe("getAccountWithPermission", () => {
   });
 
   it("responde 403 quando o cargo não tem a permissão", async () => {
-    prismaMock.accountShare.findFirst.mockResolvedValue({ role: "VIEWER" });
+    prismaMock.account.findFirst.mockResolvedValue({ id: "acc-1", userId: "owner-1", name: "Loja", shares: [{ role: "VIEWER" }] });
     const res = fakeRes();
     const account = await getAccountWithPermission(res, "acc-1", "member-1", "dispatch");
     expect(account).toBeNull();
@@ -69,7 +69,6 @@ describe("getAccountWithPermission", () => {
   });
 
   it("responde 404 para quem não é dono nem colaborador da conta", async () => {
-    prismaMock.accountShare.findFirst.mockResolvedValue(null);
     const res = fakeRes();
     const account = await getAccountWithPermission(res, "acc-1", "stranger", "view");
     expect(account).toBeNull();

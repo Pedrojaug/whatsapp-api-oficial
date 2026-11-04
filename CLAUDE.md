@@ -89,7 +89,7 @@ All authenticated routes under `/api` go through `middlewares/auth.ts` (JWT). Th
 
 Messages are **never sent inline**. The API creates a `Message` record with `status: PENDING`. A background worker (`workers/dispatcher.ts`) polls every 5 seconds:
 
-1. Fetches up to 50 PENDING messages (respecting `scheduledAt` and `nextRetryAt`)
+1. Claims up to 50 due PENDING messages in a single `UPDATE … RETURNING` (PENDING → PROCESSING), interleaving accounts so one big campaign does not starve the others. Each account sends sequentially with `DISPATCH_PACING_MS` (default 70 ms); up to `DISPATCH_ACCOUNT_CONCURRENCY` accounts (default 4) send in parallel
 2. Checks opt-out list in batch
 3. Decrypts the account's `accessToken` (AES-256-CBC via `utils/crypto.ts`)
 4. Calls `graph.facebook.com/v19.0/{phoneNumberId}/messages`
@@ -128,7 +128,7 @@ Access tokens are AES-256-CBC encrypted before storage in `Account.accessToken`.
 
 The frontend detects impersonation by JWT-decoding the token and checking `impersonatorId`. A banner and "Voltar para Administrador" button are shown via `Layout.tsx`.
 
-**Super admin account:** `equipeinteligentte@send.com` / `eu1507` — user with `role: "SUPERUSER"` in the database. Access the admin panel at `/admin`.
+**Super admin account:** user with `role: "SUPERUSER"` in the database (credentials are kept outside the repo — never commit them here). Access the admin panel at `/admin`.
 
 **API keys** use SHA-256 (not bcrypt) for fast lookup — keys are long random strings (`sk_<32 random bytes as base64url>`), not user passwords. The plain key is returned once on creation and never stored.
 
@@ -162,6 +162,7 @@ All pages follow the same structure: `fade-in` wrapper div → page header with 
 ## Key Gotchas
 
 - **Never use `prisma migrate dev`** — use `npx prisma db push` (the environment is non-interactive).
+- **The Render build runs `prisma db push` without `--accept-data-loss`**: a schema change that would drop data fails the build instead of running. The production database also holds tables owned by other systems (e.g. `capitania_catalogo`, used by a client's n8n agent); they are modeled in `schema.prisma` only so `db push` keeps them — never remove them from the schema.
 - **Access tokens in DB are AES-encrypted.** When debugging a "token invalid" error, check that `ENCRYPTION_KEY` is consistent between environments.
 - **CORS** is configured to allow `*.vercel.app` subdomains dynamically — no need to add every preview URL manually.
 - **The dispatcher is a single process** — it uses an `isProcessing` flag (not a DB lock) which is fine for the single-instance Render deployment. Do not run multiple backend instances without replacing this with a DB-based advisory lock.

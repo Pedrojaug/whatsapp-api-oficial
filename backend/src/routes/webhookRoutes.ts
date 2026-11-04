@@ -1,13 +1,37 @@
 import { Router, Request, Response } from "express";
 import crypto from "crypto";
-import axios from "axios";
 import { prisma } from "../db";
-import { decryptToken } from "../utils/crypto";
 import { normalizePhone } from "../services/phoneService";
 import { messageEventEmitter } from "../utils/emitter";
 import { isOptOutMessage } from "../utils/optoutKeywords";
+import { findAccountByPhoneNumberId } from "../utils/accountAccess";
 
 const router = Router();
+
+interface StatusUpdateRow {
+  id: string;
+  accountId: string;
+  to: string;
+  status: string;
+  direction: string;
+  body: string | null;
+  messageType: string;
+  wamid: string | null;
+  errorMessage: string | null;
+  updatedAt: Date;
+}
+
+const STATUS_RANK: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3 };
+
+/**
+ * Status que já estão no mesmo nível ou acima do recebido: um evento para uma mensagem
+ * nesses status é redundante ou chegou fora de ordem. Status sem nível (ex.: FAILED) não bloqueiam.
+ */
+export function statusesAtOrAbove(status: string): string[] {
+  const rank = STATUS_RANK[status];
+  if (!rank) return [];
+  return Object.keys(STATUS_RANK).filter((s) => STATUS_RANK[s] >= rank);
+}
 
 // NOTA: As rotas de webhook são públicas e NÃO devem utilizar o authMiddleware
 
@@ -113,6 +137,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
               for (const statusObj of value.statuses) {
                 const wamid = statusObj.id;
                 const status = statusObj.status?.toUpperCase(); // DELIVERED, READ, SENT, FAILED
+                if (!wamid || !status) continue;
                 const errors = statusObj.errors;
                 let errorMessage = null;
                 let isUndeliverable = false;
@@ -136,24 +161,21 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                   }
                 }
 
-                // Procurar mensagem por wamid e atualizar status
-                const msg = await prisma.message.findUnique({ where: { wamid } });
-                if (msg) {
-                  // A Meta entrega eventos de status fora de ordem e com retries;
-                  // nao deixar um DELIVERED atrasado rebaixar uma mensagem ja READ.
-                  const RANK: Record<string, number> = { SENT: 1, DELIVERED: 2, READ: 3 };
-                  const curRank = RANK[msg.status] ?? 0;
-                  const newRank = RANK[status] ?? 0;
-                  if (status !== "FAILED" && newRank !== 0 && newRank <= curRank) {
-                    continue; // evento redundante ou fora de ordem — ignora
-                  }
-                  const updatedMsg = await prisma.message.update({
-                    where: { wamid },
-                    data: {
-                      status,
-                      ...(errorMessage ? { errorMessage } : {}),
-                    },
-                  });
+                // Atualização condicional numa única ida ao banco (antes: findUnique + update).
+                // A Meta entrega eventos de status fora de ordem e com retries;
+                // nao deixar um DELIVERED atrasado rebaixar uma mensagem ja READ.
+                const blockedStatuses = status === "FAILED" ? [] : statusesAtOrAbove(status);
+                const [updatedMsg] = await prisma.$queryRaw<StatusUpdateRow[]>`
+                  UPDATE "Message"
+                  SET status = ${status},
+                      "errorMessage" = COALESCE(${errorMessage}::text, "errorMessage"),
+                      "updatedAt" = ${new Date()}
+                  WHERE wamid = ${wamid}
+                    AND NOT (status = ANY(${blockedStatuses}::text[]))
+                  RETURNING id, "accountId", "to", status, direction, body, "messageType", wamid, "errorMessage", "updatedAt"
+                `;
+                if (updatedMsg) {
+                  const msg = updatedMsg;
                   console.log(`Mensagem ${wamid} atualizada para o status: ${status}`);
 
                   // Se o número for inválido/inexistente, registra automaticamente no OptOut
@@ -186,7 +208,7 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                     updatedAt: updatedMsg.updatedAt,
                   });
                 } else {
-                  console.warn(`[Webhook] Status "${status}" recebido para wamid desconhecido (${wamid}) — nenhuma mensagem correspondente no banco. Evento descartado.`);
+                  console.warn(`[Webhook] Status "${status}" para wamid ${wamid} ignorado — mensagem desconhecida ou evento fora de ordem/redundante.`);
                 }
               }
             }
@@ -264,63 +286,63 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                 const phoneId = value.metadata?.phone_number_id;
                 console.log(`[Webhook] Processando mensagem recebida. Remetente (from): ${from}, phoneNumberId da Meta: ${phoneId}`);
                 if (phoneId) {
-                  const account = await prisma.account.findFirst({
-                    where: { phoneNumberId: phoneId }
-                  });
+                  const account = await findAccountByPhoneNumberId(phoneId);
 
                   if (account) {
                     console.log(`[Webhook] Conta encontrada no banco: ${account.name} (ID: ${account.id})`);
 
-                    // Detecção inteligente de opt-out (Texto, Botão ou Interativo)
-                    if (bodyText && isOptOutMessage(bodyText)) {
-                      try {
-                        await prisma.optOut.upsert({
+                    // Opt-out, contato e mensagem são independentes: gravados em paralelo
+                    // (uma ida ao banco em vez de quatro em sequência).
+                    const optOutWrite = bodyText && isOptOutMessage(bodyText)
+                      // Detecção inteligente de opt-out (Texto, Botão ou Interativo)
+                      ? prisma.optOut.upsert({
                           where: { phone_accountId: { phone: from, accountId: account.id } },
                           update: { reason: "KEYWORD" },
                           create: { phone: from, accountId: account.id, reason: "KEYWORD" },
-                        });
-                        console.log(`[Webhook] Opt-out registrado automaticamente para ${from} (conta ${account.id}) — recusa/keyword detectada: "${bodyText}"`);
-                      } catch (optErr) {
-                        console.error("[Webhook] Erro ao registrar opt-out:", optErr);
-                      }
-                    }
+                        }).then(
+                          () => console.log(`[Webhook] Opt-out registrado automaticamente para ${from} (conta ${account.id}) — recusa/keyword detectada: "${bodyText}"`),
+                          (optErr) => console.error("[Webhook] Erro ao registrar opt-out:", optErr)
+                        )
+                      : Promise.resolve();
 
                     // Salvar/atualizar contato e reabrir atendimento (isHandled = false)
-                    try {
-                      await (prisma as any).whatsAppContact.upsert({
-                        where: { accountId_phone: { accountId: account.id, phone: from } },
-                        update: {
-                          ...(profileName ? { profileName } : {}),
-                          isHandled: false,
-                        },
-                        create: {
-                          accountId: account.id,
-                          phone: from,
-                          profileName: profileName || null,
-                          isHandled: false,
-                        },
-                      });
-                    } catch (contactErr) {
+                    const contactWrite = prisma.whatsAppContact.upsert({
+                      where: { accountId_phone: { accountId: account.id, phone: from } },
+                      update: {
+                        ...(profileName ? { profileName } : {}),
+                        isHandled: false,
+                      },
+                      create: {
+                        accountId: account.id,
+                        phone: from,
+                        profileName: profileName || null,
+                        isHandled: false,
+                      },
+                    }).catch((contactErr) => {
                       console.warn("[Webhook] Erro ao atualizar status de atendimento do contato:", contactErr);
-                    }
+                    });
 
-                    // Evitar duplicações caso a Meta reenvie o webhook
-                    const existingMsg = await prisma.message.findUnique({ where: { wamid } });
+                    // Evitar duplicações caso a Meta reenvie o webhook: o wamid é único,
+                    // então um reenvio falha com P2002 em vez de exigir uma consulta prévia.
+                    const messageWrite = prisma.message.create({
+                      data: {
+                        accountId: account.id,
+                        wamid,
+                        to: from, // Para mensagens recebidas, salvamos o telefone do remetente em "to"
+                        status: "RECEIVED",
+                        direction: "INCOMING",
+                        messageType: type.toUpperCase(),
+                        body: bodyText,
+                        mediaUrl: mediaUrl,
+                      }
+                    }).catch((createErr: any) => {
+                      if (createErr?.code === "P2002") return null;
+                      throw createErr;
+                    });
 
-                    if (!existingMsg) {
-                      const savedMsg = await prisma.message.create({
-                        data: {
-                          accountId: account.id,
-                          wamid,
-                          to: from, // Para mensagens recebidas, salvamos o telefone do remetente em "to"
-                          status: "RECEIVED",
-                          direction: "INCOMING",
-                          messageType: type.toUpperCase(),
-                          body: bodyText,
-                          mediaUrl: mediaUrl,
-                        }
-                      });
+                    const [, , savedMsg] = await Promise.all([optOutWrite, contactWrite, messageWrite]);
 
+                    if (savedMsg) {
                       console.log(`[Webhook] Nova mensagem recebida de ${from} salva no banco. Wamid: ${wamid}`);
 
                       // Emitir evento em tempo real para o frontend
@@ -339,49 +361,6 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                         profileName,
                         isHandled: false,
                       });
-
-                      // Encaminhar webhook para o n8n do SDR se configurado
-                      const n8nWebhookUrl = process.env.N8N_SDR_WEBHOOK_URL;
-                      if (n8nWebhookUrl) {
-                        const finalProfileName = profileName || "";
-                        
-                        let mimeType = "image/jpeg";
-                        if (type === "image" && messageObj.image?.mime_type) mimeType = messageObj.image.mime_type;
-                        else if (type === "audio" && messageObj.audio?.mime_type) mimeType = messageObj.audio.mime_type;
-                        else if (type === "video" && messageObj.video?.mime_type) mimeType = messageObj.video.mime_type;
-                        else if (type === "document" && messageObj.document?.mime_type) mimeType = messageObj.document.mime_type;
-
-                        const n8nPayload = {
-                          event: "on-message",
-                          type: type === "voice" ? "audio" : type,
-                          from: from,
-                          phone: from,
-                          cel_contato: from,
-                          destiny: account.phoneNumberId,
-                          cel_conectado: account.phoneNumberId,
-                          isgroup: false,
-                          isGroupMsg: false,
-                          fromMe: false,
-                          id: wamid,
-                          content: bodyText || "",
-                          caption: bodyText || "",
-                          pushName: finalProfileName,
-                          senderName: finalProfileName,
-                          nome_contato: finalProfileName,
-                          conteudo_buffer: mediaUrl ? {
-                            id: mediaUrl,
-                            mimetype: mimeType
-                          } : null,
-                          account_id: account.id,
-                          phone_number_id: account.phoneNumberId,
-                          access_token: decryptToken(account.accessToken)
-                        };
-
-                        console.log(`[Webhook] Encaminhando mensagem de ${from} para n8n: ${n8nWebhookUrl}`);
-                        axios.post(n8nWebhookUrl, n8nPayload).catch(err => {
-                          console.error("[Webhook] Falha ao encaminhar mensagem para n8n:", err.message);
-                        });
-                      }
                     } else {
                       console.log(`[Webhook] Mensagem com wamid ${wamid} já existe no banco. Ignorando.`);
                     }
