@@ -1,33 +1,35 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
-import { findAccountForUser } from "../utils/accountAccess";
+import { findAccountForUser, getAccountWithPermission } from "../utils/accountAccess";
 
 const router = Router();
 
 // Aplica autenticação a todas as rotas de Respostas Rápidas
 router.use(authMiddleware);
 
+// Padrões neutros semeados em toda conta nova. Nunca coloque aqui conteúdo de um cliente
+// (ofertas, chave PIX, endereço): o produto é multi-tenant e isto vai para todas as contas.
 export const DEFAULT_QUICK_REPLIES = [
-  {
-    title: "🎁 Oferta Body Splash",
-    message: `Obrigada pelo retorno! 💚 💦\n\nFestival de Body Splash 21 a 30/09 | 1 lançamento por dia\n200 ml — à vista ou cartão:\n\n🔥 R$ 75 por R$ 40\n🔥 R$ 72 por R$ 38\n\n🎁 *Incentivos:*\n• R$ 299 ➔ Body Splash 100 ml\n• R$ 400 ➔ Colônia 100 ml\n• R$ 800 ➔ 2 Colônias + Body Splash 200 ml\n\nJá revelados: *Laranja* e *Brisa Verde*.\nAmanhã: *Ternura* 🤫\n\nQuer pedir? Responda *SIM* e encaminhamos você para o atendimento da loja!`
-  },
-  {
-    title: "💳 Chave PIX",
-    message: `Perfeito! Segue a nossa chave PIX para pagamento:\n\n🔑 Chave: (84) 99999-9999\nTitular: Magda Perfumaria e Cosméticos\n\nAssim que fizer o envio do comprovante, separamos o seu pedido imediatamente! ✨`
-  },
-  {
-    title: "📍 Endereço & Horários",
-    message: `📍 Nossa loja fica localizada no Centro.\n⏰ Horário de atendimento:\nSegunda a Sexta: 08:30 às 18:00\nSábado: 08:30 às 13:00\n\nVenha nos visitar ou peça para entregarmos aí para você!`
-  },
-  {
-    title: "⏳ Pedir um Momento",
-    message: `Olá! Já recebi sua mensagem e estou verificando o seu pedido com a nossa equipe. Em minutinhos te dou o retorno completo, tá bem? Obrigado pela paciência! 💚`
-  },
   {
     title: "👋 Boas-vindas",
     message: `Olá! Tudo bem? Que bom falar com você! Como posso te ajudar hoje? 😊`
+  },
+  {
+    title: "⏳ Pedir um momento",
+    message: `Recebi sua mensagem e já estou verificando. Em alguns minutos te dou o retorno completo, tá bem? Obrigado pela paciência!`
+  },
+  {
+    title: "💳 Chave PIX",
+    message: `Segue nossa chave PIX para pagamento:\n\n🔑 Chave: [sua chave PIX]\nTitular: [nome do titular]\n\nAssim que receber o comprovante, damos andamento ao seu pedido.`
+  },
+  {
+    title: "📍 Endereço e horários",
+    message: `📍 Endereço: [seu endereço]\n⏰ Horário de atendimento:\nSegunda a sexta: [horário]\nSábado: [horário]`
+  },
+  {
+    title: "🙏 Encerramento",
+    message: `Obrigado pelo contato! Se precisar de mais alguma coisa, é só chamar por aqui.`
   }
 ];
 
@@ -37,8 +39,8 @@ router.get("/accounts/:accountId/quick-replies", async (req: Request, res: Respo
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     let replies = await prisma.quickReply.findMany({
       where: { accountId },
@@ -93,8 +95,8 @@ router.post("/accounts/:accountId/quick-replies", async (req: Request, res: Resp
   }
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const created = await prisma.quickReply.create({
       data: {
@@ -133,8 +135,8 @@ router.put("/accounts/:accountId/quick-replies/:id", async (req: Request, res: R
   }
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const existing = await prisma.quickReply.findFirst({
       where: { id, accountId }
@@ -170,8 +172,8 @@ router.delete("/accounts/:accountId/quick-replies/:id", async (req: Request, res
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const existing = await prisma.quickReply.findFirst({
       where: { id, accountId }
@@ -195,8 +197,8 @@ router.post("/accounts/:accountId/quick-replies/reset-defaults", async (req: Req
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     await prisma.quickReply.deleteMany({
       where: { accountId }

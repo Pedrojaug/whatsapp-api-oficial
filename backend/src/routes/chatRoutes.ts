@@ -4,7 +4,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { decryptToken } from "../utils/crypto";
 import { normalizePhone, phoneVariants } from "../services/phoneService";
 import { metaService } from "../services/metaService";
-import { findAccountForUser, canSendMessages } from "../utils/accountAccess";
+import { findAccountForUser, canSendMessages, getAccountWithPermission } from "../utils/accountAccess";
 import { messageEventEmitter } from "../utils/emitter";
 
 const router = Router();
@@ -46,6 +46,43 @@ interface ConversationRow {
   hasDelivered: boolean;
   hasRead: boolean;
   isHandled: boolean;
+  // Listas de contatos em que o número está (origem do lead), com as tags de cada lista
+  sourceLists: { id: string; name: string; tags: string[] }[];
+}
+
+// Liga cada conversa às listas de contatos que contêm o número, para o atendente
+// saber de qual lista/disparo o lead veio.
+async function attachSourceLists(accountId: string, conversations: ConversationRow[]): Promise<void> {
+  if (conversations.length === 0) return;
+  const variants = new Set<string>();
+  for (const c of conversations) {
+    for (const v of phoneVariants(c.phone)) variants.add(v);
+  }
+
+  // Um único parâmetro de array: contas com dezenas de milhares de conversas não
+  // estouram o limite de parâmetros do PostgreSQL.
+  const rows = await prisma.$queryRaw<{ phone: string; id: string; name: string; tags: string[]; createdAt: Date }[]>`
+    SELECT DISTINCT c.phone, l.id, l.name, l.tags, l."createdAt"
+    FROM "Contact" c
+    JOIN "ContactList" l ON l.id = c."contactListId"
+    WHERE l."accountId" = ${accountId} AND c.phone = ANY(${Array.from(variants)}::text[])
+  `;
+
+  const byPhone = new Map<string, Map<string, { id: string; name: string; tags: string[]; createdAt: Date }>>();
+  for (const row of rows) {
+    const key = normalizePhone(row.phone);
+    if (!byPhone.has(key)) byPhone.set(key, new Map());
+    byPhone.get(key)!.set(row.id, { id: row.id, name: row.name, tags: row.tags || [], createdAt: new Date(row.createdAt) });
+  }
+
+  for (const c of conversations) {
+    const lists = byPhone.get(c.phone);
+    if (!lists) continue;
+    // Lista mais recente primeiro (geralmente a do último disparo)
+    c.sourceLists = Array.from(lists.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .map(({ id, name, tags }) => ({ id, name, tags }));
+  }
 }
 
 // Monta a lista de conversas (última mensagem por contato + agregados de status),
@@ -118,6 +155,7 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
         hasDelivered: Boolean(row.hasDelivered),
         hasRead: Boolean(row.hasRead),
         isHandled: Boolean(contactInfo?.isHandled),
+        sourceLists: [],
       });
     } else {
       if (isNewer) {
@@ -140,6 +178,12 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
   // Oculta contatos na Lista Negra por padrão e ordena pelas interações mais recentes
   const visible = Array.from(convMap.values()).filter((c) => !blacklistedSet.has(c.phone));
   visible.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+  try {
+    await attachSourceLists(accountId, visible);
+  } catch (err: any) {
+    // As etiquetas são complementares: uma falha aqui não pode derrubar o Live Chat
+    console.error("[conversations] falha ao buscar listas de origem:", err?.message || err);
+  }
   return visible;
 }
 
@@ -206,8 +250,8 @@ router.get("/accounts/:accountId/conversations", async (req: Request, res: Respo
   const { accountId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
@@ -238,20 +282,22 @@ router.get("/accounts/:accountId/conversations/export", async (req: Request, res
   const { startDate, endDate, filter = "ALL" } = req.query;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const dateRange = parseDateWindow(startDate as string | undefined, endDate as string | undefined);
     const conversations = await buildConversations(accountId, dateRange);
     const filtered = conversations.filter((c) => matchesConvFilter(c, String(filter)));
 
-    const lines = ["Telefone;Nome;Data da última interação;Status"];
+    const lines = ["Telefone;Nome;Data da última interação;Status;Listas de origem;Etiquetas"];
     for (const c of filtered) {
       lines.push([
         csvCell(c.phone),
         csvCell(c.profileName || ""),
         csvCell(new Date(c.updatedAt).toLocaleString("pt-BR")),
         csvCell(conversationStatusLabel(c)),
+        csvCell(c.sourceLists.map((l) => l.name).join(", ")),
+        csvCell(Array.from(new Set(c.sourceLists.flatMap((l) => l.tags))).join(", ")),
       ].join(";"));
     }
     const csv = "\uFEFF" + lines.join("\r\n");
@@ -271,8 +317,8 @@ router.patch("/accounts/:accountId/conversations/:phone/blacklist", async (req: 
   const { blacklisted = true } = req.body;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const normalized = normalizePhone(phone);
     const isBlack = !!blacklisted;
@@ -306,8 +352,8 @@ router.patch("/accounts/:accountId/conversations/:phone/handled", async (req: Re
   const userId = (req as AuthenticatedRequest).userId!;
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const normalized = normalizePhone(phone);
     const updated = await (prisma as any).whatsAppContact.upsert({
@@ -362,8 +408,8 @@ router.post("/accounts/:accountId/conversations/mark-all-handled", async (req: R
   }
 
   try {
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     const allPhones = new Set<string>();
     phones.forEach((p: string) => {
@@ -409,8 +455,8 @@ router.get("/accounts/:accountId/conversations/:phone/messages", async (req: Req
   const { accountId, phone } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const messages = await prisma.message.findMany({
       where: { accountId, to: { in: phoneVariants(phone) } },
@@ -430,10 +476,9 @@ router.get("/accounts/:accountId/media/:mediaId", async (req: Request, res: Resp
     const userId = (req as AuthenticatedRequest).userId;
     console.log(`[Media Proxy] Requisição de mídia recebida: conta=${accountId}, mediaId=${mediaId}, userId=${userId}`);
 
-    let account = userId ? await findAccountForUser(accountId, userId) : null;
-    if (!account) {
-      account = (await prisma.account.findFirst({ where: { id: accountId } })) as any;
-    }
+    // Sem fallback para "qualquer conta": antes, um usuário logado de outro tenant conseguia
+    // baixar mídias de conversas alheias só trocando o accountId na URL.
+    const account = userId ? await findAccountForUser(accountId, userId) : null;
 
     if (!account) {
       console.warn(`[Media Proxy] Conta não encontrada para ID: ${accountId}`);
@@ -516,8 +561,8 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
 
   try {
     const userId = (req as AuthenticatedRequest).userId!;
-    const account = await findAccountForUser(accountId, userId);
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "chat");
+    if (!account) return;
 
     if (!canSendMessages(account.accountRole)) {
       return res.status(403).json({ error: "Seu cargo possui permissão apenas de visualização." });

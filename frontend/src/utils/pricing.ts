@@ -70,3 +70,22 @@ export function calculateEstimate(contactCount: number, category?: string | null
     formattedUnitUsd: formatUSD(usd),
   };
 }
+
+// Preço por mensagem: tarifas têm 3–4 casas decimais (US$ 0,0625); arredondar para 2 distorce.
+export function formatUnitBRL(amount: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(amount || 0);
+}
+
+export function formatUnitUSD(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(amount || 0);
+}

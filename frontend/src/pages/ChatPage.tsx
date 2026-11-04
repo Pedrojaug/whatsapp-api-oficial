@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useMemo, useCallback, useDeferredVa
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
+import { useConfirm } from "../hooks/useConfirm";
+import Modal from "../components/Modal";
+import { getInitials } from "../utils/formatters";
+import { Edit2, Trash2 } from "lucide-react";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL, useAuth } from "../contexts/AuthContext";
 import { chatCache } from "../utils/chatCache";
@@ -165,29 +169,29 @@ function AudioMessagePlayer({ src }: { src: string }) {
   if (hasError) {
     return (
       <div style={{
-        padding: "10px 14px",
-        borderRadius: "12px",
-        background: "rgba(239, 68, 68, 0.12)",
-        border: "1px solid rgba(239, 68, 68, 0.25)",
-        color: "#f87171",
-        fontSize: "0.82rem",
+        padding: "var(--space-2-5) var(--space-3-5)",
+        borderRadius: "var(--radius-md)",
+        background: "color-mix(in srgb, var(--error) 12%, transparent)",
+        border: "1px solid color-mix(in srgb, var(--error) 25%, transparent)",
+        color: "var(--error)",
+        fontSize: "var(--fs-md)",
         display: "flex",
         alignItems: "center",
-        gap: "10px",
+        gap: "var(--space-2-5)",
         minWidth: "250px"
       }}>
-        <span style={{ fontSize: "1.1rem" }}>⚠️</span>
+        <span style={{ fontSize: "var(--fs-lg)" }}>⚠️</span>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 600 }}>Áudio temporariamente indisponível.</div>
-          <div style={{ display: "flex", gap: "12px", marginTop: "4px" }}>
+          <div style={{ display: "flex", gap: "var(--space-3)", marginTop: "var(--space-1)" }}>
             <button
               type="button"
               onClick={() => setRetryCount(c => c + 1)}
               style={{
                 background: "transparent",
                 border: "none",
-                color: "var(--primary, #10b981)",
-                fontSize: "0.75rem",
+                color: "var(--primary)",
+                fontSize: "var(--fs-xs)",
                 cursor: "pointer",
                 padding: 0,
                 textDecoration: "underline",
@@ -200,7 +204,7 @@ function AudioMessagePlayer({ src }: { src: string }) {
               href={src}
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--text-muted, #94a3b8)", fontSize: "0.75rem", textDecoration: "underline" }}
+              style={{ color: "var(--text-muted)", fontSize: "var(--fs-xs)", textDecoration: "underline" }}
             >
               Abrir link direto
             </a>
@@ -213,14 +217,15 @@ function AudioMessagePlayer({ src }: { src: string }) {
   const progressRatio = duration > 0 ? Math.min(1, currentTime / duration) : 0;
 
   return (
-    <div style={{
+    // Largura vem do balão (.msg-bubble:has(.audio-player) em index.css); antes o min-width fixo
+    // de 260px fazia a onda, o "1x" e o download vazarem do balão em conversas estreitas.
+    <div className="audio-player" style={{
       display: "flex",
       alignItems: "center",
-      gap: "12px",
-      padding: "4px 2px",
+      gap: "var(--space-3)",
+      padding: "var(--space-1) var(--space-0-5)",
       width: "100%",
-      minWidth: "260px",
-      maxWidth: "330px"
+      minWidth: 0
     }}>
       {/* Botão Play / Pause Estilo WhatsApp */}
       <button
@@ -232,31 +237,32 @@ function AudioMessagePlayer({ src }: { src: string }) {
           height: "42px",
           borderRadius: "50%",
           background: isPlaying
-            ? "linear-gradient(135deg, #10b981 0%, #059669 100%)"
-            : "linear-gradient(135deg, #059669 0%, #047857 100%)",
+            ? "linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%)"
+            : "linear-gradient(135deg, var(--primary-hover) 0%, color-mix(in srgb, var(--primary-hover) 80%, black) 100%)",
           boxShadow: isPlaying
-            ? "0 4px 14px rgba(16, 185, 129, 0.45)"
-            : "0 2px 8px rgba(0, 0, 0, 0.3)",
+            ? "0 4px 14px color-mix(in srgb, var(--primary) 45%, transparent)"
+            : "var(--shadow-md)",
           border: "none",
-          color: "#ffffff",
+          color: "var(--on-primary)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: loading ? "wait" : "pointer",
           flexShrink: 0,
           transition: "transform 0.15s ease, box-shadow 0.15s ease",
-          outline: "none"
         }}
+        className="icon-action--round"
         onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
         onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         title={isPlaying ? "Pausar" : "Ouvir áudio"}
+        aria-label={isPlaying ? "Pausar áudio" : "Ouvir áudio"}
       >
         {loading ? (
           <div style={{
             width: "15px",
             height: "15px",
-            border: "2px solid rgba(255, 255, 255, 0.3)",
-            borderTopColor: "#fff",
+            border: "2px solid color-mix(in srgb, currentColor 30%, transparent)",
+            borderTopColor: "currentColor",
             borderRadius: "50%",
             animation: "spin 0.8s linear infinite"
           }} />
@@ -266,14 +272,14 @@ function AudioMessagePlayer({ src }: { src: string }) {
             <rect x="14" y="4" width="4" height="16" rx="1.5" />
           </svg>
         ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: "2px" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: "var(--space-0-5)" }}>
             <path d="M8 5.14v13.72a1 1 0 001.55.83l11-6.86a1 1 0 000-1.66l-11-6.86A1 1 0 008 5.14z" />
           </svg>
         )}
       </button>
 
       {/* Conteúdo Central: Onda Sonora Interativa + Metadados */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "var(--space-1-5)", minWidth: 0 }}>
         {/* Waveform Scrubber */}
         <div
           ref={waveformRef}
@@ -282,9 +288,9 @@ function AudioMessagePlayer({ src }: { src: string }) {
             height: "28px",
             display: "flex",
             alignItems: "center",
-            gap: "2.5px",
+            gap: "var(--space-0-5)",
             cursor: duration > 0 ? "pointer" : "default",
-            padding: "2px 0",
+            padding: "var(--space-0-5) 0",
             position: "relative"
           }}
           title="Clique para navegar no áudio"
@@ -299,8 +305,8 @@ function AudioMessagePlayer({ src }: { src: string }) {
                   flex: 1,
                   height: `${h}%`,
                   minHeight: "4px",
-                  borderRadius: "2px",
-                  background: isFilled ? "var(--primary, #10b981)" : "rgba(255, 255, 255, 0.22)",
+                  borderRadius: "var(--radius-xs)",
+                  background: isFilled ? "var(--primary)" : "color-mix(in srgb, var(--text-primary) 22%, transparent)",
                   transition: "background 0.1s ease",
                 }}
               />
@@ -310,7 +316,7 @@ function AudioMessagePlayer({ src }: { src: string }) {
 
         {/* Linha Inferior: Duração + Velocidade + Download */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "0.72rem", color: "var(--text-muted, #94a3b8)", fontWeight: 500 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)", fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontWeight: 500 }}>
             <span>🎙️</span>
             <span>
               {isPlaying || currentTime > 0
@@ -319,19 +325,19 @@ function AudioMessagePlayer({ src }: { src: string }) {
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
             {/* Seletor de Velocidade 1x/1.5x/2x */}
             <button
               type="button"
               onClick={toggleSpeed}
               style={{
-                background: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                color: playbackRate > 1 ? "var(--primary, #10b981)" : "var(--text-secondary, #cbd5e1)",
-                fontSize: "0.68rem",
+                background: "color-mix(in srgb, var(--text-primary) 8%, transparent)",
+                border: "1px solid color-mix(in srgb, var(--text-primary) 12%, transparent)",
+                color: playbackRate > 1 ? "var(--primary)" : "var(--text-secondary)",
+                fontSize: "var(--fs-2xs)",
                 fontWeight: 700,
-                borderRadius: "10px",
-                padding: "2px 6px",
+                borderRadius: "var(--radius-sm)",
+                padding: "var(--space-0-5) var(--space-1-5)",
                 cursor: "pointer",
                 transition: "all 0.15s ease",
                 lineHeight: "1.2"
@@ -346,18 +352,18 @@ function AudioMessagePlayer({ src }: { src: string }) {
               href={blobUrl || src}
               download="mensagem_voz.ogg"
               style={{
-                color: "var(--text-muted, #94a3b8)",
+                color: "var(--text-muted)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 width: "20px",
                 height: "20px",
-                borderRadius: "4px",
+                borderRadius: "var(--radius-xs)",
                 transition: "color 0.15s ease",
                 textDecoration: "none"
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary, #10b981)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted, #94a3b8)")}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--primary)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--text-muted)")}
               title="Baixar áudio (.ogg)"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -414,13 +420,13 @@ function renderWhatsAppFormatted(text: string): React.ReactNode {
         parts.push(<del key={keyIdx++}>{match[4]}</del>);
       } else if (matchedStr.startsWith("`") && matchedStr.endsWith("`") && match[5]) {
         parts.push(
-          <code key={keyIdx++} style={{ background: "rgba(255,255,255,0.12)", padding: "1px 4px", borderRadius: "3px", fontSize: "0.85em", fontFamily: "monospace" }}>
+          <code key={keyIdx++} style={{ background: "color-mix(in srgb, var(--text-primary) 12%, transparent)", padding: "1px var(--space-1)", borderRadius: "var(--radius-xs)", fontSize: "var(--fs-md)", fontFamily: "monospace" }}>
             {match[5]}
           </code>
         );
       } else if (matchedStr.startsWith("http://") || matchedStr.startsWith("https://")) {
         parts.push(
-          <a key={keyIdx++} href={matchedStr} target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary, #10b981)", textDecoration: "underline" }}>
+          <a key={keyIdx++} href={matchedStr} target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)", textDecoration: "underline" }}>
             {matchedStr}
           </a>
         );
@@ -448,9 +454,9 @@ function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?:
   if (minutes < 5) {
     return {
       label: `⏳ ${minutes === 0 ? "Agora" : `${minutes}m`}`,
-      color: "#34d399",
-      bg: "rgba(16, 185, 129, 0.18)",
-      border: "1px solid rgba(16, 185, 129, 0.45)",
+      color: "var(--primary)",
+      bg: "color-mix(in srgb, var(--primary) 18%, transparent)",
+      border: "1px solid color-mix(in srgb, var(--primary) 45%, transparent)",
       level: 'good',
       minutes
     };
@@ -458,9 +464,9 @@ function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?:
   if (minutes < 15) {
     return {
       label: `⚠️ ${minutes}m aguardando`,
-      color: "#fde047",
-      bg: "rgba(245, 158, 11, 0.2)",
-      border: "1px solid rgba(245, 158, 11, 0.45)",
+      color: "var(--warning)",
+      bg: "color-mix(in srgb, var(--warning) 20%, transparent)",
+      border: "1px solid color-mix(in srgb, var(--warning) 45%, transparent)",
       level: 'warning',
       minutes
     };
@@ -469,9 +475,9 @@ function getSlaInfo(updatedAt: string | Date, direction: string, isHandledLead?:
   const text = hours > 0 ? `${hours}h${minutes % 60}m` : `${minutes}m`;
   return {
     label: `🚨 ${text} aguardando`,
-    color: "#fca5a5",
-    bg: "rgba(239, 68, 68, 0.24)",
-    border: "1px solid rgba(239, 68, 68, 0.55)",
+    color: "var(--error)",
+    bg: "color-mix(in srgb, var(--error) 24%, transparent)",
+    border: "1px solid color-mix(in srgb, var(--error) 55%, transparent)",
     level: 'urgent',
     minutes
   };
@@ -506,48 +512,98 @@ export interface QuickReply {
   accountId?: string;
 }
 
+// Padrões neutros, iguais aos do backend (quickReplyRoutes.ts). Nunca coloque aqui conteúdo de um
+// cliente (oferta, chave PIX, endereço): o produto é multi-tenant e isto aparece para todas as contas.
 export const DEFAULT_QUICK_REPLIES: QuickReply[] = [
-  {
-    id: "oferta",
-    title: "🎁 Oferta Body Splash",
-    text: `Obrigada pelo retorno! 💚 💦\n\nFestival de Body Splash 21 a 30/09 | 1 lançamento por dia\n200 ml — à vista ou cartão:\n\n🔥 R$ 75 por R$ 40\n🔥 R$ 72 por R$ 38\n\n🎁 *Incentivos:*\n• R$ 299 ➔ Body Splash 100 ml\n• R$ 400 ➔ Colônia 100 ml\n• R$ 800 ➔ 2 Colônias + Body Splash 200 ml\n\nJá revelados: *Laranja* e *Brisa Verde*.\nAmanhã: *Ternura* 🤫\n\nQuer pedir? Responda *SIM* e encaminhamos você para o atendimento da loja!`
-  },
-  {
-    id: "pix",
-    title: "💳 Chave PIX",
-    text: `Perfeito! Segue a nossa chave PIX para pagamento:\n\n🔑 Chave: (84) 99999-9999\nTitular: Magda Perfumaria e Cosméticos\n\nAssim que fizer o envio do comprovante, separamos o seu pedido imediatamente! ✨`
-  },
-  {
-    id: "horario",
-    title: "📍 Endereço & Horários",
-    text: `📍 Nossa loja fica localizada no Centro.\n⏰ Horário de atendimento:\nSegunda a Sexta: 08:30 às 18:00\nSábado: 08:30 às 13:00\n\nVenha nos visitar ou peça para entregarmos aí para você!`
-  },
-  {
-    id: "momento",
-    title: "⏳ Pedir um Momento",
-    text: `Olá! Já recebi sua mensagem e estou verificando o seu pedido com a nossa equipe. Em minutinhos te dou o retorno completo, tá bem? Obrigado pela paciência! 💚`
-  },
   {
     id: "saudacao",
     title: "👋 Boas-vindas",
     text: `Olá! Tudo bem? Que bom falar com você! Como posso te ajudar hoje? 😊`
+  },
+  {
+    id: "momento",
+    title: "⏳ Pedir um momento",
+    text: `Recebi sua mensagem e já estou verificando. Em alguns minutos te dou o retorno completo, tá bem? Obrigado pela paciência!`
+  },
+  {
+    id: "pix",
+    title: "💳 Chave PIX",
+    text: `Segue nossa chave PIX para pagamento:\n\n🔑 Chave: [sua chave PIX]\nTitular: [nome do titular]\n\nAssim que receber o comprovante, damos andamento ao seu pedido.`
+  },
+  {
+    id: "horario",
+    title: "📍 Endereço e horários",
+    text: `📍 Endereço: [seu endereço]\n⏰ Horário de atendimento:\nSegunda a sexta: [horário]\nSábado: [horário]`
+  },
+  {
+    id: "encerramento",
+    title: "🙏 Encerramento",
+    text: `Obrigado pelo contato! Se precisar de mais alguma coisa, é só chamar por aqui.`
   }
 ];
 
 export type FunnelStage = 'NEW' | 'NEGOTIATING' | 'WAITING_PAYMENT' | 'WON' | 'LOST';
 
 export const FUNNEL_STAGES: Record<FunnelStage, { label: string; color: string; bg: string; border: string }> = {
-  NEW: { label: "📥 Novo Lead", color: "#38bdf8", bg: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.3)" },
-  NEGOTIATING: { label: "💬 Em Negociação", color: "#a855f7", bg: "rgba(168, 85, 247, 0.12)", border: "1px solid rgba(168, 85, 247, 0.3)" },
-  WAITING_PAYMENT: { label: "💳 Aguardando PIX", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.12)", border: "1px solid rgba(245, 158, 11, 0.3)" },
-  WON: { label: "🎉 Venda Concluída", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.35)" },
-  LOST: { label: "💤 Sem Retorno", color: "#94a3b8", bg: "rgba(148, 163, 184, 0.1)", border: "1px solid rgba(148, 163, 184, 0.2)" }
+  NEW: { label: "📥 Novo Lead", color: "var(--info)", bg: "color-mix(in srgb, var(--info) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--info) 30%, transparent)" },
+  NEGOTIATING: { label: "💬 Em Negociação", color: "var(--violet)", bg: "color-mix(in srgb, var(--violet) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--violet) 30%, transparent)" },
+  WAITING_PAYMENT: { label: "💳 Aguardando PIX", color: "var(--warning)", bg: "color-mix(in srgb, var(--warning) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--warning) 30%, transparent)" },
+  WON: { label: "🎉 Venda Concluída", color: "var(--primary)", bg: "color-mix(in srgb, var(--primary) 15%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 35%, transparent)" },
+  LOST: { label: "💤 Sem Retorno", color: "var(--text-muted)", bg: "color-mix(in srgb, var(--text-muted) 10%, transparent)", border: "1px solid color-mix(in srgb, var(--text-muted) 20%, transparent)" }
 };
 
 export interface LeadCrmData {
   stage: FunnelStage;
   tags: string[];
   notes: string;
+}
+
+interface SourceList {
+  id: string;
+  name: string;
+  tags: string[];
+}
+
+/** Etiquetas de origem do lead: tags das listas em que o número está (ou o nome da lista, se ela não tiver tags). */
+function getSourceLabels(sourceLists?: SourceList[]) {
+  const out: { key: string; label: string; title: string; isList: boolean }[] = [];
+  if (!sourceLists?.length) return out;
+  const seen = new Set<string>();
+  for (const list of sourceLists) {
+    if (list.tags.length === 0) {
+      out.push({ key: `list:${list.id}`, label: list.name, title: `Lista: ${list.name}`, isList: true });
+      continue;
+    }
+    for (const tag of list.tags) {
+      const k = tag.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const names = sourceLists.filter((l) => l.tags.includes(tag)).map((l) => l.name).join(", ");
+      out.push({ key: `tag:${k}`, label: tag, title: `Lista: ${names}`, isList: false });
+    }
+  }
+  return out;
+}
+
+function SourceTags({ sourceLists, max }: { sourceLists?: SourceList[]; max?: number }) {
+  const labels = getSourceLabels(sourceLists);
+  if (labels.length === 0) return null;
+  const shown = max ? labels.slice(0, max) : labels;
+  const rest = labels.slice(shown.length);
+  return (
+    <ul className="lead-tags" aria-label="Origem do lead">
+      {shown.map((l) => (
+        <li key={l.key} className={`lead-tag${l.isList ? " lead-tag--list" : ""}`} title={l.title}>
+          {l.isList ? l.label : `#${l.label}`}
+        </li>
+      ))}
+      {rest.length > 0 && (
+        <li className="lead-tag lead-tag--more" title={rest.map((l) => l.label).join(", ")}>
+          +{rest.length}
+        </li>
+      )}
+    </ul>
+  );
 }
 
 interface Template {
@@ -563,6 +619,7 @@ interface Template {
 export default function ChatPage() {
   const { selectedAccount } = useAccount();
   const { showAlert } = useAlert();
+  const confirm = useConfirm();
   const { token: authToken } = useAuth();
   const isViewer = selectedAccount?.accountRole === "VIEWER";
 
@@ -614,6 +671,14 @@ export default function ChatPage() {
   const [showCrmDrawer, setShowCrmDrawer] = useState(false);
   const [crmData, setCrmData] = useState<LeadCrmData>({ stage: 'NEW', tags: [], notes: '' });
   const [newTagInput, setNewTagInput] = useState("");
+
+  // Esc fecha a Ficha do lead
+  useEffect(() => {
+    if (!showCrmDrawer) return;
+    const onKeyDown = (e: KeyboardEvent) => { if (e.key === "Escape") setShowCrmDrawer(false); };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showCrmDrawer]);
 
   // Cache O(1) de atendidos locais (carregado 1 única vez ao selecionar conta)
   const [localHandledMap, setLocalHandledMap] = useState<Set<string>>(new Set());
@@ -754,6 +819,19 @@ export default function ChatPage() {
     fetchQuickReplies(selectedAccount.id);
   }, [selectedAccount?.id, fetchQuickReplies]);
 
+  const closeQuickReplyModal = () => {
+    setShowQuickReplyModal(false);
+    setEditingQrId(null);
+    setQrTitleInput("");
+    setQrTextInput("");
+  };
+
+  const closeChatTemplateModal = () => {
+    setShowChatTemplateModal(false);
+    setSelectedTemplateName("");
+    setTemplateVariables([]);
+  };
+
   const handleSaveQuickReply = async () => {
     if (!selectedAccount) return;
     const title = qrTitleInput.trim();
@@ -806,9 +884,13 @@ export default function ChatPage() {
 
   const handleResetQuickReplies = async () => {
     if (!selectedAccount) return;
-    if (!window.confirm("Deseja restaurar as respostas rápidas originais (Body Splash, PIX, Endereço, etc) no banco de dados?")) {
-      return;
-    }
+    const ok = await confirm({
+      title: "Restaurar as respostas rápidas padrão?",
+      description: "As respostas rápidas desta conta voltam ao modelo padrão (boas-vindas, pedir um momento, chave PIX, endereço e encerramento). As que você criou ou editou serão substituídas.",
+      confirmLabel: "Restaurar padrão",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       const res = await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/quick-replies/reset-defaults`);
       setQuickReplies(res.data);
@@ -1054,7 +1136,13 @@ export default function ChatPage() {
   const blacklistContact = async (phone: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!selectedAccount) return;
-    if (!window.confirm("Deseja mover este contato para a Lista Negra? Ele não aparecerá mais nos chats e será ignorado em futuros disparos.")) return;
+    const ok = await confirm({
+      title: "Mover este contato para a lista negra?",
+      description: "Ele sai da lista de conversas e passa a ser ignorado nos próximos disparos.",
+      confirmLabel: "Mover para a lista negra",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await axios.patch(`${API_BASE_URL}/accounts/${selectedAccount.id}/conversations/${phone}/blacklist`, { blacklisted: true });
       setConversations((prev) => prev.filter((c) => c.phone !== phone));
@@ -1133,6 +1221,8 @@ export default function ChatPage() {
     { key: "UNDELIVERED", label: "✉️ Não entregues", title: "Apenas enviadas — nunca chegaram ao cliente" },
     { key: "FAILED", label: "⚠️ Com falha", title: "Chats com pelo menos uma mensagem que falhou" },
   ];
+  // Filtros sempre visíveis; os demais (histórico e status de entrega) ficam no seletor "Mais filtros"
+  const PRIMARY_CONV_FILTERS = ["ALL", "UNANSWERED", "ANSWERED"];
 
   const matchesConvFilter = useCallback((c: any, filterOverride?: string) => {
     const filter = filterOverride || convFilter;
@@ -1170,7 +1260,11 @@ export default function ChatPage() {
         const nameMatch = c.profileName && c.profileName.toLowerCase().includes(q);
         const phoneMatch = c.phone.includes(q) || (qDigits.length >= 3 && c.phone.includes(qDigits));
         const msgMatch = c.lastMessage && c.lastMessage.toLowerCase().includes(q);
-        return Boolean(nameMatch || phoneMatch || msgMatch);
+        const qTag = q.replace(/^#/, "");
+        const originMatch = (c.sourceLists as SourceList[] | undefined)?.some(
+          (l) => l.name.toLowerCase().includes(q) || l.tags.some((t) => t.toLowerCase().includes(qTag))
+        );
+        return Boolean(nameMatch || phoneMatch || msgMatch || originMatch);
       });
     }
 
@@ -1241,9 +1335,12 @@ export default function ChatPage() {
   const markAllFilteredAsHandled = useCallback(async () => {
     if (!selectedAccount || filteredConversations.length === 0) return;
     const count = filteredConversations.length;
-    if (!window.confirm(`Deseja marcar todas as ${count} conversas desta lista como atendidas/concluídas?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: `Concluir ${count} ${count === 1 ? "conversa" : "conversas"}?`,
+      description: "Todas as conversas desta lista são marcadas como atendidas. Elas voltam para Aguardando se o cliente escrever de novo.",
+      confirmLabel: "Concluir todas",
+    });
+    if (!ok) return;
 
     const phonesToMark = filteredConversations.map(c => c.phone);
     const phoneSet = new Set(phonesToMark.map(p => normalizePhone(p)));
@@ -1280,7 +1377,7 @@ export default function ChatPage() {
       showAlert(err.response?.data?.error || "Erro ao marcar conversas no servidor.", "error");
       fetchConversations(selectedAccount.id, true);
     }
-  }, [selectedAccount, filteredConversations, showAlert]);
+  }, [selectedAccount, filteredConversations, showAlert, confirm]);
 
   const sendReply = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -1682,35 +1779,32 @@ export default function ChatPage() {
   });
 
   return (
-    <div className="fade-in chat-page-root" style={{ display: "flex", flexDirection: "column", gap: "6px", height: "100%", maxHeight: "100%", minHeight: 0, flex: 1, overflow: "hidden" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, padding: "0 2px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <h1 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "6px" }}>
-            <span>💬</span> Caixa de Entrada
+    <div className="fade-in chat-page-root" style={{ display: "flex", flexDirection: "column", gap: "var(--space-1-5)", height: "100%", maxHeight: "100%", minHeight: 0, flex: 1, overflow: "hidden" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, padding: "0 var(--space-0-5)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)" }}>
+          <h1 style={{ fontSize: "var(--fs-lg)", fontWeight: 700, margin: 0, letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}>
+            <span aria-hidden="true">💬</span> Live Chat
           </h1>
-          <span style={{ fontSize: "0.68rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 7px", borderRadius: "10px", fontWeight: 500 }}>
-            Live Chat
-          </span>
         </div>
       </div>
 
       {!selectedAccount ? (
         <div className="glass" style={{ borderRadius: "var(--radius-xl)" }}>
           <div className="empty-state">
-            <span className="empty-state__icon">💬</span>
+            <span className="empty-state__icon" aria-hidden="true">💬</span>
             <span className="empty-state__title">Nenhuma conta selecionada</span>
-            <span className="empty-state__desc">Configure ou ative uma conta Meta API para abrir a Caixa de Entrada.</span>
+            <span className="empty-state__desc">Conecte uma conta do WhatsApp para abrir o Live Chat.</span>
           </div>
         </div>
       ) : (
-        <div className="glass chat-glass-container" style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
+        <div className={`glass chat-glass-container${selectedPhone && showCrmDrawer ? " is-crm-open" : ""}`} style={{ display: "flex", flex: 1, minHeight: 0, borderRadius: "var(--radius-lg)", overflow: "hidden", border: "1px solid var(--border-color)" }}>
           
           {/* 1. Lista de Conversas (Esquerda) */}
           <div className={`chat-panel-list${selectedPhone ? " mobile-hidden" : ""}`}>
-            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontSize: "0.88rem", fontWeight: "600" }}>Conversas</span>
-                <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", background: "rgba(255,255,255,0.06)", padding: "1px 6px", borderRadius: "8px" }}>
+            <div style={{ padding: "var(--space-2-5) var(--space-3)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}>
+                <span style={{ fontSize: "var(--fs-md)", fontWeight: "600" }}>Conversas</span>
+                <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", background: "color-mix(in srgb, var(--text-primary) 6%, transparent)", padding: "1px var(--space-1-5)", borderRadius: "var(--radius-sm)" }}>
                   {conversations.length}
                 </span>
                 {isBackgroundSyncing && (
@@ -1719,15 +1813,15 @@ export default function ChatPage() {
                     style={{
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: "4px",
-                      fontSize: "0.68rem",
-                      color: "var(--primary, #10b981)",
-                      background: "rgba(16, 185, 129, 0.12)",
-                      padding: "1px 6px",
-                      borderRadius: "6px"
+                      gap: "var(--space-1)",
+                      fontSize: "var(--fs-2xs)",
+                      color: "var(--primary)",
+                      background: "color-mix(in srgb, var(--primary) 12%, transparent)",
+                      padding: "1px var(--space-1-5)",
+                      borderRadius: "var(--radius-xs)"
                     }}
                   >
-                    <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--primary, #10b981)", display: "inline-block" }} />
+                    <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "var(--primary)", display: "inline-block" }} />
                     Sincronizando
                   </span>
                 )}
@@ -1735,27 +1829,29 @@ export default function ChatPage() {
               <button
                 type="button"
                 onClick={() => fetchConversations(selectedAccount.id)}
-                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "0.95rem" }}
-                title="Atualizar lista"
+                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "var(--fs-base)" }}
+                title="Atualizar lista" aria-label="Atualizar lista de conversas"
               >
                 🔄
               </button>
             </div>
 
             {/* 1.1 Campo de Busca Instantânea Inteligente */}
-            <div className="chat-search-bar" style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
+            <div className="chat-search-bar" style={{ padding: "var(--space-2) var(--space-2-5)", borderBottom: "1px solid var(--border-color)", flexShrink: 0 }}>
               <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                <span style={{ position: "absolute", left: "10px", fontSize: "0.8rem", color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
+                <span aria-hidden="true" style={{ position: "absolute", left: "var(--space-2-5)", fontSize: "var(--fs-sm)", color: "var(--text-muted)", pointerEvents: "none" }}>🔍</span>
+                <label htmlFor="chat-search" className="sr-only">Buscar conversas</label>
                 <input
-                  type="text"
+                  id="chat-search"
+                  type="search"
                   placeholder="Buscar nome, número ou mensagem..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="form-control chat-search-input"
+                  className="field-input chat-search-input"
                   style={{
-                    paddingLeft: "30px",
+                    paddingLeft: "var(--space-8)",
                     paddingRight: searchQuery ? "26px" : "8px",
-                    fontSize: "0.78rem",
+                    fontSize: "var(--fs-sm)",
                     height: "32px",
                     borderRadius: "var(--radius-sm)"
                   }}
@@ -1771,10 +1867,10 @@ export default function ChatPage() {
                       border: "none",
                       color: "var(--text-muted)",
                       cursor: "pointer",
-                      fontSize: "0.85rem",
-                      padding: "2px"
+                      fontSize: "var(--fs-md)",
+                      padding: "var(--space-0-5)"
                     }}
-                    title="Limpar busca"
+                    title="Limpar busca" aria-label="Limpar busca"
                   >
                     ✕
                   </button>
@@ -1783,13 +1879,13 @@ export default function ChatPage() {
             </div>
 
             {/* Filtro por período + exportação de leads */}
-            <div style={{ padding: "6px 10px", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "6px", flexShrink: 0 }}>
-              <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+            <div style={{ padding: "var(--space-1-5) var(--space-2-5)", borderBottom: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "var(--space-1-5)", flexShrink: 0 }}>
+              <div style={{ display: "flex", gap: "var(--space-1-5)", alignItems: "center" }}>
                 <select
                   value={period}
                   onChange={(e) => applyPeriod(e.target.value)}
                   className="field-input"
-                  style={{ fontSize: "0.74rem", padding: "4px 6px", cursor: "pointer", height: "28px", flex: 1, minWidth: 0 }}
+                  style={{ fontSize: "var(--fs-xs)", padding: "var(--space-1) var(--space-1-5)", cursor: "pointer", height: "28px", flex: 1, minWidth: 0 }}
                   title="Filtrar conversas por período"
                 >
                   <option value="">Todos os períodos</option>
@@ -1799,11 +1895,33 @@ export default function ChatPage() {
                   <option value="7days">Últimos 7 dias</option>
                   <option value="custom">Personalizado...</option>
                 </select>
+                {/* Filtros de histórico e de entrega, fora da faixa de chips */}
+                {(() => {
+                  const moreFilters = CONV_FILTERS.filter(f => !PRIMARY_CONV_FILTERS.includes(f.key));
+                  const activeMore = moreFilters.find(f => f.key === convFilter);
+                  return (
+                    <select
+                      value={activeMore ? activeMore.key : ""}
+                      onChange={(e) => setConvFilter(e.target.value || "ALL")}
+                      className={`field-input conv-filter-more${activeMore ? " is-active" : ""}`}
+                      style={{ fontSize: "var(--fs-xs)", padding: "var(--space-1) var(--space-1-5)", cursor: "pointer", height: "28px", flex: 1, minWidth: 0 }}
+                      aria-label="Mais filtros de conversa"
+                      title={activeMore ? activeMore.title : "Filtrar por outros status"}
+                    >
+                      <option value="">Mais filtros</option>
+                      {moreFilters.map(f => (
+                        <option key={f.key} value={f.key}>
+                          {f.label} ({convFilterCounts[f.key as keyof typeof convFilterCounts] ?? 0})
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
                 <button
                   type="button"
                   onClick={exportCsv}
                   disabled={isExporting}
-                  style={{ fontSize: "0.72rem", padding: "3px 8px", height: "28px", background: "rgba(0,194,107,0.12)", border: "1px solid rgba(0,194,107,0.35)", borderRadius: "6px", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "3px", whiteSpace: "nowrap" }}
+                  style={{ fontSize: "var(--fs-xs)", padding: "var(--space-0-5) var(--space-2)", height: "28px", background: "color-mix(in srgb, var(--primary) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--primary) 35%, transparent)", borderRadius: "var(--radius-xs)", color: "var(--primary)", cursor: isExporting ? "not-allowed" : "pointer", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "var(--space-0-5)", whiteSpace: "nowrap" }}
                   title="Exportar os contatos filtrados para CSV"
                 >
                   {isExporting ? "..." : "⬇️ CSV"}
@@ -1813,18 +1931,18 @@ export default function ChatPage() {
                     type="button"
                     onClick={markAllFilteredAsHandled}
                     style={{
-                      fontSize: "0.72rem",
-                      padding: "3px 8px",
+                      fontSize: "var(--fs-xs)",
+                      padding: "var(--space-0-5) var(--space-2)",
                       height: "28px",
-                      background: "rgba(16, 185, 129, 0.15)",
-                      border: "1px solid rgba(16, 185, 129, 0.4)",
-                      borderRadius: "6px",
-                      color: "#10b981",
+                      background: "color-mix(in srgb, var(--primary) 15%, transparent)",
+                      border: "1px solid color-mix(in srgb, var(--primary) 40%, transparent)",
+                      borderRadius: "var(--radius-xs)",
+                      color: "var(--primary)",
                       cursor: "pointer",
                       fontWeight: 600,
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: "3px",
+                      gap: "var(--space-0-5)",
                       whiteSpace: "nowrap"
                     }}
                     title="Marcar todas as conversas desta fila como atendidas/concluídas"
@@ -1834,33 +1952,33 @@ export default function ChatPage() {
                 )}
               </div>
               {period === "custom" && (
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}>
                   <input
                     type="date"
                     value={startDate}
                     max={endDate || undefined}
                     onChange={(e) => setStartDate(e.target.value)}
                     className="field-input"
-                    style={{ fontSize: "0.72rem", padding: "3px 6px", flex: 1, minWidth: 0, height: "26px" }}
+                    style={{ fontSize: "var(--fs-xs)", padding: "var(--space-0-5) var(--space-1-5)", flex: 1, minWidth: 0, height: "26px" }}
                     title="Data inicial"
                   />
-                  <span style={{ fontSize: "0.7rem", color: "var(--text-muted)" }}>até</span>
+                  <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)" }}>até</span>
                   <input
                     type="date"
                     value={endDate}
                     min={startDate || undefined}
                     onChange={(e) => setEndDate(e.target.value)}
                     className="field-input"
-                    style={{ fontSize: "0.72rem", padding: "3px 6px", flex: 1, minWidth: 0, height: "26px" }}
+                    style={{ fontSize: "var(--fs-xs)", padding: "var(--space-0-5) var(--space-1-5)", flex: 1, minWidth: 0, height: "26px" }}
                     title="Data final"
                   />
                 </div>
               )}
             </div>
 
-            {/* Filtros de conversas (chats) */}
-            <div style={{ display: "flex", gap: "4px", padding: "6px 10px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
-              {CONV_FILTERS.map(f => {
+            {/* Filtros de conversas: os três da rotina de atendimento à vista, o resto em "Mais filtros" */}
+            <div className="conv-filters">
+              {CONV_FILTERS.filter(f => PRIMARY_CONV_FILTERS.includes(f.key)).map(f => {
                 const isActive = convFilter === f.key;
                 const count = convFilterCounts[f.key as keyof typeof convFilterCounts] ?? 0;
                 return (
@@ -1868,34 +1986,11 @@ export default function ChatPage() {
                     key={f.key}
                     type="button"
                     title={f.title}
+                    aria-pressed={isActive}
                     onClick={() => setConvFilter(f.key)}
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: "14px",
-                      fontSize: "0.68rem",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      cursor: "pointer",
-                      border: isActive
-                        ? "1px solid var(--primary)"
-                        : f.highlight && count > 0
-                          ? "1px solid rgba(16, 185, 129, 0.55)"
-                          : "1px solid var(--border-color)",
-                      background: isActive
-                        ? "rgba(0,194,107,0.22)"
-                        : f.highlight && count > 0
-                          ? "rgba(16, 185, 129, 0.12)"
-                          : "transparent",
-                      color: isActive
-                        ? "var(--primary)"
-                        : f.highlight && count > 0
-                          ? "#10b981"
-                          : "var(--text-muted)",
-                      transition: "all 0.15s",
-                      flexShrink: 0,
-                    }}
+                    className={`conv-filter-chip${isActive ? " is-active" : ""}${f.highlight && count > 0 ? " is-highlight" : ""}`}
                   >
-                    {f.label} ({count})
+                    {f.label} <span className="conv-filter-count">{count}</span>
                   </button>
                 );
               })}
@@ -1906,9 +2001,9 @@ export default function ChatPage() {
               style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", minHeight: 0 }}
             >
               {isConversationsLoading ? (
-                <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
-                  <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "8px" }}></div>
+                <div style={{ padding: "var(--space-5)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
+                  <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "var(--radius-sm)" }}></div>
+                  <div className="skeleton" style={{ width: "100%", height: "60px", borderRadius: "var(--radius-sm)" }}></div>
                 </div>
               ) : filteredConversations.length === 0 ? (
                 <div className="empty-state">
@@ -1924,9 +2019,7 @@ export default function ChatPage() {
                   {displayedConversations.map((c) => {
                     const isActive = selectedPhone === c.phone;
                     const isHandledLead = isConversationHandled(c.phone, c);
-                    const initials = c.profileName
-                      ? c.profileName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase()
-                      : "📱";
+                    const initials = getInitials(c.profileName, "📱");
                     return (
                       <div
                         key={c.phone}
@@ -1948,7 +2041,8 @@ export default function ChatPage() {
                           <button
                             type="button"
                             className={`conv-action-btn ${isHandledLead ? "conv-action-btn--active" : "conv-action-btn--success"}`}
-                            title={isHandledLead ? "Reabrir conversa (voltar para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila)"}
+                            title={isHandledLead ? "Voltar para a fila de aguardando" : "Marcar como Atendido / Concluído (retira da fila)"}
+                            aria-label={isHandledLead ? "Voltar conversa para a fila" : "Marcar conversa como atendida"}
                             onClick={(e) => toggleHandled(c.phone, e)}
                           >
                             {isHandledLead ? "↩️" : "✅"}
@@ -1956,7 +2050,7 @@ export default function ChatPage() {
                           <button
                             type="button"
                             className="conv-action-btn"
-                            title="Mover para a Lista Negra"
+                            title="Mover para a Lista Negra" aria-label="Mover para a lista negra"
                             onClick={(e) => blacklistContact(c.phone, e)}
                           >
                             🚫
@@ -1979,21 +2073,21 @@ export default function ChatPage() {
                             {c.direction === "OUTGOING" ? "Você: " : ""}{c.lastMessage}
                           </div>
                           {/* Badge unificado de status e SLA */}
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", marginTop: "4px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)", flexWrap: "wrap", marginTop: "var(--space-1)" }}>
                             {(() => {
                               if (isHandledLead) {
                                 return (
                                   <span style={{
-                                    fontSize: "0.66rem",
+                                    fontSize: "var(--fs-2xs)",
                                     fontWeight: 600,
-                                    color: "#34d399",
-                                    background: "rgba(16, 185, 129, 0.16)",
-                                    border: "1px solid rgba(16, 185, 129, 0.35)",
-                                    padding: "1px 7px",
-                                    borderRadius: "10px",
+                                    color: "var(--primary)",
+                                    background: "color-mix(in srgb, var(--primary) 16%, transparent)",
+                                    border: "1px solid color-mix(in srgb, var(--primary) 35%, transparent)",
+                                    padding: "1px var(--space-1-5)",
+                                    borderRadius: "var(--radius-sm)",
                                     display: "inline-flex",
                                     alignItems: "center",
-                                    gap: "3px"
+                                    gap: "var(--space-0-5)"
                                   }}>
                                     ✅ Concluído
                                   </span>
@@ -2005,16 +2099,16 @@ export default function ChatPage() {
                               const sla = getSlaInfo(c.updatedAt, c.direction, false);
                               return (
                                 <span style={{
-                                  fontSize: "0.66rem",
+                                  fontSize: "var(--fs-2xs)",
                                   fontWeight: 600,
-                                  color: sla ? sla.color : "#34d399",
-                                  background: sla ? sla.bg : "rgba(16, 185, 129, 0.18)",
-                                  border: sla ? sla.border : "1px solid rgba(16, 185, 129, 0.45)",
-                                  padding: "1px 7px",
-                                  borderRadius: "10px",
+                                  color: sla ? sla.color : "var(--primary)",
+                                  background: sla ? sla.bg : "color-mix(in srgb, var(--primary) 18%, transparent)",
+                                  border: sla ? sla.border : "1px solid color-mix(in srgb, var(--primary) 45%, transparent)",
+                                  padding: "1px var(--space-1-5)",
+                                  borderRadius: "var(--radius-sm)",
                                   display: "inline-flex",
                                   alignItems: "center",
-                                  gap: "3px"
+                                  gap: "var(--space-0-5)"
                                 }}>
                                   {sla ? sla.label : "🔥 Aguardando"}
                                 </span>
@@ -2022,29 +2116,29 @@ export default function ChatPage() {
                             }
 
                             const badge = c.hasIncoming && c.direction === "OUTGOING"
-                              ? { text: "✓✓ Respondido", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.08)" }
+                              ? { text: "✓✓ Respondido", color: "var(--text-muted)", bg: "color-mix(in srgb, var(--text-primary) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--text-primary) 8%, transparent)" }
                               : c.hasFailed && !c.hasDelivered && !c.hasRead
-                                ? { text: "⚠️ Falha", color: "#fca5a5", bg: "rgba(239, 68, 68, 0.2)", border: "1px solid rgba(239, 68, 68, 0.4)" }
+                                ? { text: "⚠️ Falha", color: "var(--error)", bg: "color-mix(in srgb, var(--error) 20%, transparent)", border: "1px solid color-mix(in srgb, var(--error) 40%, transparent)" }
                                 : c.hasRead
-                                  ? { text: "✓✓ Lida", color: "#38bdf8", bg: "rgba(56, 189, 248, 0.12)", border: "1px solid rgba(56, 189, 248, 0.3)" }
+                                  ? { text: "✓✓ Lida", color: "var(--chat-read-tick)", bg: "color-mix(in srgb, var(--chat-read-tick) 12%, transparent)", border: "1px solid color-mix(in srgb, var(--chat-read-tick) 30%, transparent)" }
                                   : c.hasDelivered
-                                    ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "rgba(255, 255, 255, 0.06)", border: "none" }
+                                    ? { text: "✓✓ Entregue", color: "var(--text-secondary)", bg: "color-mix(in srgb, var(--text-primary) 6%, transparent)", border: "none" }
                                     : c.direction === "OUTGOING"
-                                      ? { text: "✓ Enviada", color: "var(--text-muted)", bg: "rgba(255, 255, 255, 0.04)", border: "none" }
+                                      ? { text: "✓ Enviada", color: "var(--text-muted)", bg: "color-mix(in srgb, var(--text-primary) 4%, transparent)", border: "none" }
                                       : null;
                             if (!badge) return null;
                             return (
                               <span style={{
-                                fontSize: "0.66rem",
+                                fontSize: "var(--fs-2xs)",
                                 fontWeight: 600,
                                 color: badge.color,
                                 background: badge.bg,
                                 border: badge.border || "none",
-                                padding: "1px 7px",
-                                borderRadius: "10px",
+                                padding: "1px var(--space-1-5)",
+                                borderRadius: "var(--radius-sm)",
                                 display: "inline-flex",
                                 alignItems: "center",
-                                gap: "3px"
+                                gap: "var(--space-0-5)"
                               }}>
                                 {badge.text}
                               </span>
@@ -2063,13 +2157,13 @@ export default function ChatPage() {
                               if (!stage) return null;
                               return (
                                 <span style={{
-                                  fontSize: "0.65rem",
+                                  fontSize: "var(--fs-2xs)",
                                   fontWeight: 600,
                                   color: stage.color,
                                   background: stage.bg,
                                   border: stage.border,
-                                  padding: "2px 7px",
-                                  borderRadius: "10px",
+                                  padding: "var(--space-0-5) var(--space-1-5)",
+                                  borderRadius: "var(--radius-sm)",
                                   display: "inline-flex",
                                   alignItems: "center"
                                 }}>
@@ -2080,13 +2174,14 @@ export default function ChatPage() {
                               return null;
                             }
                           })()}
+                          <SourceTags sourceLists={c.sourceLists} max={2} />
                         </div>
                       </div>
                     </div>
                   );
                 })}
                 {visibleCount < filteredConversations.length && (
-                  <div style={{ padding: "12px", textAlign: "center", fontSize: "0.74rem", color: "var(--text-muted)" }}>
+                  <div style={{ padding: "var(--space-3)", textAlign: "center", fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>
                     Exibindo {displayedConversations.length} de {filteredConversations.length} conversas • Role para carregar mais
                   </div>
                 )}
@@ -2100,7 +2195,7 @@ export default function ChatPage() {
             {!selectedPhone ? (
               <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <div className="empty-state">
-                  <span className="empty-state__icon">💬</span>
+                  <span className="empty-state__icon" aria-hidden="true">💬</span>
                   <span className="empty-state__title">Nenhuma conversa aberta</span>
                   <span className="empty-state__desc">Selecione uma conversa ao lado para visualizar o atendimento.</span>
                 </div>
@@ -2108,19 +2203,19 @@ export default function ChatPage() {
             ) : (
               <>
                 {/* Header da conversa */}
-                <div className="chat-header-bar" style={{ padding: "8px 14px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap", flexShrink: 0 }}>
+                <div className="chat-header-bar" style={{ padding: "var(--space-2) var(--space-3-5)", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "var(--space-2)", flexWrap: "wrap", flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => setSelectedPhone("")}
                     className="btn btn-secondary"
-                    style={{ padding: "4px 8px", fontSize: "0.76rem", flexShrink: 0, display: "none" }}
+                    style={{ padding: "var(--space-1) var(--space-2)", fontSize: "var(--fs-sm)", flexShrink: 0, display: "none" }}
                     id="chat-back-btn"
                   >
                     ← Voltar
                   </button>
                   <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: "160px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-                      <span style={{ fontWeight: "700", fontSize: "0.95rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)", flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: "700", fontSize: "var(--fs-base)" }}>
                         {conversations.find(c => c.phone === selectedPhone)?.profileName
                           ? `👤 ${conversations.find(c => c.phone === selectedPhone)?.profileName}`
                           : `📱 ${selectedPhone}`}
@@ -2132,17 +2227,17 @@ export default function ChatPage() {
                         onChange={(e) => updateCrm(prev => ({ ...prev, stage: e.target.value as FunnelStage }))}
                         className="funnel-stage-select"
                         style={{
-                          fontSize: "0.7rem",
+                          fontSize: "var(--fs-2xs)",
                           fontWeight: 700,
-                          padding: "2px 8px",
-                          borderRadius: "12px",
+                          padding: "var(--space-0-5) var(--space-2)",
+                          borderRadius: "var(--radius-md)",
                           cursor: "pointer",
                           color: FUNNEL_STAGES[crmData.stage]?.color || "var(--text-primary)",
                           background: FUNNEL_STAGES[crmData.stage]?.bg || "transparent",
                           border: FUNNEL_STAGES[crmData.stage]?.border || "1px solid var(--border-color)",
-                          outline: "none"
                         }}
                         title="Alterar etapa do funil do lead"
+                        aria-label="Etapa do funil do lead"
                       >
                         {(Object.keys(FUNNEL_STAGES) as FunnelStage[]).map(st => (
                           <option key={st} value={st} className="funnel-stage-option">
@@ -2150,6 +2245,8 @@ export default function ChatPage() {
                           </option>
                         ))}
                       </select>
+
+                      <SourceTags sourceLists={conversations.find(c => c.phone === selectedPhone)?.sourceLists} max={3} />
 
                       {/* SLA do Lead Ativo (se estiver aguardando resposta) */}
                       {(() => {
@@ -2160,10 +2257,10 @@ export default function ChatPage() {
                         if (!sla) return null;
                         return (
                           <span style={{
-                            fontSize: "0.68rem",
+                            fontSize: "var(--fs-2xs)",
                             fontWeight: 700,
-                            padding: "1px 7px",
-                            borderRadius: "10px",
+                            padding: "1px var(--space-1-5)",
+                            borderRadius: "var(--radius-sm)",
                             color: sla.color,
                             background: sla.bg,
                             border: sla.border
@@ -2174,13 +2271,13 @@ export default function ChatPage() {
                       })()}
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "1px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "var(--space-2)", fontSize: "var(--fs-xs)", color: "var(--text-muted)", marginTop: "1px" }}>
                       <span>{selectedPhone}</span>
                       <a
                         href={`https://wa.me/${selectedPhone}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        style={{ color: "var(--primary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "3px" }}
+                        style={{ color: "var(--primary)", textDecoration: "none", display: "inline-flex", alignItems: "center", gap: "var(--space-0-5)" }}
                         title="Abrir no WhatsApp Web"
                       >
                         <span>↗️</span> wa.me
@@ -2188,29 +2285,29 @@ export default function ChatPage() {
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}>
                     {/* Botão de Concluir / Reabrir Atendimento */}
                     <button
                       type="button"
                       onClick={() => toggleHandled(selectedPhone)}
                       className="btn"
                       style={{
-                        padding: "5px 10px",
-                        fontSize: "0.75rem",
+                        padding: "var(--space-1) var(--space-2-5)",
+                        fontSize: "var(--fs-xs)",
                         fontWeight: 600,
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: "4px",
-                        borderRadius: "6px",
-                        background: isConversationHandled(selectedPhone) ? "rgba(56, 189, 248, 0.12)" : "rgba(16, 185, 129, 0.14)",
-                        border: isConversationHandled(selectedPhone) ? "1px solid rgba(56, 189, 248, 0.35)" : "1px solid rgba(16, 185, 129, 0.35)",
-                        color: isConversationHandled(selectedPhone) ? "#38bdf8" : "#10b981",
+                        gap: "var(--space-1)",
+                        borderRadius: "var(--radius-xs)",
+                        background: isConversationHandled(selectedPhone) ? "color-mix(in srgb, var(--info) 12%, transparent)" : "color-mix(in srgb, var(--primary) 14%, transparent)",
+                        border: isConversationHandled(selectedPhone) ? "1px solid color-mix(in srgb, var(--info) 35%, transparent)" : "1px solid color-mix(in srgb, var(--primary) 35%, transparent)",
+                        color: isConversationHandled(selectedPhone) ? "var(--info)" : "var(--primary)",
                         cursor: "pointer",
                         transition: "all 0.18s ease"
                       }}
-                      title={isConversationHandled(selectedPhone) ? "Reabrir atendimento (retorna para a fila de aguardando)" : "Marcar como Atendido / Concluído (retira da fila de espera)"}
+                      title={isConversationHandled(selectedPhone) ? "Devolve a conversa para a fila de aguardando" : "Marcar como Atendido / Concluído (retira da fila de espera)"}
                     >
-                      <span>{isConversationHandled(selectedPhone) ? "↩️ Reabrir" : "✅ Atendido"}</span>
+                      <span>{isConversationHandled(selectedPhone) ? "↩️ Voltar para a fila" : "✅ Atendido"}</span>
                     </button>
 
                     {/* Botão de Abrir/Fechar Mini-CRM */}
@@ -2219,9 +2316,9 @@ export default function ChatPage() {
                       onClick={() => setShowCrmDrawer(!showCrmDrawer)}
                       className="chat-crm-toggle-btn"
                       style={{
-                        padding: "5px 10px",
-                        fontSize: "0.75rem",
-                        background: showCrmDrawer ? "rgba(16, 185, 129, 0.2)" : undefined,
+                        padding: "var(--space-1) var(--space-2-5)",
+                        fontSize: "var(--fs-xs)",
+                        background: showCrmDrawer ? "color-mix(in srgb, var(--primary) 20%, transparent)" : undefined,
                         borderColor: showCrmDrawer ? "var(--primary)" : undefined,
                         color: showCrmDrawer ? "var(--primary)" : undefined
                       }}
@@ -2233,8 +2330,10 @@ export default function ChatPage() {
                     <button
                       type="button"
                       onClick={() => fetchChatMessages(selectedAccount.id, selectedPhone)}
+                      title="Atualizar mensagens"
+                      aria-label="Atualizar mensagens"
                       className="btn btn-secondary"
-                      style={{ padding: "5px 10px", fontSize: "0.75rem" }}
+                      style={{ padding: "var(--space-1) var(--space-2-5)", fontSize: "var(--fs-xs)" }}
                     >
                       🔄
                     </button>
@@ -2242,7 +2341,7 @@ export default function ChatPage() {
                 </div>
 
                 {/* Barra de filtros por status */}
-                <div className="chat-templates-bar" style={{ display: "flex", gap: "4px", padding: "4px 14px", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
+                <div className="chat-templates-bar" style={{ display: "flex", gap: "var(--space-1)", padding: "var(--space-1) var(--space-3-5)", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
                   {FILTERS.map(f => {
                     const isActive = statusFilter === f.key;
                     const count = messageFilterCounts[f.key as keyof typeof messageFilterCounts] ?? 0;
@@ -2252,14 +2351,14 @@ export default function ChatPage() {
                         type="button"
                         onClick={() => setStatusFilter(f.key)}
                         style={{
-                          padding: "2px 8px",
-                          borderRadius: "12px",
-                          fontSize: "0.7rem",
+                          padding: "var(--space-0-5) var(--space-2)",
+                          borderRadius: "var(--radius-md)",
+                          fontSize: "var(--fs-2xs)",
                           fontWeight: 600,
                           whiteSpace: "nowrap",
                           cursor: "pointer",
                           border: isActive ? "1px solid var(--primary)" : "1px solid var(--border-color)",
-                          background: isActive ? "rgba(0,194,107,0.15)" : "transparent",
+                          background: isActive ? "color-mix(in srgb, var(--primary) 15%, transparent)" : "transparent",
                           color: isActive ? "var(--primary)" : "var(--text-muted)",
                           transition: "all 0.15s",
                         }}
@@ -2271,11 +2370,11 @@ export default function ChatPage() {
                 </div>
 
                 {/* Mensagens do chat */}
-                <div style={{ flex: 1, minHeight: 0, padding: "12px 16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+                <div style={{ flex: 1, minHeight: 0, padding: "var(--space-3) var(--space-4)", overflowY: "auto", display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
                   {isChatLoading ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "10px", width: "100%", height: "100%", justifyContent: "center", alignItems: "center", color: "var(--text-muted)" }}>
-                      <div className="skeleton" style={{ width: "60%", height: "40px", borderRadius: "12px", alignSelf: "flex-start" }} />
-                      <div className="skeleton" style={{ width: "40%", height: "40px", borderRadius: "12px", alignSelf: "flex-end" }} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2-5)", width: "100%", height: "100%", justifyContent: "center", alignItems: "center", color: "var(--text-muted)" }}>
+                      <div className="skeleton" style={{ width: "60%", height: "40px", borderRadius: "var(--radius-md)", alignSelf: "flex-start" }} />
+                      <div className="skeleton" style={{ width: "40%", height: "40px", borderRadius: "var(--radius-md)", alignSelf: "flex-end" }} />
                     </div>
                   ) : filteredMessages.length === 0 ? (
                     <div className="empty-state" style={{ flex: 1, justifyContent: "center" }}>
@@ -2298,17 +2397,17 @@ export default function ChatPage() {
                         return (
                           <div key={msg.id || index} style={{ display: "flex", flexDirection: "column", width: "100%" }}>
                             {showDateDivider && (
-                              <div style={{ display: "flex", justifyContent: "center", margin: "10px 0 6px 0" }}>
+                              <div style={{ display: "flex", justifyContent: "center", margin: "var(--space-2-5) 0 var(--space-1-5) 0" }}>
                                 <span style={{
-                                  fontSize: "0.72rem",
+                                  fontSize: "var(--fs-xs)",
                                   fontWeight: 600,
-                                  background: "rgba(17, 24, 39, 0.88)",
+                                  background: "var(--surface-raised)",
                                   backdropFilter: "blur(8px)",
                                   color: "var(--text-muted)",
-                                  padding: "3px 12px",
-                                  borderRadius: "12px",
-                                  border: "1px solid rgba(255, 255, 255, 0.08)",
-                                  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.25)"
+                                  padding: "var(--space-0-5) var(--space-3)",
+                                  borderRadius: "var(--radius-md)",
+                                  border: "1px solid color-mix(in srgb, var(--text-primary) 8%, transparent)",
+                                  boxShadow: "var(--shadow-sm)"
                                 }}>
                                   {formatDateDivider(msg.createdAt)}
                                 </span>
@@ -2331,16 +2430,16 @@ export default function ChatPage() {
                                 // Mídia OUTGOING direta ou de template
                                 if (mediaUrl && msg.direction !== "INCOMING") {
                                   if (fmt === "IMAGE") return (
-                                    <img src={mediaUrl} alt="Imagem" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                    <img src={mediaUrl} alt="Imagem" style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)", marginBottom: "var(--space-1-5)", display: "block" }} />
                                   );
                                   if (fmt === "VIDEO") return (
-                                    <video src={mediaUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                    <video src={mediaUrl} controls style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)", marginBottom: "var(--space-1-5)", display: "block" }} />
                                   );
                                   if (fmt === "AUDIO" || fmt === "VOICE") return (
                                     <AudioMessagePlayer src={mediaUrl} />
                                   );
                                   if (fmt === "DOCUMENT") return (
-                                    <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
+                                    <a href={mediaUrl} target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)", color: "var(--primary)", marginBottom: "var(--space-1-5)" }}>
                                       📄 {mediaUrl.split("/").pop() || "Documento"}
                                     </a>
                                   );
@@ -2356,21 +2455,21 @@ export default function ChatPage() {
                                     : `${API_BASE_URL}/accounts/${selectedAccount.id}/media/${mediaUrl}${tokenParam}`;
 
                                   if (fmt === "IMAGE") return (
-                                    <img src={proxyUrl} alt="Imagem recebida" style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                    <img src={proxyUrl} alt="Imagem recebida" style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)", marginBottom: "var(--space-1-5)", display: "block" }} />
                                   );
                                   if (fmt === "VIDEO") return (
-                                    <video src={proxyUrl} controls style={{ maxWidth: "100%", borderRadius: "8px", marginBottom: "6px", display: "block" }} />
+                                    <video src={proxyUrl} controls style={{ maxWidth: "100%", borderRadius: "var(--radius-sm)", marginBottom: "var(--space-1-5)", display: "block" }} />
                                   );
                                   if (fmt === "AUDIO" || fmt === "VOICE") return (
                                     <AudioMessagePlayer src={proxyUrl} />
                                   );
                                   if (fmt === "DOCUMENT") return (
-                                    <a href={proxyUrl} target="_blank" rel="noreferrer" download style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--primary)", marginBottom: "6px" }}>
+                                    <a href={proxyUrl} target="_blank" rel="noreferrer" download style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)", color: "var(--primary)", marginBottom: "var(--space-1-5)" }}>
                                       📄 Documento recebido
                                     </a>
                                   );
                                   return (
-                                    <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "6px" }}>
+                                    <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)", marginBottom: "var(--space-1-5)" }}>
                                       📎 Arquivo recebido
                                     </div>
                                   );
@@ -2405,30 +2504,30 @@ export default function ChatPage() {
                                 return renderWhatsAppFormatted(rawText);
                               })()}
                             </div>
-                            <div className="msg-time" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap", justifyContent: isIncoming ? "flex-start" : "flex-end" }}>
+                            <div className="msg-time" style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)", flexWrap: "wrap", justifyContent: isIncoming ? "flex-start" : "flex-end" }}>
                               {!isIncoming && msg.sentByUserName && (
                                 <span
                                   style={{
-                                    fontSize: "0.68rem",
-                                    color: "var(--text-muted, #94a3b8)",
-                                    background: "rgba(255, 255, 255, 0.08)",
-                                    padding: "1px 6px",
-                                    borderRadius: "4px",
+                                    fontSize: "var(--fs-2xs)",
+                                    color: "var(--text-muted)",
+                                    background: "color-mix(in srgb, var(--text-primary) 8%, transparent)",
+                                    padding: "1px var(--space-1-5)",
+                                    borderRadius: "var(--radius-xs)",
                                     fontWeight: 500,
                                     display: "inline-flex",
                                     alignItems: "center",
-                                    gap: "3px"
+                                    gap: "var(--space-0-5)"
                                   }}
                                   title={`Enviado pelo operador ${msg.sentByUserName}`}
                                 >
-                                  <span style={{ opacity: 0.8, fontSize: "0.75rem" }}>👤</span> {msg.sentByUserName}
+                                  <span style={{ opacity: 0.8, fontSize: "var(--fs-xs)" }}>👤</span> {msg.sentByUserName}
                                 </span>
                               )}
                               <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               {!isIncoming && (
                                 <span style={{
                                   color: msg.status === "READ" ? "var(--success)" :
-                                         msg.status === "DELIVERED" ? "#22d3ee" :
+                                         msg.status === "DELIVERED" ? "var(--info)" :
                                          msg.status === "FAILED" ? "var(--error)" : "var(--text-muted)"
                                 }}>
                                   {msg.status === "READ" ? "✓✓ Lido" :
@@ -2475,75 +2574,68 @@ export default function ChatPage() {
                       timeRemainingStr = `${remHrs}h ${remMins}m`;
                     }
                   }
+                  // Texto livre só com a janela de 24h aberta; fora dela, apenas template
+                  const canReplyFreely = !!lastInc && isWindowActive;
 
                   return (
                     <div className="chat-input-container" style={{
-                      padding: "8px 14px",
+                      padding: "var(--space-2) var(--space-3-5)",
                       borderTop: "1px solid var(--border-color)",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "5px",
+                      gap: "var(--space-1)",
                       flexShrink: 0,
-                      background: "rgba(16, 18, 22, 0.98)",
-                      boxShadow: "0 -4px 16px rgba(0, 0, 0, 0.25)",
+                      background: "var(--surface-raised)",
+                      boxShadow: "var(--shadow-up)",
                       zIndex: 10
                     }}>
                       
-                      {lastInc ? (
-                        isWindowActive ? (
+                      {canReplyFreely ? (
                           <div style={{
-                            background: "rgba(16, 185, 129, 0.08)",
-                            border: "1px solid rgba(16, 185, 129, 0.22)",
-                            borderRadius: "6px",
-                            padding: "3px 8px",
-                            fontSize: "0.74rem",
+                            background: "color-mix(in srgb, var(--primary) 8%, transparent)",
+                            border: "1px solid color-mix(in srgb, var(--primary) 22%, transparent)",
+                            borderRadius: "var(--radius-xs)",
+                            padding: "var(--space-0-5) var(--space-2)",
+                            fontSize: "var(--fs-xs)",
                             color: "var(--success)",
                             fontWeight: "500",
                             display: "inline-flex",
                             alignItems: "center",
-                            gap: "6px",
+                            gap: "var(--space-1-5)",
                             width: "fit-content"
                           }}>
-                            <span className="window-badge" style={{ fontSize: "0.68rem", padding: "1px 6px" }}><span className="dot" />Janela aberta</span>
-                            <span style={{ fontSize: "0.72rem" }}>Responda livremente · Expira em <strong>{timeRemainingStr}</strong></span>
+                            <span className="window-badge" style={{ fontSize: "var(--fs-2xs)", padding: "1px var(--space-1-5)" }}><span className="dot" />Janela aberta</span>
+                            <span style={{ fontSize: "var(--fs-xs)" }}>Responda livremente · Expira em <strong>{timeRemainingStr}</strong></span>
                           </div>
-                        ) : (
-                          <div style={{
-                            background: "rgba(245, 158, 11, 0.08)",
-                            border: "1px solid rgba(245, 158, 11, 0.22)",
-                            borderRadius: "6px",
-                            padding: "4px 8px",
-                            fontSize: "0.73rem",
-                            color: "#f59e0b",
-                            fontWeight: "500",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px"
-                          }}>
-                            <span>⚠️ <strong>Janela Expirada:</strong> Envie um Template para reabrir.</span>
-                          </div>
-                        )
                       ) : (
-                        <div style={{
-                          background: "rgba(255, 255, 255, 0.02)",
-                          border: "1px solid var(--border-color)",
-                          borderRadius: "6px",
-                          padding: "4px 8px",
-                          fontSize: "0.73rem",
-                          color: "var(--text-secondary)",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px"
-                        }}>
-                          <span>ℹ️ O cliente ainda não respondeu ao disparo. Respostas de texto livre disponíveis após interação dele.</span>
+                        // Fora da janela de 24h (ou sem resposta do cliente) só template é aceito:
+                        // um aviso e uma ação, em vez de aviso + campo bloqueado + botão desabilitado.
+                        <div className={`chat-template-only${lastInc ? " is-expired" : ""}`}>
+                          <div className="chat-template-only__text">
+                            <strong>{lastInc ? "A janela de 24h expirou." : "O cliente ainda não respondeu."}</strong>
+                            <span>
+                              {lastInc
+                                ? "Para falar com o cliente de novo, envie um template aprovado."
+                                : "Para iniciar a conversa, envie um template aprovado. O texto livre libera quando ele responder."}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => { if (!isViewer) setShowChatTemplateModal(true); }}
+                            className="btn btn-primary"
+                            disabled={isViewer}
+                            title={isViewer ? "Somente leitura" : "Escolher e enviar um template de mensagem"}
+                          >
+                            📝 Enviar template
+                          </button>
                         </div>
                       )}
 
                       {/* Barra de Respostas Rápidas (1-Clique / Canned Responses) */}
-                      {(!lastInc || isWindowActive) && (
-                        <div className="quick-replies-toolbar" style={{ padding: "0", gap: "4px" }}>
-                          <div className="quick-replies-scroll-area" style={{ gap: "4px" }}>
-                            <span className="quick-replies-label" style={{ fontSize: "0.7rem" }}>
+                      {canReplyFreely && (
+                        <div className="quick-replies-toolbar" style={{ padding: "0", gap: "var(--space-1)" }}>
+                          <div className="quick-replies-scroll-area" style={{ gap: "var(--space-1)" }}>
+                            <span className="quick-replies-label" style={{ fontSize: "var(--fs-2xs)" }}>
                               <span>⚡</span> Rápidas:
                             </span>
                             {quickReplies.map((qr) => (
@@ -2561,7 +2653,7 @@ export default function ChatPage() {
                                   }, 10);
                                 }}
                                 className="quick-reply-chip"
-                                style={{ fontSize: "0.72rem", padding: "3px 9px", display: "inline-flex", alignItems: "center", gap: "5px" }}
+                                style={{ fontSize: "var(--fs-xs)", padding: "var(--space-0-5) var(--space-2)", display: "inline-flex", alignItems: "center", gap: "var(--space-1)" }}
                                 title={qr.text.slice(0, 120) + (qr.text.length > 120 ? "..." : "")}
                               >
                                 <span>{getQrIcon(qr.title)}</span>
@@ -2569,7 +2661,7 @@ export default function ChatPage() {
                               </button>
                             ))}
                             {quickReplies.length === 0 && (
-                              <span style={{ fontSize: "0.7rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                              <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)", fontStyle: "italic" }}>
                                 Nenhuma resposta cadastrada.
                               </span>
                             )}
@@ -2584,8 +2676,8 @@ export default function ChatPage() {
                               setShowQuickReplyModal(true);
                             }}
                             className="quick-reply-manage-btn"
-                            style={{ fontSize: "0.7rem", padding: "2px 6px" }}
-                            title="Gerenciar e criar novas respostas rápidas"
+                            style={{ fontSize: "var(--fs-2xs)", padding: "var(--space-0-5) var(--space-1-5)" }}
+                            title="Gerenciar e criar novas respostas rápidas" aria-label="Gerenciar respostas rápidas"
                           >
                             <span>⚙️</span>
                           </button>
@@ -2593,62 +2685,62 @@ export default function ChatPage() {
                       )}
 
                       {/* Barra de Formatação estilo WhatsApp e Botão de Prévia */}
-                      {(!lastInc || isWindowActive) && (
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "2px", padding: "0 2px" }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      {canReplyFreely && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "var(--space-0-5)", padding: "0 var(--space-0-5)" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1)" }}>
                             <button
                               type="button"
                               onClick={() => insertFormat("*")}
-                              title="Negrito (*texto*)"
+                              title="Negrito (*texto*)" aria-label="Negrito"
                               className="chat-fmt-btn"
-                              style={{ fontWeight: "bold", padding: "2px 6px", fontSize: "0.7rem" }}
+                              style={{ fontWeight: "bold", padding: "var(--space-0-5) var(--space-1-5)", fontSize: "var(--fs-2xs)" }}
                             >
                               B
                             </button>
                             <button
                               type="button"
                               onClick={() => insertFormat("_")}
-                              title="Itálico (_texto_)"
+                              title="Itálico (_texto_)" aria-label="Itálico"
                               className="chat-fmt-btn"
-                              style={{ fontStyle: "italic", padding: "2px 6px", fontSize: "0.7rem" }}
+                              style={{ fontStyle: "italic", padding: "var(--space-0-5) var(--space-1-5)", fontSize: "var(--fs-2xs)" }}
                             >
                               I
                             </button>
                             <button
                               type="button"
                               onClick={() => insertFormat("~")}
-                              title="Tachado (~texto~)"
+                              title="Tachado (~texto~)" aria-label="Tachado"
                               className="chat-fmt-btn"
-                              style={{ textDecoration: "line-through", padding: "2px 6px", fontSize: "0.7rem" }}
+                              style={{ textDecoration: "line-through", padding: "var(--space-0-5) var(--space-1-5)", fontSize: "var(--fs-2xs)" }}
                             >
                               S
                             </button>
                             <button
                               type="button"
                               onClick={() => insertFormat("• ")}
-                              title="Marcador de Lista"
+                              title="Marcador de Lista" aria-label="Inserir marcador de lista"
                               className="chat-fmt-btn"
-                              style={{ padding: "2px 6px", fontSize: "0.7rem" }}
+                              style={{ padding: "var(--space-0-5) var(--space-1-5)", fontSize: "var(--fs-2xs)" }}
                             >
                               • Lista
                             </button>
                           </div>
 
-                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}>
                             {replyBody.trim() && (
                               <button
                                 type="button"
                                 onClick={() => setShowPreview(!showPreview)}
                                 className="chat-fmt-btn"
                                 style={{
-                                  background: showPreview ? "rgba(16, 185, 129, 0.2)" : undefined,
-                                  borderColor: showPreview ? "var(--primary, #10b981)" : undefined,
-                                  color: showPreview ? "var(--primary, #10b981)" : undefined,
-                                  fontSize: "0.7rem",
-                                  padding: "2px 7px",
+                                  background: showPreview ? "color-mix(in srgb, var(--primary) 20%, transparent)" : undefined,
+                                  borderColor: showPreview ? "var(--primary)" : undefined,
+                                  color: showPreview ? "var(--primary)" : undefined,
+                                  fontSize: "var(--fs-2xs)",
+                                  padding: "var(--space-0-5) var(--space-1-5)",
                                   display: "flex",
                                   alignItems: "center",
-                                  gap: "3px"
+                                  gap: "var(--space-0-5)"
                                 }}
                                 title="Ver como o cliente receberá no WhatsApp"
                               >
@@ -2662,53 +2754,52 @@ export default function ChatPage() {
                       {/* Balão de Prévia Realística do WhatsApp (quando ativo) */}
                       {showPreview && replyBody.trim() && (
                         <div style={{
-                          background: "rgba(15, 23, 42, 0.85)",
-                          border: "1px solid rgba(16, 185, 129, 0.3)",
-                          borderRadius: "10px",
-                          padding: "10px 14px",
-                          marginBottom: "8px",
+                          background: "var(--surface-raised)",
+                          border: "1px solid color-mix(in srgb, var(--primary) 30%, transparent)",
+                          borderRadius: "var(--radius-sm)",
+                          padding: "var(--space-2-5) var(--space-3-5)",
+                          marginBottom: "var(--space-2)",
                           backdropFilter: "blur(6px)"
                         }}>
-                          <div style={{ fontSize: "0.72rem", color: "var(--primary, #10b981)", fontWeight: 600, marginBottom: "6px", display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ fontSize: "var(--fs-xs)", color: "var(--primary)", fontWeight: 600, marginBottom: "var(--space-1-5)", display: "flex", justifyContent: "space-between" }}>
                             <span>📱 Prévia exata no WhatsApp do cliente:</span>
                             <button
                               type="button"
                               onClick={() => setShowPreview(false)}
-                              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.75rem" }}
+                              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "var(--fs-xs)" }}
                             >
                               ✕ Fechar prévia
                             </button>
                           </div>
                           <div style={{
-                            background: "#005c4b", // Verde do balão enviado no WhatsApp Dark
-                            color: "#e9edef",
-                            borderRadius: "12px 12px 2px 12px",
-                            padding: "8px 12px",
-                            fontSize: "0.88rem",
+                            background: "var(--chat-bubble-out)", // Verde do balão enviado no WhatsApp Dark
+                            color: "var(--chat-bubble-out-fg)",
+                            borderRadius: "var(--radius-md) var(--radius-md) var(--radius-xs) var(--radius-md)",
+                            padding: "var(--space-2) var(--space-3)",
+                            fontSize: "var(--fs-md)",
                             lineHeight: "1.45",
                             wordBreak: "break-word",
                             display: "inline-block",
                             maxWidth: "92%",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.35)"
+                            boxShadow: "var(--shadow-md)"
                           }}>
                             {renderWhatsAppFormatted(replyBody)}
-                            <div style={{ fontSize: "0.68rem", color: "rgba(255,255,255,0.6)", textAlign: "right", marginTop: "4px" }}>
+                            <div style={{ fontSize: "var(--fs-2xs)", color: "color-mix(in srgb, var(--chat-bubble-out-fg) 60%, transparent)", textAlign: "right", marginTop: "var(--space-1)" }}>
                               {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ✓✓
                             </div>
                           </div>
                         </div>
                       )}
 
-                      {/* Campo de digitação de mensagem e botões */}
-                      <form onSubmit={sendReply} style={{ display: "flex", gap: "10px", alignItems: "flex-end" }}>
+                      {/* Campo de digitação de mensagem e botões (só com a janela de 24h aberta) */}
+                      {canReplyFreely && (
+                      <form onSubmit={sendReply} style={{ display: "flex", gap: "var(--space-2-5)", alignItems: "flex-end" }}>
                         <textarea
                           ref={replyTextareaRef}
                           placeholder={
                             isViewer
                               ? "Acesso em modo somente leitura (Visualizador). Respostas desabilitadas."
-                              : !lastInc || isWindowActive 
-                                ? "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)" 
-                                : "Janela expirada — envie um template para reabrir..."
+                              : "Digite a sua resposta... (Shift+Enter para pular linha, Enter para enviar)"
                           }
                           value={replyBody}
                           onChange={(e) => {
@@ -2747,12 +2838,13 @@ export default function ChatPage() {
                               if (!isViewer) sendReply();
                             }
                           }}
-                          disabled={isViewer || (lastInc ? !isWindowActive : true)}
-                          className="chat-textarea form-control"
+                          disabled={isViewer}
+                          className="chat-textarea"
+                          aria-label="Mensagem para o cliente"
                           rows={1}
                           style={{
                             flex: 1,
-                            padding: "8px 12px",
+                            padding: "var(--space-2) var(--space-3)",
                             borderRadius: "var(--radius-md)",
                             resize: "none",
                             minHeight: "40px",
@@ -2760,7 +2852,7 @@ export default function ChatPage() {
                             lineHeight: "1.4",
                             overflowY: "auto",
                             fontFamily: "inherit",
-                            fontSize: "0.86rem",
+                            fontSize: "var(--fs-md)",
                             opacity: isViewer ? 0.7 : 1,
                             cursor: isViewer ? "not-allowed" : "text"
                           }}
@@ -2769,7 +2861,7 @@ export default function ChatPage() {
                           type="submit"
                           className="chat-send-btn btn btn-primary"
                           style={{ height: "40px", flexShrink: 0, opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
-                          disabled={isViewer || isSendingReply || !replyBody.trim() || (lastInc ? !isWindowActive : true)}
+                          disabled={isViewer || isSendingReply || !replyBody.trim()}
                         >
                           {isSendingReply ? "Enviando..." : "Enviar ✈️"}
                         </button>
@@ -2780,13 +2872,14 @@ export default function ChatPage() {
                             if (!isViewer) setShowChatTemplateModal(true);
                           }}
                           className="btn btn-secondary"
-                          style={{ padding: "0 14px", borderRadius: "var(--radius-md)", whiteSpace: "nowrap", height: "40px", flexShrink: 0, fontSize: "0.82rem", opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
+                          style={{ padding: "0 var(--space-3-5)", borderRadius: "var(--radius-md)", whiteSpace: "nowrap", height: "40px", flexShrink: 0, fontSize: "var(--fs-md)", opacity: isViewer ? 0.5 : 1, cursor: isViewer ? "not-allowed" : "pointer" }}
                           disabled={isViewer}
-                          title={isViewer ? "Somente leitura" : "Enviar Template de Mensagem"}
+                          title={isViewer ? "Somente leitura" : "Enviar um template de mensagem"}
                         >
-                          📝 Reabrir
+                          📝 Template
                         </button>
                       </form>
+                      )}
                     </div>
                   );
                 })()}
@@ -2799,9 +2892,9 @@ export default function ChatPage() {
             <div className="chat-panel-crm">
               {/* Topo do Mini-CRM */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "1.1rem" }}>👤</span>
-                  <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>Ficha do Lead (CRM)</span>
+                <div style={{ display: "flex", alignItems: "center", gap: "var(--space-1-5)" }}>
+                  <span style={{ fontSize: "var(--fs-lg)" }}>👤</span>
+                  <span style={{ fontWeight: 700, fontSize: "var(--fs-base)" }}>Ficha do Lead (CRM)</span>
                 </div>
                 <button
                   type="button"
@@ -2811,10 +2904,10 @@ export default function ChatPage() {
                     border: "none",
                     color: "var(--text-muted)",
                     cursor: "pointer",
-                    fontSize: "1.1rem",
-                    padding: "4px"
+                    fontSize: "var(--fs-lg)",
+                    padding: "var(--space-1)"
                   }}
-                  title="Fechar Ficha do Lead"
+                  title="Fechar Ficha do Lead" aria-label="Fechar ficha do lead"
                 >
                   ✕
                 </button>
@@ -2822,33 +2915,52 @@ export default function ChatPage() {
 
               {/* Informações do Lead */}
               <div style={{
-                background: "rgba(255, 255, 255, 0.03)",
-                borderRadius: "10px",
-                padding: "12px",
+                background: "color-mix(in srgb, var(--text-primary) 3%, transparent)",
+                borderRadius: "var(--radius-sm)",
+                padding: "var(--space-3)",
                 border: "1px solid var(--border-color)",
                 display: "flex",
                 flexDirection: "column",
-                gap: "4px"
+                gap: "var(--space-1)"
               }}>
-                <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>
+                <div style={{ fontWeight: 600, fontSize: "var(--fs-base)" }}>
                   {conversations.find(c => c.phone === selectedPhone)?.profileName || "Nome não identificado"}
                 </div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", fontFamily: "monospace" }}>
+                <div style={{ fontSize: "var(--fs-sm)", color: "var(--text-muted)", fontFamily: "monospace" }}>
                   {selectedPhone}
                 </div>
-                <div style={{ marginTop: "6px", display: "flex", gap: "8px" }}>
+                {(() => {
+                  const lists: SourceList[] = conversations.find(c => c.phone === selectedPhone)?.sourceLists || [];
+                  if (lists.length === 0) return null;
+                  return (
+                    <div className="lead-origin">
+                      <span className="lead-origin__label">{lists.length > 1 ? "Veio das listas" : "Veio da lista"}</span>
+                      {lists.map((l) => (
+                        <div key={l.id} className="lead-origin__item">
+                          <span className="lead-origin__name">{l.name}</span>
+                          {l.tags.length > 0 && (
+                            <ul className="lead-tags" aria-label={`Tags da lista ${l.name}`}>
+                              {l.tags.map((t) => <li key={t} className="lead-tag">#{t}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+                <div style={{ marginTop: "var(--space-1-5)", display: "flex", gap: "var(--space-2)" }}>
                   <a
                     href={`https://wa.me/${selectedPhone}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-secondary"
                     style={{
-                      fontSize: "0.72rem",
-                      padding: "4px 8px",
+                      fontSize: "var(--fs-xs)",
+                      padding: "var(--space-1) var(--space-2)",
                       textDecoration: "none",
                       display: "inline-flex",
                       alignItems: "center",
-                      gap: "4px"
+                      gap: "var(--space-1)"
                     }}
                   >
                     <span>💬</span> WhatsApp Web ↗
@@ -2857,11 +2969,11 @@ export default function ChatPage() {
               </div>
 
               {/* Etapa do Funil */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Etapa do Funil de Vendas
-                </label>
-                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <span id="crm-stage-label" style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Etapa do funil de vendas
+                </span>
+                <div role="group" aria-labelledby="crm-stage-label" style={{ display: "flex", flexDirection: "column", gap: "var(--space-1-5)" }}>
                   {(Object.keys(FUNNEL_STAGES) as FunnelStage[]).map((stageKey) => {
                     const stage = FUNNEL_STAGES[stageKey];
                     const isCurrent = crmData.stage === stageKey;
@@ -2871,14 +2983,14 @@ export default function ChatPage() {
                         type="button"
                         onClick={() => updateCrm(prev => ({ ...prev, stage: stageKey }))}
                         style={{
-                          padding: "8px 12px",
-                          borderRadius: "8px",
-                          fontSize: "0.78rem",
+                          padding: "var(--space-2) var(--space-3)",
+                          borderRadius: "var(--radius-sm)",
+                          fontSize: "var(--fs-sm)",
                           fontWeight: isCurrent ? 700 : 500,
                           textAlign: "left",
                           cursor: "pointer",
                           border: isCurrent ? stage.border : "1px solid transparent",
-                          background: isCurrent ? stage.bg : "rgba(255,255,255,0.03)",
+                          background: isCurrent ? stage.bg : "color-mix(in srgb, var(--text-primary) 3%, transparent)",
                           color: isCurrent ? stage.color : "var(--text-secondary)",
                           display: "flex",
                           justifyContent: "space-between",
@@ -2895,13 +3007,13 @@ export default function ChatPage() {
               </div>
 
               {/* Tags / Etiquetas */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  Etiquetas / Segmentação
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+                <label htmlFor="crm-tag-input" style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Etiquetas
                 </label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "5px", minHeight: "26px" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-1)", minHeight: "26px" }}>
                   {crmData.tags.length === 0 ? (
-                    <span style={{ fontSize: "0.74rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                    <span style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", fontStyle: "italic" }}>
                       Nenhuma tag adicionada
                     </span>
                   ) : (
@@ -2909,23 +3021,23 @@ export default function ChatPage() {
                       <span
                         key={idx}
                         style={{
-                          fontSize: "0.72rem",
-                          padding: "2px 8px",
-                          borderRadius: "12px",
-                          background: "rgba(16, 185, 129, 0.15)",
-                          border: "1px solid rgba(16, 185, 129, 0.35)",
-                          color: "#10b981",
+                          fontSize: "var(--fs-xs)",
+                          padding: "var(--space-0-5) var(--space-2)",
+                          borderRadius: "var(--radius-md)",
+                          background: "color-mix(in srgb, var(--primary) 15%, transparent)",
+                          border: "1px solid color-mix(in srgb, var(--primary) 35%, transparent)",
+                          color: "var(--primary)",
                           display: "inline-flex",
                           alignItems: "center",
-                          gap: "4px"
+                          gap: "var(--space-1)"
                         }}
                       >
                         #{tag}
                         <button
                           type="button"
                           onClick={() => updateCrm(prev => ({ ...prev, tags: prev.tags.filter((_, i) => i !== idx) }))}
-                          style={{ background: "none", border: "none", color: "#10b981", cursor: "pointer", padding: "0 2px", fontSize: "0.75rem", lineHeight: 1 }}
-                          title="Remover tag"
+                          style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", padding: "0 var(--space-0-5)", fontSize: "var(--fs-xs)", lineHeight: 1 }}
+                          title="Remover tag" aria-label="Remover etiqueta"
                         >
                           ✕
                         </button>
@@ -2933,8 +3045,9 @@ export default function ChatPage() {
                     ))
                   )}
                 </div>
-                <div style={{ display: "flex", gap: "6px", marginTop: "4px" }}>
+                <div style={{ display: "flex", gap: "var(--space-1-5)", marginTop: "var(--space-1)" }}>
                   <input
+                    id="crm-tag-input"
                     type="text"
                     placeholder="Adicionar tag (Enter)..."
                     value={newTagInput}
@@ -2949,8 +3062,8 @@ export default function ChatPage() {
                         }
                       }
                     }}
-                    className="form-control"
-                    style={{ fontSize: "0.75rem", padding: "5px 8px", height: "32px" }}
+                    className="field-input"
+                    style={{ fontSize: "var(--fs-xs)", padding: "var(--space-1) var(--space-2)", height: "32px" }}
                   />
                   <button
                     type="button"
@@ -2962,7 +3075,8 @@ export default function ChatPage() {
                       }
                     }}
                     className="btn btn-secondary"
-                    style={{ padding: "4px 10px", fontSize: "0.75rem" }}
+                    aria-label="Adicionar etiqueta"
+                    style={{ padding: "var(--space-1) var(--space-2-5)", fontSize: "var(--fs-xs)" }}
                   >
                     +
                   </button>
@@ -2970,32 +3084,33 @@ export default function ChatPage() {
               </div>
 
               {/* Anotações Privadas do Atendimento */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <label style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                    Notas da Negociação
+                  <label htmlFor="crm-notes" style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Notas da negociação
                   </label>
-                  <span style={{ fontSize: "0.68rem", color: "#10b981" }}>● Auto-salvamento</span>
+                  <span style={{ fontSize: "var(--fs-2xs)", color: "var(--primary)" }}>● Auto-salvamento</span>
                 </div>
                 <textarea
-                  placeholder="Ex: Cliente tem interesse em 3 frascos do Body Splash Ternura. Aguardando envio do comprovante PIX até as 17h..."
+                  id="crm-notes"
+                  placeholder="Ex.: Cliente quer 3 unidades. Aguardando o comprovante do PIX até as 17h."
                   value={crmData.notes}
                   onChange={(e) => {
                     const val = e.target.value;
                     updateCrm(prev => ({ ...prev, notes: val }));
                   }}
-                  className="form-control"
+                  className="field-input"
                   style={{
-                    fontSize: "0.8rem",
-                    padding: "10px",
-                    borderRadius: "8px",
+                    fontSize: "var(--fs-sm)",
+                    padding: "var(--space-2-5)",
+                    borderRadius: "var(--radius-sm)",
                     minHeight: "120px",
                     resize: "vertical",
                     flex: 1,
                     lineHeight: "1.45"
                   }}
                 />
-                <span style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
+                <span style={{ fontSize: "var(--fs-2xs)", color: "var(--text-muted)" }}>
                   🔒 Estas notas são visíveis apenas para a sua equipe e não são enviadas ao cliente.
                 </span>
               </div>
@@ -3004,269 +3119,236 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Modal de Enviar Template no Chat */}
-      {showChatTemplateModal && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
-          <div className="glass" style={{ width: "90%", maxWidth: "500px", padding: "30px", borderRadius: "var(--radius-xl)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-              <h3 style={{ fontSize: "1.2rem", fontWeight: "700" }}>Enviar Template de Mensagem</h3>
-              <button 
-                type="button" 
-                onClick={() => {
-                  setShowChatTemplateModal(false);
-                  setSelectedTemplateName("");
-                  setTemplateVariables([]);
-                }} 
-                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--text-muted)" }}
-              >
-                ✕
-              </button>
-            </div>
+      {/* Modal de enviar template no chat */}
+      <Modal
+        open={showChatTemplateModal}
+        onClose={closeChatTemplateModal}
+        title="Enviar template"
+        size="sm"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!selectedAccount || !selectedPhone || !selectedTemplateName) return;
+          try {
+            setIsChatLoading(true);
+            await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/send`, {
+              to: selectedPhone,
+              templateName: selectedTemplateName,
+              variables: templateVariables,
+            });
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-secondary)" }}>Selecione o Template</label>
-                <select
-                  className="form-control"
-                  value={selectedTemplateName}
+            closeChatTemplateModal();
+            showAlert("Template enviado.", "success");
+
+            setTimeout(() => fetchChatMessages(selectedAccount.id, selectedPhone, true), 1000);
+          } catch (err: any) {
+            const details = err.response?.data?.error || "Erro desconhecido";
+            showAlert(`Falha ao enviar template: ${details}`, "error");
+          } finally {
+            setIsChatLoading(false);
+          }
+        }}
+        footer={
+          <>
+            <button type="button" className="btn btn-secondary" onClick={closeChatTemplateModal}>Cancelar</button>
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={!selectedTemplateName || (templateVariables.length > 0 && templateVariables.some(v => !v.trim()))}
+            >
+              Enviar template
+            </button>
+          </>
+        }
+      >
+        <div className="field">
+          <label htmlFor="chat-template-select" className="field-label">Template aprovado</label>
+          <select
+            id="chat-template-select"
+            className="field-input"
+            value={selectedTemplateName}
+            onChange={(e) => {
+              const name = e.target.value;
+              setSelectedTemplateName(name);
+              const t = templates.find(temp => temp.name === name);
+              if (t) {
+                const body = Array.isArray(t.components) ? t.components.find(c => c.type === "BODY")?.text || "" : "";
+                const vars = detectBodyVariables(body);
+                setTemplateVariables(vars.map(() => ""));
+              } else {
+                setTemplateVariables([]);
+              }
+            }}
+          >
+            <option value="">Selecione...</option>
+            {templates.filter(t => t.status === "APPROVED").map(t => (
+              <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
+            ))}
+          </select>
+          <span className="field-hint">Use um template para falar com o cliente fora da janela de 24 horas.</span>
+        </div>
+
+        {templateVariables.length > 0 && (
+          <fieldset className="field" style={{ border: "none", padding: 0, margin: 0 }}>
+            <legend className="field-label" style={{ marginBottom: "var(--space-1-5)" }}>Variáveis do template</legend>
+            {templateVariables.map((v, i) => (
+              <div key={i} className="field" style={{ gap: "var(--space-1)" }}>
+                <label htmlFor={`chat-template-var-${i}`} style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)" }}>
+                  Variável {"{{"}{i + 1}{"}}"}
+                </label>
+                <input
+                  id={`chat-template-var-${i}`}
+                  type="text"
+                  className="field-input"
+                  placeholder={`Valor para {{${i + 1}}}`}
+                  value={v}
                   onChange={(e) => {
-                    const name = e.target.value;
-                    setSelectedTemplateName(name);
-                    const t = templates.find(temp => temp.name === name);
-                    if (t) {
-                      const body = Array.isArray(t.components) ? t.components.find(c => c.type === "BODY")?.text || "" : "";
-                      const vars = detectBodyVariables(body);
-                      setTemplateVariables(vars.map(() => ""));
-                    } else {
-                      setTemplateVariables([]);
-                    }
+                    const val = e.target.value;
+                    setTemplateVariables(prev => {
+                      const next = [...prev];
+                      next[i] = val;
+                      return next;
+                    });
                   }}
-                >
-                  <option value="">Selecione...</option>
-                  {templates.filter(t => t.status === "APPROVED").map(t => (
-                    <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
-                  ))}
-                </select>
+                />
               </div>
+            ))}
+          </fieldset>
+        )}
+      </Modal>
 
-              {/* Variáveis do Template */}
-              {templateVariables.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                  <label style={{ fontSize: "0.85rem", fontWeight: "600", color: "var(--text-secondary)" }}>Preencha as variáveis</label>
-                  {templateVariables.map((v, i) => (
-                    <div key={i} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Variável {"{{"}{i + 1}{"}}"}</span>
-                      <input
-                        type="text"
-                        className="form-control"
-                        placeholder={`Valor para {{${i + 1}}}`}
-                        value={v}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setTemplateVariables(prev => {
-                            const next = [...prev];
-                            next[i] = val;
-                            return next;
-                          });
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+      {/* Modal de gerenciamento de respostas rápidas */}
+      <Modal
+        open={showQuickReplyModal}
+        onClose={closeQuickReplyModal}
+        title="Respostas rápidas"
+        size="lg"
+        footer={
+          <>
+            <button type="button" onClick={handleResetQuickReplies} className="btn btn-secondary btn-sm" style={{ marginRight: "auto" }}>
+              Restaurar padrão
+            </button>
+            <button type="button" onClick={closeQuickReplyModal} className="btn btn-primary">
+              Concluir
+            </button>
+          </>
+        }
+      >
+        <p style={{ fontSize: "var(--fs-md)", color: "var(--text-muted)", margin: 0 }}>
+          Cadastre mensagens que a equipe envia com um clique: ofertas, dados de pagamento, dúvidas frequentes.
+        </p>
 
+        {/* Formulário de adicionar / editar */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSaveQuickReply();
+          }}
+          style={{ background: "color-mix(in srgb, var(--text-primary) 3%, transparent)", padding: "var(--space-3-5)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)", display: "flex", flexDirection: "column", gap: "var(--space-2-5)" }}
+        >
+          <h3 style={{ fontWeight: 600, fontSize: "var(--fs-md)", color: "var(--primary)", margin: 0 }}>
+            {editingQrId ? "Editar resposta rápida" : "Nova resposta rápida"}
+          </h3>
+          <div className="field">
+            <label htmlFor="qr-title" className="field-label">Título do botão</label>
+            <input
+              id="qr-title"
+              type="text"
+              placeholder="Ex.: 💳 Chave PIX"
+              value={qrTitleInput}
+              onChange={(e) => setQrTitleInput(e.target.value)}
+              className="field-input"
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="qr-text" className="field-label">Mensagem</label>
+            <textarea
+              id="qr-text"
+              placeholder="Digite a mensagem completa..."
+              value={qrTextInput}
+              onChange={(e) => setQrTextInput(e.target.value)}
+              className="field-input"
+              style={{ minHeight: "85px", resize: "vertical" }}
+              aria-describedby="qr-text-hint"
+            />
+            <span id="qr-text-hint" className="field-hint">Aceita a formatação do WhatsApp: *negrito*, _itálico_, ~riscado~.</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "var(--space-2)" }}>
+            {editingQrId && (
               <button
                 type="button"
-                className="btn btn-primary"
-                style={{ width: "100%", padding: "12px", marginTop: "10px" }}
-                disabled={!selectedTemplateName || (templateVariables.length > 0 && templateVariables.some(v => !v.trim()))}
-                onClick={async () => {
-                  if (!selectedAccount || !selectedPhone || !selectedTemplateName) return;
-                  try {
-                    setIsChatLoading(true);
-                    await axios.post(`${API_BASE_URL}/accounts/${selectedAccount.id}/messages/send`, {
-                      to: selectedPhone,
-                      templateName: selectedTemplateName,
-                      variables: templateVariables,
-                    });
-                    
-                    setShowChatTemplateModal(false);
-                    setSelectedTemplateName("");
-                    setTemplateVariables([]);
-                    showAlert("Template enviado com sucesso! 🚀", "success");
-                    
-                    setTimeout(() => fetchChatMessages(selectedAccount.id, selectedPhone, true), 1000);
-                  } catch (err: any) {
-                    const details = err.response?.data?.error || "Erro desconhecido";
-                    showAlert(`Falha ao enviar template: ${details}`, "error");
-                  } finally {
-                    setIsChatLoading(false);
-                  }
-                }}
-              >
-                Enviar Template ✈️
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Gerenciamento de Respostas Rápidas */}
-      {showQuickReplyModal && (
-        <div className="modal-backdrop" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 3000 }}>
-          <div className="glass" style={{ width: "90%", maxWidth: "600px", maxHeight: "90vh", display: "flex", flexDirection: "column", padding: "24px", borderRadius: "var(--radius-xl)", overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <span style={{ fontSize: "1.2rem" }}>⚡</span>
-                <h3 style={{ fontSize: "1.15rem", fontWeight: "700", margin: 0 }}>Respostas Rápidas (Canned Responses)</h3>
-              </div>
-              <button 
-                type="button" 
                 onClick={() => {
-                  setShowQuickReplyModal(false);
                   setEditingQrId(null);
                   setQrTitleInput("");
                   setQrTextInput("");
-                }} 
-                style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "1.2rem", color: "var(--text-muted)" }}
+                }}
+                className="btn btn-secondary btn-sm"
               >
-                ✕
+                Cancelar edição
               </button>
-            </div>
+            )}
+            <button type="submit" className="btn btn-primary btn-sm">
+              {editingQrId ? "Salvar alterações" : "Adicionar resposta"}
+            </button>
+          </div>
+        </form>
 
-            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", margin: "0 0 14px 0" }}>
-              Cadastre mensagens padrão (ofertas, dados bancários, dúvidas frequentes) para agilizar o atendimento de alta demanda com apenas 1 clique.
-            </p>
-
-            {/* Formulário de Adicionar / Editar */}
-            <div style={{ background: "rgba(255,255,255,0.03)", padding: "14px", borderRadius: "10px", border: "1px solid var(--border-color)", marginBottom: "14px", display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--primary)" }}>
-                {editingQrId ? "✏️ Editar Resposta Rápida" : "➕ Nova Resposta Rápida"}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Título do Botão (ex: 🎁 Oferta Body Splash):</label>
-                <input
-                  type="text"
-                  placeholder="Ex: 💳 Chave PIX"
-                  value={qrTitleInput}
-                  onChange={(e) => setQrTitleInput(e.target.value)}
-                  className="form-control"
-                  style={{ fontSize: "0.82rem", height: "36px" }}
-                />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                <label style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Texto da Mensagem (pode usar formatação do WhatsApp *negrito*, etc):</label>
-                <textarea
-                  placeholder="Digite a mensagem completa..."
-                  value={qrTextInput}
-                  onChange={(e) => setQrTextInput(e.target.value)}
-                  className="form-control"
-                  style={{ fontSize: "0.82rem", minHeight: "85px", resize: "vertical" }}
-                />
-              </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "4px" }}>
-                {editingQrId && (
+        {/* Lista de respostas salvas */}
+        <section aria-labelledby="qr-saved-title" style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)" }}>
+          <h3 id="qr-saved-title" style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", margin: 0 }}>
+            Respostas salvas ({quickReplies.length})
+          </h3>
+          <div style={{ overflowY: "auto", display: "flex", flexDirection: "column", gap: "var(--space-2)", maxHeight: "240px" }}>
+            {quickReplies.map((qr) => (
+              <div
+                key={qr.id}
+                style={{
+                  padding: "var(--space-2-5) var(--space-3)",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid var(--border-color)",
+                  background: "color-mix(in srgb, var(--text-primary) 2%, transparent)",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "var(--space-2-5)"
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: "var(--fs-md)", color: "var(--text-primary)" }}>
+                    {qr.title}
+                  </div>
+                  <div style={{ fontSize: "var(--fs-xs)", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: "var(--space-0-5)" }}>
+                    {qr.text.replace(/\n/g, " ")}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: "var(--space-1-5)", flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => {
-                      setEditingQrId(null);
-                      setQrTitleInput("");
-                      setQrTextInput("");
+                      setEditingQrId(qr.id);
+                      setQrTitleInput(qr.title);
+                      setQrTextInput(qr.text);
                     }}
-                    className="btn btn-secondary"
-                    style={{ fontSize: "0.78rem", padding: "6px 12px" }}
+                    className="icon-action"
+                    title="Editar"
+                    aria-label={`Editar a resposta rápida ${qr.title}`}
                   >
-                    Cancelar Edição
+                    <Edit2 size={14} aria-hidden="true" />
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={handleSaveQuickReply}
-                  className="btn btn-primary"
-                  style={{ fontSize: "0.78rem", padding: "6px 14px" }}
-                >
-                  {editingQrId ? "Salvar Alterações" : "Adicionar Resposta"}
-                </button>
-              </div>
-            </div>
-
-            {/* Lista de Respostas Atuais */}
-            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px", maxHeight: "240px" }}>
-              <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                Respostas Salvas ({quickReplies.length})
-              </div>
-              {quickReplies.map((qr) => (
-                <div
-                  key={qr.id}
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-color)",
-                    background: "rgba(255,255,255,0.02)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    gap: "10px"
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: "0.82rem", color: "var(--text-primary)" }}>
-                      {qr.title}
-                    </div>
-                    <div style={{ fontSize: "0.74rem", color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: "2px" }}>
-                      {qr.text.replace(/\n/g, " ")}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingQrId(qr.id);
-                        setQrTitleInput(qr.title);
-                        setQrTextInput(qr.text);
-                      }}
-                      className="btn btn-secondary"
-                      style={{ padding: "4px 8px", fontSize: "0.72rem" }}
-                      title="Editar"
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteQuickReply(qr.id)}
-                      className="btn btn-secondary"
-                      style={{ padding: "4px 8px", fontSize: "0.72rem", color: "var(--error)" }}
-                      title="Excluir"
-                    >
-                      🗑️
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteQuickReply(qr.id)}
+                    className="icon-action icon-action--danger"
+                    title="Excluir"
+                    aria-label={`Excluir a resposta rápida ${qr.title}`}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
                 </div>
-              ))}
-            </div>
-
-            {/* Rodapé do Modal */}
-            <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={handleResetQuickReplies}
-                style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: "0.75rem", cursor: "pointer", textDecoration: "underline" }}
-              >
-                🔄 Restaurar modelos de fábrica
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setShowQuickReplyModal(false)}
-                className="btn btn-primary"
-                style={{ fontSize: "0.8rem", padding: "6px 14px" }}
-              >
-                Concluir
-              </button>
-            </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        </section>
+      </Modal>
     </div>
   );
 }

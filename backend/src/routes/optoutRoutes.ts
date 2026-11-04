@@ -2,24 +2,20 @@
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { normalizePhone } from "../services/phoneService";
-import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountWithPermission } from "../utils/accountAccess";
 
 const router = Router();
 router.use(authMiddleware);
 
 /** Verifica se o usuário autenticado tem acesso à conta. */
-async function getAccount(accountId: string, userId: string) {
-  return await findAccountForUser(accountId, userId);
-}
-
 // GET /accounts/:accountId/optouts — lista com busca e paginação
 router.get("/accounts/:accountId/optouts", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const { search, page = "1", limit = "50" } = req.query;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "view");
+  if (!account) return;
 
   const p = Math.max(1, parseInt(page as string));
   const l = Math.min(200, Math.max(1, parseInt(limit as string)));
@@ -43,8 +39,8 @@ router.post("/accounts/:accountId/optouts", async (req: Request, res: Response) 
 
   if (!phone) return res.status(400).json({ error: "Campo 'phone' é obrigatório." });
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const normalized = normalizePhone(String(phone));
   if (normalized.length < 8) return res.status(400).json({ error: "Número de telefone inválido." });
@@ -70,8 +66,8 @@ router.post("/accounts/:accountId/optouts/bulk", async (req: Request, res: Respo
   if (phones.length > 10_000)
     return res.status(400).json({ error: "Máximo de 10.000 números por importação." });
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const normalized = phones
     .map((p: any) => normalizePhone(String(p)))
@@ -94,8 +90,8 @@ router.delete("/accounts/:accountId/optouts/:phone", async (req: Request, res: R
   const { accountId, phone } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const normalized = normalizePhone(phone);
 

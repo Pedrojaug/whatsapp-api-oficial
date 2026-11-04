@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { normalizePhone } from "../services/phoneService";
-import { findAccountForUser } from "../utils/accountAccess";
+import { findAccountForUser, getAccountWithPermission } from "../utils/accountAccess";
 import { triggerDispatcher } from "../workers/dispatcher";
 
 const router = Router();
@@ -16,8 +16,8 @@ router.get("/accounts/:accountId/lists", async (req: Request, res: Response) => 
   const { tag } = req.query;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const where: any = { accountId };
     if (tag) where.tags = { has: tag as string };
@@ -38,10 +38,8 @@ router.get("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
   const { accountId, listId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "view");
+    if (!account) return;
 
     const list = await prisma.contactList.findFirst({
       where: { id: listId, accountId },
@@ -71,8 +69,8 @@ router.post("/accounts/:accountId/lists", async (req: Request, res: Response) =>
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const list = await prisma.contactList.create({
       data: {
@@ -119,8 +117,8 @@ router.patch("/accounts/:accountId/lists/:listId/tags", async (req: Request, res
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const updated = await prisma.contactList.updateMany({
       where: { id: listId, accountId },
@@ -139,10 +137,8 @@ router.delete("/accounts/:accountId/lists/:listId", async (req: Request, res: Re
   const { accountId, listId } = req.params;
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const list = await prisma.contactList.findFirst({
       where: { id: listId, accountId }
@@ -169,8 +165,8 @@ router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado" });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const list = await prisma.contactList.findFirst({ where: { id: listId, accountId } });
     if (!list) return res.status(404).json({ error: "Lista não encontrada" });
@@ -248,10 +244,8 @@ router.post("/accounts/:accountId/lists/:listId/send", async (req: Request, res:
 
   try {
     const userId = (req as AuthenticatedRequest).userId;
-    const account = await prisma.account.findFirst({
-      where: { id: accountId, userId }
-    });
-    if (!account) return res.status(404).json({ error: "Conta não encontrada ou acesso negado." });
+    const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+    if (!account) return;
 
     const list = await prisma.contactList.findFirst({
       where: { id: listId, accountId },

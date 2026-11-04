@@ -2,7 +2,7 @@
 import crypto from "crypto";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
-import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountWithPermission } from "../utils/accountAccess";
 
 // ── Rotas autenticadas (CRUD) ────────────────────────────────────────────────
 const router = Router();
@@ -12,17 +12,13 @@ function generateShortCode(): string {
   return crypto.randomBytes(4).toString("base64url").slice(0, 7);
 }
 
-async function getAccount(accountId: string, userId: string) {
-  return await findAccountForUser(accountId, userId);
-}
-
 // GET /accounts/:accountId/tracked-links — listar links rastreados
 router.get("/accounts/:accountId/tracked-links", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "view");
+  if (!account) return;
 
   const links = await prisma.trackedLink.findMany({
     where: { accountId },
@@ -46,8 +42,8 @@ router.post("/accounts/:accountId/tracked-links", async (req: Request, res: Resp
     return res.status(400).json({ error: "URL inválida." });
   }
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   // Gerar shortCode único com até 5 tentativas
   let shortCode = "";
@@ -71,8 +67,8 @@ router.delete("/accounts/:accountId/tracked-links/:id", async (req: Request, res
   const { accountId, id } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "dispatch");
+  if (!account) return;
 
   const deleted = await prisma.trackedLink.deleteMany({ where: { id, accountId } });
   if (deleted.count === 0) return res.status(404).json({ error: "Link não encontrado." });

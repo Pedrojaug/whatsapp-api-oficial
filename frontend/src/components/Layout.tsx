@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useAccount } from "../contexts/AccountContext";
 import AuthPages from "./AuthPages";
 import Brand, { BrandIcon } from "./Brand";
+import { hasPermission, canOpenPage, homePageFor } from "../utils/permissions";
 import {
   BarChart3,
   MessageSquare,
@@ -37,6 +38,15 @@ function WhatsAppIcon() {
     </svg>
   );
 }
+
+// Nomes dos cargos iguais aos de Equipe & Acessos; a cor vem dos tokens --role-*.
+const ROLE_LABELS: Record<string, string> = {
+  OWNER: "Proprietário",
+  ADMIN: "Administrador",
+  MANAGER: "Gerente",
+  ATTENDANT: "Atendente",
+  VIEWER: "Visualizador",
+};
 
 export default function Layout() {
   const { token, user, isImpersonating, impersonatorName, login, logout, stopImpersonating } = useAuth();
@@ -88,34 +98,21 @@ export default function Layout() {
 
   // RBAC Role Resolution for Current Selected Account
   const accountRole = (selectedAccount?.accountRole || "OWNER").toUpperCase();
-  const isOwnerOrAdmin = accountRole === "OWNER" || accountRole === "ADMIN";
-  const isManager = accountRole === "MANAGER";
-  const isAttendant = accountRole === "ATTENDANT";
-  const isViewer = accountRole === "VIEWER";
+  const isOwnerOrAdmin = hasPermission(accountRole, "manageSettings");
+  const canViewReports = hasPermission(accountRole, "viewReports");
+  const canDispatch = hasPermission(accountRole, "dispatch");
+  const canManageTeam = hasPermission(accountRole, "manageTeam");
 
-  // RBAC Automatic Route Protection
+  // RBAC: telas fora do cargo redirecionam para a tela inicial dele (matriz em utils/permissions.ts)
   useEffect(() => {
     if (!selectedAccount) return;
     const currentPath = location.pathname;
     if (currentPath === "/login" || currentPath === "/register") return;
 
-    if (isAttendant) {
-      const allowedPaths = ["/chat", "/lists"];
-      if (!allowedPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
-        navigate("/chat", { replace: true });
-      }
-    } else if (isViewer) {
-      const allowedPaths = ["/metrics", "/chat", "/lists", "/messages"];
-      if (!allowedPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
-        navigate("/metrics", { replace: true });
-      }
-    } else if (isManager) {
-      const forbiddenPaths = ["/accounts", "/api-keys"];
-      if (forbiddenPaths.some(p => currentPath === p || currentPath.startsWith(p + "/"))) {
-        navigate("/metrics", { replace: true });
-      }
+    if (!canOpenPage(accountRole, currentPath)) {
+      navigate(homePageFor(accountRole), { replace: true });
     }
-  }, [isAttendant, isViewer, isManager, selectedAccount, location.pathname, navigate]);
+  }, [accountRole, selectedAccount, location.pathname, navigate]);
 
   // Unauthenticated -> Render Modern Auth Form
   if (!token) {
@@ -124,6 +121,7 @@ export default function Layout() {
 
   return (
     <div className={`app-shell${isChatRoute ? " app-shell--chat" : ""}`}>
+      <a href="#conteudo" className="skip-link">Pular para o conteúdo</a>
 
       {/* ── Email verification banner ── */}
       {user && !user.emailVerified && !dismissEmailBanner && user.email !== "demo.video@sendinteligente.com.br" && !isImpersonating && user.role !== "SUPERUSER" && (
@@ -316,11 +314,11 @@ export default function Layout() {
           </div>
 
           {/* Navigation Items */}
-          <nav className="sidebar-nav">
+          <nav className="sidebar-nav" aria-label="Menu principal">
             <span className="sidebar-section-label">Comunicação</span>
 
             {/* Painel de Métricas: Visível para Dono, Admin, Gerente e Visualizador */}
-            {!isAttendant && (
+            {canViewReports && (
               <NavLink
                 to="/metrics"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -332,7 +330,7 @@ export default function Layout() {
             )}
 
             {/* Campanhas: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/campaigns"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -344,7 +342,7 @@ export default function Layout() {
             )}
 
             {/* Modelos (Templates): Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/templates"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -366,7 +364,7 @@ export default function Layout() {
             </NavLink>
 
             {/* Disparos & Logs: Todos exceto Atendente */}
-            {!isAttendant && (
+            {canViewReports && (
               <NavLink
                 to="/messages"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -388,7 +386,7 @@ export default function Layout() {
             </NavLink>
 
             {/* Links Rastreáveis: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/link-tracking"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -400,7 +398,7 @@ export default function Layout() {
             )}
 
             {/* Galeria de Mídia: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/media"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -412,7 +410,7 @@ export default function Layout() {
             )}
 
             {/* Descadastros: Dono, Admin, Gerente */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canDispatch && (
               <NavLink
                 to="/optouts"
                 className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -424,11 +422,11 @@ export default function Layout() {
             )}
 
             {/* Configurações (exibido apenas se tiver itens com permissão) */}
-            {(isOwnerOrAdmin || isManager) && (
+            {canManageTeam && (
               <>
                 <span className="sidebar-section-label" style={{ marginTop: "12px" }}>Configurações</span>
 
-                {/* Equipe & Acessos: Dono, Admin, Gerente */}
+                {/* Equipe & Acessos: Dono e Admin (o backend recusa os demais cargos) */}
                 <NavLink
                   to="/team"
                   className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}
@@ -500,33 +498,11 @@ export default function Layout() {
                       {user.name || user.email}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
-                      <span style={{
-                        fontSize: "0.68rem",
-                        padding: "1px 6px",
-                        borderRadius: "4px",
-                        fontWeight: 600,
-                        background:
-                          accountRole === "OWNER" || accountRole === "ADMIN" ? "rgba(245, 158, 11, 0.15)" :
-                          accountRole === "MANAGER" ? "rgba(59, 130, 246, 0.15)" :
-                          accountRole === "ATTENDANT" ? "rgba(16, 185, 129, 0.15)" :
-                          "rgba(148, 163, 184, 0.15)",
-                        color:
-                          accountRole === "OWNER" || accountRole === "ADMIN" ? "#f59e0b" :
-                          accountRole === "MANAGER" ? "#60a5fa" :
-                          accountRole === "ATTENDANT" ? "#34d399" :
-                          "#94a3b8",
-                        border: `1px solid ${
-                          accountRole === "OWNER" || accountRole === "ADMIN" ? "rgba(245, 158, 11, 0.3)" :
-                          accountRole === "MANAGER" ? "rgba(59, 130, 246, 0.3)" :
-                          accountRole === "ATTENDANT" ? "rgba(16, 185, 129, 0.3)" :
-                          "rgba(148, 163, 184, 0.3)"
-                        }`
-                      }}>
-                        {accountRole === "OWNER" ? "👑 Dono" :
-                         accountRole === "ADMIN" ? "👑 Admin" :
-                         accountRole === "MANAGER" ? "👔 Gerente" :
-                         accountRole === "ATTENDANT" ? "🎧 Atendente" :
-                         accountRole === "VIEWER" ? "📊 Visualizador" : accountRole}
+                      <span
+                        className="role-badge"
+                        style={{ "--role-color": `var(--role-${(ROLE_LABELS[accountRole] ? accountRole : "VIEWER").toLowerCase()})`, padding: "0 var(--space-1-5)", fontSize: "var(--fs-2xs)" } as React.CSSProperties}
+                      >
+                        {ROLE_LABELS[accountRole] ?? accountRole}
                       </span>
                     </div>
                   </div>
@@ -534,7 +510,7 @@ export default function Layout() {
                 <button
                   onClick={logout}
                   className="nav-item"
-                  style={{ color: "var(--error)", background: "rgba(239,68,68,0.05)", border: "1px solid rgba(239,68,68,0.12)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
+                  style={{ color: "var(--error-text)", background: "color-mix(in srgb, var(--error) 5%, transparent)", border: "1px solid color-mix(in srgb, var(--error) 12%, transparent)", textAlign: "left", width: "100%", display: "flex", alignItems: "center" }}
                 >
                   <LogOut size={18} className="nav-icon" /> Sair da Conta
                 </button>
@@ -567,7 +543,7 @@ export default function Layout() {
         </aside>
 
         {/* Main Content Area */}
-        <main className={`app-main${location.pathname.startsWith("/chat") ? " app-main--chat" : ""}`} ref={mainRef}>
+        <main id="conteudo" tabIndex={-1} className={`app-main${location.pathname.startsWith("/chat") ? " app-main--chat" : ""}`} ref={mainRef}>
           <div className={`app-main-inner${location.pathname.startsWith("/chat") ? " app-main-inner--chat" : ""}`}>
             <Outlet />
           </div>
@@ -591,7 +567,7 @@ export default function Layout() {
             alignItems: "center",
             gap: "10px",
             background: "#25D366",
-            color: "#fff",
+            color: "#0d0e11",
             border: "none",
             borderRadius: "50px",
             padding: "12px 20px 12px 16px",

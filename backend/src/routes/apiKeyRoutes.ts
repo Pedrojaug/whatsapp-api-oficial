@@ -2,22 +2,18 @@
 import crypto from "crypto";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
-import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountWithPermission } from "../utils/accountAccess";
 
 const router = Router();
 router.use(authMiddleware);
-
-async function getAccount(accountId: string, userId: string) {
-  return await findAccountForUser(accountId, userId);
-}
 
 // GET /accounts/:accountId/api-keys
 router.get("/accounts/:accountId/api-keys", async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "manageSettings");
+  if (!account) return;
 
   const keys = await prisma.apiKey.findMany({
     where: { accountId },
@@ -36,8 +32,8 @@ router.post("/accounts/:accountId/api-keys", async (req: Request, res: Response)
 
   if (!name?.trim()) return res.status(400).json({ error: "Campo 'name' é obrigatório." });
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "manageSettings");
+  if (!account) return;
 
   const count = await prisma.apiKey.count({ where: { accountId } });
   if (count >= 10) {
@@ -66,8 +62,8 @@ router.delete("/accounts/:accountId/api-keys/:id", async (req: Request, res: Res
   const { accountId, id } = req.params;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "manageSettings");
+  if (!account) return;
 
   const deleted = await prisma.apiKey.deleteMany({ where: { id, accountId } });
   if (deleted.count === 0) return res.status(404).json({ error: "Chave não encontrada." });

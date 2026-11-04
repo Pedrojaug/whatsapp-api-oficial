@@ -892,6 +892,7 @@ export default function TemplatesPage() {
                   variables={newTemplateBodyVariables}
                   footerText={newTemplateFooterText}
                   buttons={newTemplateButtons}
+                  businessName={selectedAccount?.name}
                 />
               </div>
 

@@ -62,9 +62,9 @@ export function Brand({
     <Link to={to} className={`brand-header-link ${className}`} style={{ textDecoration: "none" }}>
       <BrandIcon size={iconSize} />
       <div className="brand-text-container" style={{ display: "flex", flexDirection: "column" }}>
-        <h1 className="brand-logo">
+        <span className="brand-logo" style={{ display: "block" }}>
           <span>Send</span><strong>Inteligentte</strong>
-        </h1>
+        </span>
         {showTagline && tagline && (
           <p className="brand-tagline">{tagline}</p>
         )}

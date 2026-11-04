@@ -1,0 +1,406 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PRÉVIA DO WHATSAPP — reproduz a conversa como o cliente a vê no celular.
+   Cores do WhatsApp (escuro por padrão; claro quando o painel está no tema claro).
+═══════════════════════════════════════════════════════════════════════════ */
+.wa-phone {
+  --wa-bar: #1f2c34;
+  --wa-bar-text: #e9edef;
+  --wa-bar-icon: #aebac1;
+  --wa-chat-bg: #0b141a;
+  --wa-doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' fill='none' stroke='%23ffffff' stroke-opacity='0.055' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 30c-4-4-10-1-8 5 1 3 8 8 8 8s7-5 8-8c2-6-4-9-8-5z'/%3E%3Cpath d='M78 14l3 7 7 .6-5.4 4.6 1.7 7-6.3-3.8-6.3 3.8 1.7-7L67 21.6l7-.6z'/%3E%3Ccircle cx='100' cy='60' r='6'/%3E%3Cpath d='M30 78h22a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H40l-6 5v-5h-4a4 4 0 0 1-4-4V82a4 4 0 0 1 4-4z'/%3E%3Cpath d='M84 96V80l12-3v15'/%3E%3Ccircle cx='81' cy='96' r='3'/%3E%3Ccircle cx='93' cy='92' r='3'/%3E%3Cpath d='M52 46l4-4 4 4 4-4 4 4'/%3E%3Ccircle cx='110' cy='108' r='7'/%3E%3Cpath d='M106 110q4 3 8 0'/%3E%3Cpath d='M40 52v8M36 56h8'/%3E%3Ccircle cx='48' cy='14' r='1.5'/%3E%3Ccircle cx='8' cy='62' r='1.5'/%3E%3Ccircle cx='62' cy='114' r='1.5'/%3E%3C/svg%3E");
+  --wa-in: #202c33;
+  --wa-text: #e9edef;
+  --wa-meta: #99a1a5;
+  --wa-link: #53bdeb;
+  --wa-divider: rgba(134, 150, 160, 0.18);
+  --wa-chip: #182229;
+  --wa-chip-text: #8696a0;
+  --wa-notice: #182229;
+  --wa-notice-text: #ffd279;
+  --wa-media: #111b21;
+  --wa-composer: #1f2c34;
+  --wa-composer-icon: #8696a0;
+  --wa-mono-bg: rgba(255, 255, 255, 0.06);
+  --wa-quote: rgba(233, 237, 239, 0.45);
+  --wa-avatar: #2a3942;
+  --wa-avatar-text: #d1d7db;
+
+  width: 320px;
+  height: 640px;
+  max-width: 100%;
+  padding: 9px;
+  border-radius: 46px;
+  background: #0d0f12;
+  box-shadow:
+    0 0 0 1px #2a2f36,
+    0 0 0 3px #15181c,
+    0 24px 48px -12px rgba(0, 0, 0, 0.55);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  flex-shrink: 0;
+}
+
+body.light-theme .wa-phone {
+  --wa-bar: #ffffff;
+  --wa-bar-text: #111b21;
+  --wa-bar-icon: #54656f;
+  --wa-chat-bg: #efeae2;
+  --wa-doodle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' fill='none' stroke='%23000000' stroke-opacity='0.06' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 30c-4-4-10-1-8 5 1 3 8 8 8 8s7-5 8-8c2-6-4-9-8-5z'/%3E%3Cpath d='M78 14l3 7 7 .6-5.4 4.6 1.7 7-6.3-3.8-6.3 3.8 1.7-7L67 21.6l7-.6z'/%3E%3Ccircle cx='100' cy='60' r='6'/%3E%3Cpath d='M30 78h22a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H40l-6 5v-5h-4a4 4 0 0 1-4-4V82a4 4 0 0 1 4-4z'/%3E%3Cpath d='M84 96V80l12-3v15'/%3E%3Ccircle cx='81' cy='96' r='3'/%3E%3Ccircle cx='93' cy='92' r='3'/%3E%3Cpath d='M52 46l4-4 4 4 4-4 4 4'/%3E%3Ccircle cx='110' cy='108' r='7'/%3E%3Cpath d='M106 110q4 3 8 0'/%3E%3Cpath d='M40 52v8M36 56h8'/%3E%3Ccircle cx='48' cy='14' r='1.5'/%3E%3Ccircle cx='8' cy='62' r='1.5'/%3E%3Ccircle cx='62' cy='114' r='1.5'/%3E%3C/svg%3E");
+  --wa-in: #ffffff;
+  --wa-text: #111b21;
+  --wa-meta: #667781;
+  --wa-link: #0270a8;
+  --wa-divider: rgba(11, 20, 26, 0.1);
+  --wa-chip: #ffffff;
+  --wa-chip-text: #54656f;
+  --wa-notice: #ffeecd;
+  --wa-notice-text: #54656f;
+  --wa-media: #dfe5e7;
+  --wa-composer: #ffffff;
+  --wa-composer-icon: #54656f;
+  --wa-mono-bg: rgba(11, 20, 26, 0.06);
+  --wa-quote: rgba(11, 20, 26, 0.35);
+  --wa-avatar: #dfe5e7;
+  --wa-avatar-text: #54656f;
+}
+
+.wa-screen {
+  position: relative;
+  height: 100%;
+  border-radius: 38px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--wa-chat-bg);
+}
+
+/* Barra de status do celular */
+.wa-status {
+  position: relative;
+  flex-shrink: 0;
+  height: 30px;
+  padding: 0 22px 0 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--wa-bar);
+  color: var(--wa-bar-text);
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.wa-status__camera {
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  width: 11px;
+  height: 11px;
+  margin-left: -5.5px;
+  border-radius: 50%;
+  background: #05070a;
+  box-shadow: inset 0 0 0 2px #1b1f25;
+}
+.wa-status__icons { display: flex; align-items: center; gap: 4px; }
+.wa-status__icons svg { width: 14px; height: 14px; fill: currentColor; }
+.wa-status__battery {
+  position: relative;
+  width: 20px;
+  height: 10px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  margin-left: 2px;
+}
+.wa-status__battery::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  right: 3px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.wa-status__battery::after {
+  content: "";
+  position: absolute;
+  right: -4px;
+  top: 2px;
+  width: 2px;
+  height: 3px;
+  border-radius: 0 1px 1px 0;
+  background: currentColor;
+}
+
+/* Cabeçalho da conversa */
+.wa-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 8px 4px;
+  background: var(--wa-bar);
+  color: var(--wa-bar-text);
+}
+.wa-icon { width: 22px; height: 22px; fill: currentColor; flex-shrink: 0; }
+.wa-header .wa-icon { color: var(--wa-bar-icon); }
+.wa-header__back { display: flex; align-items: center; gap: 2px; }
+.wa-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--wa-avatar);
+  color: var(--wa-avatar-text);
+  font-size: 14px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.wa-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.wa-header__info { flex: 1; min-width: 0; display: flex; flex-direction: column; padding-left: 4px; }
+.wa-header__name {
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wa-header__sub { font-size: 12px; line-height: 1.3; color: var(--wa-meta); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-header__actions { display: flex; align-items: center; gap: 14px; padding-right: 2px; }
+
+/* Área da conversa */
+.wa-chat {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px 10px 16px;
+  background-color: var(--wa-chat-bg);
+  background-image: var(--wa-doodle);
+  background-size: 140px 140px;
+  scrollbar-width: none;
+}
+.wa-chat::-webkit-scrollbar { display: none; }
+.wa-chat:focus-visible { outline: 2px solid var(--wa-link); outline-offset: -2px; }
+.wa-chat > :first-child { margin-top: auto; }
+
+.wa-chip {
+  align-self: center;
+  max-width: 88%;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: var(--wa-chip);
+  color: var(--wa-chip-text);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+.wa-chip--notice { background: var(--wa-notice); color: var(--wa-notice-text); font-size: 11.5px; padding: 6px 10px; }
+.wa-chip--notice svg { width: 10px; height: 10px; fill: currentColor; vertical-align: -1px; margin-right: 3px; }
+
+/* Balão recebido (é assim que o cliente vê a mensagem da empresa) */
+.wa-bubble {
+  position: relative;
+  align-self: flex-start;
+  max-width: calc(100% - 34px);
+  border-radius: 0 8px 8px 8px;
+  background: var(--wa-in);
+  color: var(--wa-text);
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  font-size: 14px;
+  line-height: 19px;
+}
+.wa-bubble--wide { width: calc(100% - 34px); }
+.wa-bubble__tail {
+  position: absolute;
+  top: 0;
+  left: -8px;
+  width: 8px;
+  height: 13px;
+  fill: var(--wa-in);
+}
+.wa-bubble__content { position: relative; padding: 6px 8px 8px 9px; }
+.wa-bubble--has-media .wa-bubble__content { padding: 3px 3px 8px; }
+.wa-bubble--has-media .wa-bubble__text,
+.wa-bubble--has-media .wa-bubble__footer,
+.wa-bubble--has-media .wa-bubble__title { padding: 0 5px 0 6px; }
+
+.wa-bubble__title { font-weight: 700; font-size: 14.5px; line-height: 20px; margin-bottom: 2px; overflow-wrap: anywhere; }
+.wa-bubble__text { overflow-wrap: anywhere; }
+.wa-bubble__text--placeholder { color: var(--wa-meta); font-style: italic; }
+.wa-bubble__footer { margin-top: 3px; font-size: 13px; line-height: 17px; color: var(--wa-meta); overflow-wrap: anywhere; }
+.wa-line { min-height: 19px; }
+.wa-quote { border-left: 3px solid var(--wa-quote); padding-left: 8px; margin: 1px 0; color: var(--wa-meta); }
+.wa-li { display: flex; gap: 6px; padding-left: 4px; }
+.wa-li__mark { flex-shrink: 0; min-width: 10px; }
+.wa-mono, .wa-code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+.wa-code { padding: 1px 4px; border-radius: 4px; background: var(--wa-mono-bg); }
+.wa-mono-block { white-space: pre-wrap; margin: 2px 0; }
+.wa-link { color: var(--wa-link); text-decoration: underline; text-underline-offset: 2px; }
+
+/* Hora: fica na última linha, à direita, como no app */
+.wa-spacer { display: inline-block; width: 40px; height: 1px; }
+.wa-time {
+  position: absolute;
+  right: 7px;
+  bottom: 3px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--wa-meta);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wa-time--on-media {
+  right: 8px;
+  bottom: 8px;
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Cabeçalho de mídia */
+.wa-media {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--wa-media);
+  color: var(--wa-meta);
+  aspect-ratio: 1.91 / 1;
+}
+.wa-media--loaded { aspect-ratio: auto; max-height: 300px; }
+.wa-media img, .wa-media video { display: block; width: 100%; max-height: 300px; object-fit: cover; }
+.wa-media__placeholder svg { width: 42px; height: 42px; fill: currentColor; opacity: 0.55; }
+.wa-media__play {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(11, 20, 26, 0.55);
+}
+.wa-media__play svg { width: 26px; height: 26px; fill: #ffffff; margin-left: 3px; }
+.wa-media__duration {
+  position: absolute;
+  left: 8px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #ffffff;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+.wa-media__duration svg { width: 14px; height: 14px; fill: currentColor; }
+
+.wa-doc {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+  padding: 10px;
+  border-radius: 6px;
+  background: var(--wa-mono-bg);
+}
+.wa-doc__icon {
+  width: 30px;
+  height: 36px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 5px;
+  background: #e5484d;
+  color: #ffffff;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.wa-doc__info { min-width: 0; display: flex; flex-direction: column; }
+.wa-doc__name { font-size: 13.5px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wa-doc__meta { font-size: 11.5px; color: var(--wa-meta); }
+
+/* Botões do template, presos ao balão */
+.wa-buttons { display: flex; flex-direction: column; }
+.wa-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--wa-divider);
+  color: var(--wa-link);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.wa-button svg { width: 17px; height: 17px; fill: currentColor; flex-shrink: 0; }
+
+/* Barra de digitação */
+.wa-composer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 8px 8px;
+  background: transparent;
+}
+.wa-composer__field {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border-radius: 22px;
+  background: var(--wa-composer);
+  color: var(--wa-composer-icon);
+  font-size: 15px;
+  box-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+}
+.wa-composer__field .wa-icon { width: 22px; height: 22px; }
+.wa-composer__placeholder { flex: 1; min-width: 0; }
+.wa-composer__mic {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #00a884;
+  color: #0b141a;
+}
+body.light-theme .wa-composer__mic { color: #ffffff; }
+.wa-composer__mic .wa-icon { width: 22px; height: 22px; }
+
+.wa-home-bar {
+  flex-shrink: 0;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.wa-home-bar::before {
+  content: "";
+  width: 108px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--wa-text);
+  opacity: 0.55;
+}

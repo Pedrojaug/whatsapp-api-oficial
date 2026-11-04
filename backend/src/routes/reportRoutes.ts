@@ -2,15 +2,11 @@ import { Router, Request, Response } from "express";
 import ExcelJS from "exceljs";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
-import { findAccountForUser } from "../utils/accountAccess";
+import { getAccountWithPermission } from "../utils/accountAccess";
 import { getAccountFinancialMetrics } from "../utils/pricing";
 
 const router = Router();
 router.use(authMiddleware);
-
-async function getAccount(accountId: string, userId: string) {
-  return await findAccountForUser(accountId, userId);
-}
 
 // GET /accounts/:accountId/reports/export?type=messages|metrics&period=7days&status=...
 router.get("/accounts/:accountId/reports/export", async (req: Request, res: Response) => {
@@ -18,8 +14,8 @@ router.get("/accounts/:accountId/reports/export", async (req: Request, res: Resp
   const { type = "messages", period = "7days", status, templateName, startDate, endDate } = req.query;
   const userId = (req as AuthenticatedRequest).userId!;
 
-  const account = await getAccount(accountId, userId);
-  if (!account) return res.status(404).json({ error: "Conta não encontrada." });
+  const account = await getAccountWithPermission(res, accountId, userId, "viewReports");
+  if (!account) return;
 
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Send Inteligentte";

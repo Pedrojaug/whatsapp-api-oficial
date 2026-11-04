@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import axios from "axios";
 import { useAccount } from "../contexts/AccountContext";
+import { hasPermission } from "../utils/permissions";
 import { useAlert } from "../contexts/AlertContext";
 import { API_BASE_URL } from "../contexts/AuthContext";
 
@@ -11,6 +12,8 @@ function ModalPortal({ children }: { children: React.ReactNode }) {
 
 export default function ContactsPage() {
   const { selectedAccount } = useAccount();
+  // Atendente e Visualizador consultam as listas; criar, editar e excluir é de quem dispara.
+  const canEditLists = hasPermission(selectedAccount?.accountRole, "dispatch");
   const { showAlert } = useAlert();
 
   const [contactLists, setContactLists] = useState<any[]>([]);
@@ -427,9 +430,11 @@ export default function ContactsPage() {
           <h1 className="page-heading">Listas de Contatos</h1>
           <p className="page-subheading">Crie e gerencie contatos para seus disparos em massa</p>
         </div>
-        <button onClick={() => setShowNewListModal(true)} disabled={!selectedAccount} className="btn btn-primary">
-          👥 Nova Lista
-        </button>
+        {canEditLists && (
+          <button onClick={() => setShowNewListModal(true)} disabled={!selectedAccount} className="btn btn-primary">
+            👥 Nova Lista
+          </button>
+        )}
       </div>
 
       {!selectedAccount ? (
@@ -486,7 +491,7 @@ export default function ContactsPage() {
                         </div>
                       )}
                     </div>
-                    <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+                    {canEditLists && <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -509,7 +514,7 @@ export default function ContactsPage() {
                       >
                         Excluir
                       </button>
-                    </div>
+                    </div>}
                   </div>
                 ))}
               </div>
@@ -526,7 +531,7 @@ export default function ContactsPage() {
                     <span style={{ fontSize: "0.8rem", color: "var(--text-muted)" }}>Detalhamento de contatos importados</span>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <button
+                    {canEditLists && <button
                       type="button"
                       onClick={() => {
                         setEditListName(selectedList.name);
@@ -544,7 +549,7 @@ export default function ContactsPage() {
                       style={{ padding: "6px 12px", fontSize: "0.8rem", display: "inline-flex", alignItems: "center", gap: "6px" }}
                     >
                       ✏️ Editar Lista
-                    </button>
+                    </button>}
                     <span style={{ background: "var(--primary)", color: "#fff", padding: "6px 14px", borderRadius: "20px", fontSize: "0.8rem", fontWeight: "600" }}>
                       {selectedList.contacts?.length || 0} contatos
                     </span>
