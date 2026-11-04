@@ -162,6 +162,7 @@ All pages follow the same structure: `fade-in` wrapper div → page header with 
 ## Key Gotchas
 
 - **Never use `prisma migrate dev`** — use `npx prisma db push` (the environment is non-interactive).
+- **The Render build runs `prisma db push` without `--accept-data-loss`**: a schema change that would drop data fails the build instead of running. The production database also holds tables owned by other systems (e.g. `capitania_catalogo`, used by a client's n8n agent); they are modeled in `schema.prisma` only so `db push` keeps them — never remove them from the schema.
 - **Access tokens in DB are AES-encrypted.** When debugging a "token invalid" error, check that `ENCRYPTION_KEY` is consistent between environments.
 - **CORS** is configured to allow `*.vercel.app` subdomains dynamically — no need to add every preview URL manually.
 - **The dispatcher is a single process** — it uses an `isProcessing` flag (not a DB lock) which is fine for the single-instance Render deployment. Do not run multiple backend instances without replacing this with a DB-based advisory lock.

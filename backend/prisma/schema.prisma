@@ -276,3 +276,29 @@ model QuickReply {
 
   @@index([accountId])
 }
+
+// Catálogo de perfumes da Capitania do Cheiro (200 produtos com embeddings para RAG).
+// A tabela é alimentada e lida pelo agente de IA da cliente no n8n, fora deste app;
+// fica modelada aqui só para o `prisma db push` do build não apagá-la. Não remover.
+model capitania_catalogo {
+  id               Int                    @id @default(autoincrement())
+  nome             String                 @db.VarChar(255)
+  linha            String                 @db.VarChar(100)
+  genero           String                 @db.VarChar(50)
+  tamanho          String                 @db.VarChar(50)
+  preco            Decimal                @db.Decimal(10, 2)
+  familia_olfativa String?                @db.VarChar(255)
+  notas_topo       String?
+  notas_corpo      String?
+  notas_fundo      String?
+  inspiracao       String?                @db.VarChar(255)
+  descricao        String?
+  link_site        String?                @db.VarChar(500)
+  ativo            Boolean?               @default(true)
+  sheet_origem     String?                @db.VarChar(255)
+  embedding        Unsupported("vector")?
+  created_at       DateTime?              @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime?              @default(now()) @db.Timestamptz(6)
+
+  @@unique([nome, tamanho, genero], map: "unique_produto_tamanho_genero")
+}
