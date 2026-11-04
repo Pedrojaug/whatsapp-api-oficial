@@ -6,7 +6,6 @@ import { normalizePhone, phoneVariants } from "../services/phoneService";
 import { metaService } from "../services/metaService";
 import { findAccountForUser, canSendMessages } from "../utils/accountAccess";
 import { messageEventEmitter } from "../utils/emitter";
-import axios from "axios";
 
 const router = Router();
 
@@ -59,30 +58,36 @@ async function buildConversations(accountId: string, dateRange: { start: Date; e
     dateClause = ` AND "createdAt" >= $2 AND "createdAt" <= $3`;
   }
 
-  // 1. Consulta única com agregação e extração da última mensagem via array_agg
-  const rows: any[] = await prisma.$queryRawUnsafe(`
-    SELECT
-      "to" as phone,
-      (array_agg(body ORDER BY "createdAt" DESC))[1] as body,
-      (array_agg("templateName" ORDER BY "createdAt" DESC))[1] as "templateName",
-      (array_agg(status ORDER BY "createdAt" DESC))[1] as status,
-      (array_agg(direction ORDER BY "createdAt" DESC))[1] as direction,
-      (array_agg("messageType" ORDER BY "createdAt" DESC))[1] as "messageType",
-      MAX("createdAt") as "createdAt",
-      bool_or(direction = 'INCOMING') as "hasIncoming",
-      bool_or(status = 'FAILED') as "hasFailed",
-      bool_or(status = 'DELIVERED') as "hasDelivered",
-      bool_or(status = 'READ') as "hasRead"
-    FROM "Message"
-    WHERE "accountId" = $1${dateClause}
-    GROUP BY "to"
-  `, ...params);
-
-  // 2. Buscar contatos para resolver profileName, blacklist e status de atendimento (isHandled)
-  const contacts = await prisma.whatsAppContact.findMany({
-    where: { accountId },
-    select: { phone: true, profileName: true, blacklisted: true, isHandled: true }
-  });
+  // 1. Última mensagem por contato + agregados de status numa única passada ordenada:
+  // a janela e o DISTINCT ON usam a mesma ordem ("to", "createdAt" DESC), então o Postgres
+  // ordena uma vez só (antes: 5 array_agg, cada um ordenando e acumulando o histórico inteiro).
+  // Só a prévia do texto: a lista mostra uma linha e o corpo inteiro de cada última
+  // mensagem (templates longos) era a maior parte do tráfego vindo do banco.
+  // 2. Contatos (profileName, blacklist, isHandled) buscados em paralelo.
+  const [rows, contacts] = await Promise.all([
+    prisma.$queryRawUnsafe<any[]>(`
+      SELECT DISTINCT ON ("to")
+        "to" as phone,
+        left(body, 200) as body,
+        "templateName",
+        status,
+        direction,
+        "messageType",
+        "createdAt",
+        bool_or(direction = 'INCOMING') OVER w as "hasIncoming",
+        bool_or(status = 'FAILED') OVER w as "hasFailed",
+        bool_or(status = 'DELIVERED') OVER w as "hasDelivered",
+        bool_or(status = 'READ') OVER w as "hasRead"
+      FROM "Message"
+      WHERE "accountId" = $1${dateClause}
+      WINDOW w AS (PARTITION BY "to" ORDER BY "createdAt" DESC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+      ORDER BY "to", "createdAt" DESC
+    `, ...params),
+    prisma.whatsAppContact.findMany({
+      where: { accountId },
+      select: { phone: true, profileName: true, blacklisted: true, isHandled: true }
+    }),
+  ]);
   const contactMap = new Map();
   for (const c of contacts) {
     contactMap.set(c.phone, c);
@@ -574,33 +579,6 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
 
     console.log(`[Chat] Resposta enviada por ${senderName} com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
 
-    // Encaminhar resposta humana manual para o n8n para pausar o robô (takeover humano)
-    const n8nWebhookUrl = process.env.N8N_SDR_WEBHOOK_URL;
-    if (n8nWebhookUrl) {
-      // Ignorar se a mensagem foi disparada de forma automatizada (ex: pelo próprio SDR n8n)
-      const isSdrDisparo = variables && (variables as any).sentBy === "SDR";
-      
-      if (!isSdrDisparo) {
-        const n8nPayload = {
-          event: "on-message",
-          type: "text",
-          from: normalizedTo,
-          to: normalizedTo,
-          destiny: account.phoneNumberId,
-          isgroup: false,
-          isGroupMsg: false,
-          fromMe: true,
-          id: wamid,
-          content: body,
-          login_atendente: senderName, // nome do atendente humano
-        };
-
-        console.log(`[Webhook Forward Outgoing] Encaminhando resposta de ${senderName} para n8n: ${n8nWebhookUrl}`);
-        axios.post(n8nWebhookUrl, n8nPayload).catch(err => {
-          console.error("[Webhook Forward Outgoing] Falha ao encaminhar resposta para n8n:", err.message);
-        });
-      }
-    }
 
     // Emitir evento em tempo real via SSE
     messageEventEmitter.emit("messageUpdated", {

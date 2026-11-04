@@ -8,6 +8,24 @@ import { normalizePhone } from "../services/phoneService";
 let isProcessing = false;
 let dispatchTimer: NodeJS.Timeout | null = null;
 
+const BATCH_SIZE = 50;
+
+/**
+ * Executa `worker` para cada item com no máximo `limit` execuções simultâneas.
+ */
+export async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>) {
+  let next = 0;
+  const lanes = Math.max(1, Math.min(limit || 1, items.length));
+  await Promise.all(
+    Array.from({ length: lanes }, async () => {
+      while (next < items.length) {
+        const item = items[next++];
+        await worker(item);
+      }
+    })
+  );
+}
+
 /**
  * Acorda o dispatcher em background imediatamente (Event-driven)
  */
@@ -45,45 +63,81 @@ async function checkAndDispatch() {
   try {
     const now = new Date();
 
-    // 1. Busca até 50 mensagens PENDING que já passaram da data agendada e da hora de retentativa
-    const pendingMessages = await prisma.message.findMany({
-      where: {
-        status: { in: ["PENDING"] },
-        OR: [
-          { scheduledAt: null },
-          { scheduledAt: { lte: now } }
-        ],
-        AND: [
-          {
-            OR: [
-              { nextRetryAt: null },
-              { nextRetryAt: { lte: now } }
-            ]
-          }
-        ]
-      },
-      take: 50,
-      orderBy: { createdAt: "asc" },
-      include: { account: true }
-    });
+    // 1. Claim atômico do lote inteiro (PENDING -> PROCESSING) numa única query.
+    // Só processa o que ESTA instância conseguiu transicionar: impede que dois
+    // processos (ex.: sobreposição de containers durante um deploy do Render)
+    // enviem a mesma mensagem em duplicidade. Mensagens travadas em PROCESSING por
+    // um crash são devolvidas a PENDING no startup (server.ts).
+    // A seleção intercala as contas (ROW_NUMBER por conta): uma campanha grande de
+    // um cliente não segura na fila as mensagens dos demais.
+    const claimed = await prisma.$queryRaw<{ id: string }[]>`
+      WITH due AS (
+        SELECT id, "accountId", "createdAt" FROM "Message"
+        WHERE status = 'PENDING'
+          AND ("scheduledAt" IS NULL OR "scheduledAt" <= ${now})
+          AND ("nextRetryAt" IS NULL OR "nextRetryAt" <= ${now})
+      ),
+      picked AS (
+        SELECT id FROM (
+          SELECT id, "createdAt", ROW_NUMBER() OVER (PARTITION BY "accountId" ORDER BY "createdAt") AS rn
+          FROM due
+        ) ranked
+        ORDER BY rn, "createdAt"
+        LIMIT ${BATCH_SIZE}
+      )
+      UPDATE "Message" m
+      SET status = 'PROCESSING', "updatedAt" = ${now}
+      FROM picked
+      WHERE m.id = picked.id AND m.status = 'PENDING'
+      RETURNING m.id
+    `;
 
-    if (pendingMessages.length === 0) {
+    if (claimed.length === 0) {
       return;
     }
 
-    if (pendingMessages.length === 50) {
+    if (claimed.length === BATCH_SIZE) {
       hasMore = true;
     }
+
+    const claimedMessages = await prisma.message.findMany({
+      where: { id: { in: claimed.map((c) => c.id) } },
+      orderBy: { createdAt: "asc" },
+      include: { account: true },
+    });
 
     // Verificar opt-outs em lote antes de processar
     const optedOutRecords = await prisma.optOut.findMany({
       where: {
-        phone: { in: pendingMessages.map((m) => normalizePhone(m.to)) },
-        accountId: { in: [...new Set(pendingMessages.map((m) => m.accountId))] },
+        phone: { in: claimedMessages.map((m) => normalizePhone(m.to)) },
+        accountId: { in: [...new Set(claimedMessages.map((m) => m.accountId))] },
       },
       select: { phone: true, accountId: true },
     });
     const optedOutSet = new Set(optedOutRecords.map((o) => `${o.accountId}:${normalizePhone(o.phone)}`));
+
+    // Bloquear envio para contatos que optaram por não receber mensagens (LGPD), em lote
+    const optOutReason = "Contato optou por não receber mensagens (LGPD opt-out).";
+    const cancelled = claimedMessages.filter((m) => optedOutSet.has(`${m.accountId}:${normalizePhone(m.to)}`));
+    if (cancelled.length > 0) {
+      await prisma.message.updateMany({
+        where: { id: { in: cancelled.map((m) => m.id) } },
+        data: { status: "CANCELLED", errorMessage: optOutReason },
+      });
+      for (const msg of cancelled) {
+        messageEventEmitter.emit("messageUpdated", {
+          accountId: msg.accountId,
+          messageId: msg.id,
+          status: "CANCELLED",
+          to: normalizePhone(msg.to),
+          errorMessage: optOutReason,
+          updatedAt: new Date(),
+        });
+      }
+      console.log(`[Worker] ${cancelled.length} mensagem(ns) cancelada(s) — contatos na lista de opt-out.`);
+    }
+    const cancelledIds = new Set(cancelled.map((m) => m.id));
+    const pendingMessages = claimedMessages.filter((m) => !cancelledIds.has(m.id));
 
     console.log(`[Worker] Processando lote de ${pendingMessages.length} mensagens pendentes...`);
 
@@ -107,37 +161,11 @@ async function checkAndDispatch() {
     // para a Meta uma única vez e reusa em todos os destinatários.
     const mediaIdCache = new Map<string, string | null>();
 
-    for (const msg of pendingMessages) {
-      const normalizedTo = normalizePhone(msg.to);
-      // Bloquear envio para contatos que optaram por não receber mensagens (LGPD)
-      if (optedOutSet.has(`${msg.accountId}:${normalizedTo}`)) {
-        await prisma.message.update({
-          where: { id: msg.id },
-          data: { status: "CANCELLED", errorMessage: "Contato optou por não receber mensagens (LGPD opt-out)." },
-        });
-        messageEventEmitter.emit("messageUpdated", {
-          accountId: msg.accountId,
-          messageId: msg.id,
-          status: "CANCELLED",
-          to: normalizedTo,
-          errorMessage: "Contato optou por não receber mensagens (LGPD opt-out).",
-          updatedAt: new Date(),
-        });
-        console.log(`[Worker] Mensagem ${msg.id} para ${normalizedTo} cancelada — contato está na lista de opt-out.`);
-        continue;
-      }
-      try {
-        // Claim atômico PENDING -> PROCESSING: só processa se ESTA instância
-        // conseguir a transição. Impede que dois processos (ex.: sobreposição
-        // de containers durante um deploy do Render) enviem a mesma mensagem
-        // em duplicidade. Mensagens travadas em PROCESSING por um crash são
-        // devolvidas a PENDING no startup (server.ts).
-        const claim = await prisma.message.updateMany({
-          where: { id: msg.id, status: "PENDING" },
-          data: { status: "PROCESSING" },
-        });
-        if (claim.count === 0) continue;
+    const pacingMs = parseInt(process.env.DISPATCH_PACING_MS || "70", 10);
 
+    const sendOne = async (msg: (typeof pendingMessages)[number]) => {
+      const normalizedTo = normalizePhone(msg.to);
+      try {
         if (!msg.templateName) {
           throw new Error("Mensagem pendente na fila não possui nome do template.");
         }
@@ -253,9 +281,8 @@ async function checkAndDispatch() {
           updatedAt: updatedMsg.updatedAt,
         });
 
-        // Pacing preventivo de segurança: cadencia o envio para respeitar os limites de burst da Meta
-        // e evitar que o algoritmo acione bloqueios de ecossistema (Erro 131049)
-        const pacingMs = parseInt(process.env.DISPATCH_PACING_MS || "70", 10);
+        // Pacing preventivo de segurança: cadencia o envio de cada número para respeitar os
+        // limites de burst da Meta e evitar bloqueios de ecossistema (Erro 131049)
         if (pacingMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, pacingMs));
         }
@@ -318,10 +345,27 @@ async function checkAndDispatch() {
           });
         }
       }
+    };
 
-      // Delay preventivo de 200ms para respeitar limites de taxa e conexões
-      await new Promise(resolve => setTimeout(resolve, 200));
+    // 2. Cada conta (número da Meta) envia em sequência, com seu próprio pacing;
+    // contas diferentes enviam em paralelo, limitadas para não esgotar o pool do banco.
+    const byAccount = new Map<string, typeof pendingMessages>();
+    for (const msg of pendingMessages) {
+      const list = byAccount.get(msg.accountId);
+      if (list) list.push(msg);
+      else byAccount.set(msg.accountId, [msg]);
     }
+    const accountConcurrency = parseInt(process.env.DISPATCH_ACCOUNT_CONCURRENCY || "4", 10);
+    await runWithConcurrency([...byAccount.values()], accountConcurrency, async (messages) => {
+      for (const msg of messages) {
+        try {
+          await sendOne(msg);
+        } catch (err: any) {
+          // Falha ao gravar o resultado: a mensagem fica em PROCESSING e volta à fila no próximo startup
+          console.error(`[Worker] Erro ao registrar resultado da mensagem ${msg.id}:`, err.message);
+        }
+      }
+    });
   } catch (err: any) {
     console.error("[Worker] Erro crítico no loop do dispatcher:", err.message);
   } finally {
