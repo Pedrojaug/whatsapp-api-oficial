@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../db";
 import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { normalizePhone } from "../services/phoneService";
+import { planContactListUpdate } from "../utils/contactListDiff";
 import { findAccountForUser, getAccountWithPermission } from "../utils/accountAccess";
 import { triggerDispatcher } from "../workers/dispatcher";
 
@@ -177,45 +178,23 @@ router.put("/accounts/:accountId/lists/:listId", async (req: Request, res: Respo
     });
 
     const existingContacts = await prisma.contact.findMany({
-      where: { contactListId: listId }
+      where: { contactListId: listId },
+      select: { id: true, name: true, phone: true, variables: true },
     });
-    const existingIds = existingContacts.map(c => c.id);
 
-    const incomingIds = contacts.map(c => c.id).filter(Boolean) as string[];
-    const idsToDelete = existingIds.filter(id => !incomingIds.includes(id));
-
-    // Excluir contatos removidos
-    if (idsToDelete.length > 0) {
-      await prisma.contact.deleteMany({
-        where: { id: { in: idsToDelete } }
-      });
-    }
-
-    // Criar novos contatos (sem id)
-    const contactsToCreate = contacts.filter(c => !c.id);
-    if (contactsToCreate.length > 0) {
-      await prisma.contact.createMany({
-        data: contactsToCreate.map(c => ({
-          contactListId: listId,
-          name: c.name || null,
-          phone: normalizePhone(c.phone),
-          variables: c.variables || [],
-        }))
-      });
-    }
-
-    // Atualizar contatos existentes modificados
-    const contactsToUpdate = contacts.filter(c => c.id && existingIds.includes(c.id));
-    for (const c of contactsToUpdate) {
-      await prisma.contact.update({
-        where: { id: c.id },
-        data: {
-          name: c.name || null,
-          phone: normalizePhone(c.phone),
-          variables: c.variables || [],
-        }
-      });
-    }
+    // Só o que mudou vai ao banco, tudo numa transação (antes: um UPDATE por contato, sempre)
+    const plan = planContactListUpdate(existingContacts, contacts);
+    await prisma.$transaction([
+      ...(plan.toDelete.length > 0
+        ? [prisma.contact.deleteMany({ where: { id: { in: plan.toDelete }, contactListId: listId } })]
+        : []),
+      ...(plan.toCreate.length > 0
+        ? [prisma.contact.createMany({ data: plan.toCreate.map((c) => ({ ...c, contactListId: listId, variables: c.variables as any })) })]
+        : []),
+      ...plan.toUpdate.map((u) =>
+        prisma.contact.update({ where: { id: u.id }, data: { ...u.data, variables: u.data.variables as any } })
+      ),
+    ]);
 
     // Retornar lista atualizada com contagem de contatos
     const updatedList = await prisma.contactList.findUnique({

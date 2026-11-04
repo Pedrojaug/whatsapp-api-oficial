@@ -5,6 +5,7 @@ import { calculateNextRun } from "../utils/campaignScheduler";
 import { getAccountWithPermission } from "../utils/accountAccess";
 import { triggerCampaignWorker } from "../workers/campaignWorker";
 import { validateTemplateForCampaign } from "../utils/templateValidation";
+import { summarizeRunStats } from "../utils/campaignStats";
 
 const router = Router();
 router.use(authMiddleware);
@@ -40,7 +41,24 @@ router.get("/accounts/:accountId/campaigns/:id/runs", async (req: Request, res: 
     take: 50,
   });
 
-  res.json(runs);
+  // Resultado real de cada execução, a partir das mensagens que ela gerou.
+  // (Execuções anteriores a este vínculo não têm mensagens associadas: stats = null.)
+  const grouped = runs.length
+    ? await prisma.message.groupBy({
+        by: ["campaignRunId", "status"],
+        where: { accountId, campaignRunId: { in: runs.map((r) => r.id) } },
+        _count: { _all: true },
+      })
+    : [];
+  const statsByRun = new Map<string, Record<string, number>>();
+  for (const g of grouped) {
+    if (!g.campaignRunId) continue;
+    const s = statsByRun.get(g.campaignRunId) || {};
+    s[g.status] = g._count._all;
+    statsByRun.set(g.campaignRunId, s);
+  }
+
+  res.json(runs.map((r) => ({ ...r, stats: summarizeRunStats(statsByRun.get(r.id)) })));
 });
 
 // POST /accounts/:accountId/campaigns
