@@ -2,6 +2,7 @@ import { prisma } from "../db";
 import { calculateNextRun } from "../utils/campaignScheduler";
 import { triggerDispatcher } from "./dispatcher";
 import { normalizePhone } from "../services/phoneService";
+import { validateTemplateForCampaign } from "../utils/templateValidation";
 
 let campaignTimer: NodeJS.Timeout | null = null;
 
@@ -91,6 +92,28 @@ async function executeCampaign(campaign: {
     data: { campaignId: campaign.id, status: "RUNNING", contactsTotal: 0 },
   });
 
+  // Checagem prévia: um template incompatível (ex.: exige imagem no cabeçalho e a
+  // campanha está sem mídia) falharia em TODAS as mensagens. Barra a execução
+  // inteira, registra o motivo e pausa a campanha para o usuário corrigir.
+  const template = await prisma.template.findFirst({
+    where: { accountId: campaign.accountId, name: campaign.templateName },
+    select: { name: true, status: true, components: true },
+  });
+  const problems = validateTemplateForCampaign(template, campaign);
+  if (problems.length > 0) {
+    const reason = problems.join(" ");
+    console.warn(`[CampaignWorker] Campanha "${campaign.name}" barrada antes do envio: ${reason}`);
+    await prisma.campaignRun.update({
+      where: { id: run.id },
+      data: { status: "FAILED", errorMessage: reason, finishedAt: new Date() },
+    });
+    await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: "PAUSED", lastRunAt: new Date(), nextRunAt: null },
+    });
+    return;
+  }
+
   try {
     const optedOut = await prisma.optOut.findMany({
       where: { accountId: campaign.accountId },
@@ -145,7 +168,7 @@ async function executeCampaign(campaign: {
     console.error(`[CampaignWorker] Falha ao executar campanha "${campaign.name}":`, err.message);
     await prisma.campaignRun.update({
       where: { id: run.id },
-      data: { status: "FAILED", finishedAt: new Date() },
+      data: { status: "FAILED", errorMessage: err.message, finishedAt: new Date() },
     });
   }
 
