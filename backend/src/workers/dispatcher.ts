@@ -4,6 +4,7 @@ import { decryptToken } from "../utils/crypto";
 import { messageEventEmitter } from "../utils/emitter";
 import { resolveMetaMediaId } from "../utils/mediaUpload";
 import { normalizePhone } from "../services/phoneService";
+import { isPermanentMetaError, formatMetaError } from "../utils/metaErrors";
 
 let isProcessing = false;
 let dispatchTimer: NodeJS.Timeout | null = null;
@@ -196,7 +197,7 @@ async function checkAndDispatch() {
           reconstructedBody = bodyComp.text;
           if (resolvedVars && resolvedVars.length > 0) {
             resolvedVars.forEach((val: any, idx: number) => {
-              reconstructedBody = reconstructedBody!.replace(new RegExp(`\\\\{\\\\{${idx + 1}\\\\}\\\\}`, 'g'), String(val));
+              reconstructedBody = reconstructedBody!.replace(new RegExp(`\\{\\{${idx + 1}\\}\\}`, 'g'), () => String(val));
             });
           }
         }
@@ -290,11 +291,11 @@ async function checkAndDispatch() {
         console.error(`[Worker] Erro ao enviar mensagem ${msg.id}:`, error.response?.data || error.message);
         
         const metaError = error.response?.data?.error;
-        const errMsg = metaError?.message || error.message;
+        const errMsg = formatMetaError(metaError, error.message);
         const errorCode = metaError?.code;
 
-        // Erros não retentáveis (erros de credencial expirada 190 ou erros de parâmetros 100)
-        const isFatalError = errorCode === 190 || errorCode === 100;
+        // Erros não retentáveis: credencial, parâmetros, template (132xxx), destinatário inválido...
+        const isFatalError = isPermanentMetaError(errorCode);
         const nextRetryCount = msg.retryCount + 1;
 
         if (isFatalError || nextRetryCount > 3) {

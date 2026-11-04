@@ -51,7 +51,12 @@ interface Campaign {
 interface CampaignRun {
   id: string; status: string; messagesSent: number;
   contactsTotal: number; startedAt: string; finishedAt: string | null;
+  errorMessage?: string | null;
 }
+interface MediaAsset { id: string; filename: string; mimeType: string; url: string; }
+
+const MEDIA_MIME_PREFIX: Record<string, string> = { IMAGE: "image/", VIDEO: "video/", DOCUMENT: "application/" };
+const MEDIA_LABEL: Record<string, string> = { IMAGE: "imagem", VIDEO: "vídeo", DOCUMENT: "documento" };
 
 const EMPTY_FORM = {
   name: "", contactListId: "", templateName: "",
@@ -68,6 +73,7 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [contactLists, setContactLists] = useState<ContactList[]>([]);
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [runs, setRuns] = useState<CampaignRun[]>([]);
   const [loadingRuns, setLoadingRuns] = useState(false);
@@ -90,12 +96,14 @@ export default function CampaignsPage() {
   }, [showAlert]);
 
   const fetchSupport = useCallback(async (accountId: string) => {
-    const [tRes, lRes] = await Promise.allSettled([
+    const [tRes, lRes, mRes] = await Promise.allSettled([
       axios.get(`${API_BASE_URL}/accounts/${accountId}/templates`),
       axios.get(`${API_BASE_URL}/accounts/${accountId}/lists`),
+      axios.get(`${API_BASE_URL}/accounts/${accountId}/media`),
     ]);
     if (tRes.status === "fulfilled") setTemplates(tRes.value.data);
     if (lRes.status === "fulfilled") setContactLists(lRes.value.data);
+    if (mRes.status === "fulfilled" && Array.isArray(mRes.value.data)) setMediaAssets(mRes.value.data);
   }, []);
 
   const fetchRuns = useCallback(async (campaignId: string) => {
@@ -375,6 +383,11 @@ export default function CampaignsPage() {
                         <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                           {run.messagesSent}/{run.contactsTotal} mensagens enfileiradas
                         </span>
+                        {run.errorMessage && (
+                          <p style={{ margin: "6px 0 0", fontSize: "0.78rem", color: "var(--error)", lineHeight: 1.4 }}>
+                            {run.errorMessage}
+                          </p>
+                        )}
                       </div>
                     );
                   })
@@ -472,6 +485,7 @@ export default function CampaignsPage() {
                                 className="field-input"
                                 style={{ fontSize: "0.85rem", padding: "8px 12px" }}
                                 placeholder="Valor fixo"
+                                required
                                 value={staticVal}
                                 onChange={(e) => {
                                   const updated = [...form.variables];
@@ -487,18 +501,41 @@ export default function CampaignsPage() {
                   )}
 
                   {/* Media URL */}
-                  {hasMedia && (
-                    <div className="field">
-                      <label className="field-label">URL de Mídia ({headerComp.format})</label>
-                      <input
-                        type="text"
-                        className="field-input"
-                        placeholder="https://..."
-                        value={form.mediaUrl}
-                        onChange={(e) => setForm((f) => ({ ...f, mediaUrl: e.target.value }))}
-                      />
-                    </div>
-                  )}
+                  {hasMedia && (() => {
+                    const format: string = headerComp.format;
+                    const compatible = mediaAssets.filter((a) => a.mimeType?.startsWith(MEDIA_MIME_PREFIX[format]));
+                    return (
+                      <div className="field">
+                        <label className="field-label">Mídia do cabeçalho ({MEDIA_LABEL[format]}) *</label>
+                        <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+                          Este template exige {MEDIA_LABEL[format] === "imagem" ? "uma" : "um"} {MEDIA_LABEL[format]} em todo envio. Sem ela, a Meta recusa todas as mensagens.
+                        </span>
+                        {compatible.length > 0 && (
+                          <select
+                            className="field-input"
+                            value={compatible.some((a) => a.url === form.mediaUrl) ? form.mediaUrl : ""}
+                            onChange={(e) => e.target.value && setForm((f) => ({ ...f, mediaUrl: e.target.value }))}
+                          >
+                            <option value="">Escolher da Galeria de Mídias...</option>
+                            {compatible.map((a) => (
+                              <option key={a.id} value={a.url}>{a.filename.replace(/^\d+-/, "")}</option>
+                            ))}
+                          </select>
+                        )}
+                        <input
+                          type="url"
+                          className="field-input"
+                          placeholder="https://..."
+                          value={form.mediaUrl}
+                          onChange={(e) => setForm((f) => ({ ...f, mediaUrl: e.target.value }))}
+                          required
+                        />
+                        {form.mediaUrl && format === "IMAGE" && (
+                          <img src={form.mediaUrl} alt="Prévia da mídia" style={{ maxHeight: "120px", maxWidth: "100%", objectFit: "contain", borderRadius: "var(--radius-sm)", alignSelf: "flex-start" }} />
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Contact list */}
                   <div className="field">

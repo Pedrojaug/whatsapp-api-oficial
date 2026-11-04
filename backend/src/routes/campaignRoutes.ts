@@ -4,6 +4,7 @@ import { authMiddleware, AuthenticatedRequest } from "../middlewares/auth";
 import { calculateNextRun } from "../utils/campaignScheduler";
 import { getAccountWithPermission } from "../utils/accountAccess";
 import { triggerCampaignWorker } from "../workers/campaignWorker";
+import { validateTemplateForCampaign } from "../utils/templateValidation";
 
 const router = Router();
 router.use(authMiddleware);
@@ -139,6 +140,15 @@ router.post("/accounts/:accountId/campaigns/:id/activate", async (req: Request, 
   }
   if (!campaign.contactListId) {
     return res.status(400).json({ error: "Defina uma lista de contatos antes de ativar a campanha." });
+  }
+
+  const template = await prisma.template.findFirst({
+    where: { accountId, name: campaign.templateName },
+    select: { name: true, status: true, components: true },
+  });
+  const problems = validateTemplateForCampaign(template, campaign);
+  if (problems.length > 0) {
+    return res.status(400).json({ error: problems.join(" "), problems });
   }
 
   const now = new Date();
