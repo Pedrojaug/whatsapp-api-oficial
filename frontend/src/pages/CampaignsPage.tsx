@@ -52,6 +52,7 @@ interface CampaignRun {
   id: string; status: string; messagesSent: number;
   contactsTotal: number; startedAt: string; finishedAt: string | null;
   errorMessage?: string | null;
+  stats?: { pending: number; sent: number; delivered: number; read: number; failed: number; cancelled: number } | null;
 }
 interface MediaAsset { id: string; filename: string; mimeType: string; url: string; }
 
@@ -383,6 +384,16 @@ export default function CampaignsPage() {
                         <span style={{ fontSize: "0.8rem", color: "var(--text-secondary)" }}>
                           {run.messagesSent}/{run.contactsTotal} mensagens enfileiradas
                         </span>
+                        {run.stats && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", marginTop: "6px", fontSize: "0.75rem", color: "var(--text-secondary)" }}>
+                            {run.stats.pending > 0 && <span>⏳ {run.stats.pending} na fila</span>}
+                            <span>📤 {run.stats.sent} enviadas</span>
+                            <span>✅ {run.stats.delivered} entregues</span>
+                            <span>👁️ {run.stats.read} lidas</span>
+                            {run.stats.failed > 0 && <span style={{ color: "var(--error)" }}>❌ {run.stats.failed} falharam</span>}
+                            {run.stats.cancelled > 0 && <span>🚫 {run.stats.cancelled} canceladas</span>}
+                          </div>
+                        )}
                         {run.errorMessage && (
                           <p style={{ margin: "6px 0 0", fontSize: "0.78rem", color: "var(--error)", lineHeight: 1.4 }}>
                             {run.errorMessage}
