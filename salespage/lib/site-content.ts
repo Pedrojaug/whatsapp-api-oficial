@@ -55,34 +55,22 @@ export const defaultSiteContent: Required<SiteContent> = {
   ],
   faqs: [
     {
-      question: "Preciso manter o celular ligado à internet durante os disparos?",
-      answer:
-        "Não. Toda a infraestrutura roda 100% em nuvem. As mensagens trafegam diretamente pelos servidores oficiais da Meta, funcionando mesmo com seu computador e celular desligados.",
+      question: "Preciso deixar o celular ligado?",
+      answer: "Não. Tudo roda na nuvem da Meta, com seu celular e computador desligados.",
     },
     {
-      question: "A API é oficial do WhatsApp?",
-      answer:
-        "Sim. A operação utiliza a infraestrutura oficial do WhatsApp Business Platform (Meta Cloud API). Isso elimina o risco de banimento de chip comum em disparadores não oficiais por emulação de QR Code.",
+      question: "Posso usar meu número atual?",
+      answer: "Sim, e nós fazemos a migração com você. Números novos, fixos e 0800 também funcionam.",
     },
     {
-      question: "Posso utilizar meu número de telefone atual?",
+      question: "Meu número ainda pode ser bloqueado?",
       answer:
-        "Sim! Se o seu número já estiver no WhatsApp comum ou Business, auxiliamos na migração para a API Oficial. Você também pode ativar números novos, fixos ou 0800 diretamente no seu Meta Business Manager.",
+        "O risco cai muito: você usa o canal oficial, com mensagens aprovadas pela Meta e descadastro automático. E a gente te mostra as boas práticas desde o começo.",
     },
     {
-      question: "Como integro o Send Inteligentte com n8n, Make ou meu CRM?",
+      question: "Não entendo nada de tecnologia. Consigo usar?",
       answer:
-        "Disponibilizamos uma API REST pública e segura autenticada por API Key, além de webhooks em tempo real de eventos de entrega, leitura e cliques em links. Você também recebe templates prontos de fluxo para n8n.",
-    },
-    {
-      question: "Consigo acompanhar os resultados de entrega das minhas campanhas?",
-      answer:
-        "Sim. O painel exibe detalhadamente quais contatos receberam, leram e clicaram nos links das suas mensagens, além de registrar automaticamente qualquer pedido de descadastro.",
-    },
-    {
-      question: "Vocês ajudam na configuração inicial (onboarding)?",
-      answer:
-        "Sim! Nossa equipe acompanha os primeiros passos da sua conta: ajudamos a vincular seu Meta Business Manager, configurar seu número oficial e homologar seus primeiros templates de campanha.",
+        "Consegue. Nossa equipe faz a configuração com você e aprova suas primeiras mensagens. Depois, é subir a planilha e enviar.",
     },
   ],
 };
