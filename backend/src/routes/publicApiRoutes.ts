@@ -3,19 +3,24 @@ import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { prisma } from "../db";
 import { apiKeyMiddleware, ApiKeyRequest } from "../middlewares/apiKeyAuth";
 import { triggerDispatcher } from "../workers/dispatcher";
+import agentApiRouter from "./agentApiRoutes";
 
 const router = Router();
 
 const apiRateLimit = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  // O agente de IA responde cada lead pela API: 60/min estrangulava respostas a campanhas
+  max: Math.max(parseInt(process.env.PUBLIC_API_RATE_LIMIT || "300", 10) || 300, 1),
   keyGenerator: (req) => (req as ApiKeyRequest).apiKeyId ?? ipKeyGenerator(req.ip ?? "unknown"),
-  message: { error: "Limite de taxa excedido. Máximo 60 requisições/min por chave." },
+  message: { error: "Limite de taxa excedido para esta chave. Tente novamente em instantes.", code: "RATE_LIMITED" },
   validate: { xForwardedForHeader: false, default: false },
 });
 
 router.use(apiKeyMiddleware);
 router.use(apiRateLimit);
+
+// Rotas do agente de IA (texto, mídia, conversas, handover e eventos)
+router.use(agentApiRouter);
 
 /**
  * POST /api/v1/send

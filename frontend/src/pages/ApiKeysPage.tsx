@@ -5,6 +5,7 @@ import { KeyRound, Copy, Check, Plus, Trash2, X } from "lucide-react";
 import { useAccount } from "../contexts/AccountContext";
 import { useAlert } from "../contexts/AlertContext";
 import { API_BASE_URL } from "../contexts/AuthContext";
+import AgentIntegrationCard from "../components/AgentIntegrationCard";
 
 function ModalPortal({ children }: { children: React.ReactNode }) {
   return createPortal(children, document.body);
@@ -136,6 +137,12 @@ export default function ApiKeysPage() {
               { method: "POST", path: "/api/v1/send", desc: "Disparar mensagem" },
               { method: "GET",  path: "/api/v1/messages/:id", desc: "Consultar status" },
               { method: "GET",  path: "/api/v1/templates", desc: "Listar templates aprovados" },
+              { method: "POST", path: "/api/v1/messages/text", desc: "Agente: responder (texto ou botões, janela de 24h)" },
+              { method: "GET",  path: "/api/v1/conversations/:phone", desc: "Agente: estado da conversa" },
+              { method: "GET",  path: "/api/v1/conversations/:phone/messages", desc: "Agente: histórico" },
+              { method: "POST", path: "/api/v1/conversations/:phone/handover", desc: "Agente: pedir atendente humano" },
+              { method: "GET",  path: "/api/v1/media/:mediaId", desc: "Agente: baixar mídia recebida" },
+              { method: "GET",  path: "/api/v1/events", desc: "Agente: ler eventos (sem webhook)" },
             ].map(({ method, path, desc }) => (
               <div key={path} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.83rem" }}>
                 <span className={`method-badge method-badge--${method.toLowerCase()}`}>{method}</span>
@@ -147,7 +154,7 @@ export default function ApiKeysPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <div className="section-subtitle" style={{ fontWeight: 700, marginBottom: "2px" }}>Limites e regras</div>
             {[
-              "60 requisições / minuto por chave",
+              "300 requisições / minuto por chave",
               "Máximo 10 chaves por conta",
               "Retorna 422 se número está em opt-out",
               "Template deve estar aprovado pela Meta",
@@ -160,6 +167,8 @@ export default function ApiKeysPage() {
           </div>
         </div>
       </div>
+
+      {selectedAccount && <AgentIntegrationCard key={selectedAccount.id} accountId={selectedAccount.id} />}
 
       {/* ── Keys List ── */}
       {!selectedAccount ? (

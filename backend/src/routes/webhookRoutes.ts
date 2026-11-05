@@ -5,6 +5,7 @@ import { normalizePhone } from "../services/phoneService";
 import { messageEventEmitter } from "../utils/emitter";
 import { isOptOutMessage } from "../utils/optoutKeywords";
 import { findAccountByPhoneNumberId } from "../utils/accountAccess";
+import { notifyAgentOfIncomingMessage } from "../services/agentService";
 
 const router = Router();
 
@@ -293,7 +294,8 @@ router.post("/webhooks", async (req: Request, res: Response) => {
 
                     // Opt-out, contato e mensagem são independentes: gravados em paralelo
                     // (uma ida ao banco em vez de quatro em sequência).
-                    const optOutWrite = bodyText && isOptOutMessage(bodyText)
+                    const keywordOptOut = Boolean(bodyText && isOptOutMessage(bodyText));
+                    const optOutWrite = keywordOptOut
                       // Detecção inteligente de opt-out (Texto, Botão ou Interativo)
                       ? prisma.optOut.upsert({
                           where: { phone_accountId: { phone: from, accountId: account.id } },
@@ -340,10 +342,20 @@ router.post("/webhooks", async (req: Request, res: Response) => {
                       throw createErr;
                     });
 
-                    const [, , savedMsg] = await Promise.all([optOutWrite, contactWrite, messageWrite]);
+                    const [, savedContact, savedMsg] = await Promise.all([optOutWrite, contactWrite, messageWrite]);
 
                     if (savedMsg) {
                       console.log(`[Webhook] Nova mensagem recebida de ${from} salva no banco. Wamid: ${wamid}`);
+
+                      // Repassa ao agente de IA, se a integração estiver ligada (não bloqueia o webhook)
+                      notifyAgentOfIncomingMessage({
+                        account,
+                        savedMsg,
+                        contact: savedContact || null,
+                        profileName,
+                        raw: messageObj,
+                        keywordOptOut,
+                      }).catch((agentErr) => console.error("[Webhook] Erro ao enfileirar evento para o agente:", agentErr.message));
 
                       // Emitir evento em tempo real para o frontend
                       messageEventEmitter.emit("messageUpdated", {
