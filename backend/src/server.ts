@@ -31,6 +31,7 @@ import { handleTrackingRedirect } from "./routes/trackingRoutes";
 import publicApiRouter from "./routes/publicApiRoutes";
 import { startBackgroundDispatcher } from "./workers/dispatcher";
 import { startCampaignWorker } from "./workers/campaignWorker";
+import { startAgentDeliveryWorker } from "./workers/agentDelivery";
 import { prisma } from "./db";
 import { storageService } from "./services/storageService";
 
@@ -211,6 +212,7 @@ process.on("uncaughtException", (err) => {
 // Iniciar workers de background
 startBackgroundDispatcher();
 startCampaignWorker();
+startAgentDeliveryWorker().catch((err: Error) => console.error("[AgentDelivery] Erro ao iniciar:", err.message));
 
 // Iniciar servidor
 app.listen(PORT, () => {

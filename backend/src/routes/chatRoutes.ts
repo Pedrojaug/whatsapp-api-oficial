@@ -6,6 +6,7 @@ import { normalizePhone, phoneVariants } from "../services/phoneService";
 import { metaService } from "../services/metaService";
 import { findAccountForUser, canSendMessages, getAccountWithPermission } from "../utils/accountAccess";
 import { messageEventEmitter } from "../utils/emitter";
+import { agentPauseMs, notifyAgentOfHandover } from "../services/agentService";
 
 const router = Router();
 
@@ -621,6 +622,30 @@ router.post("/accounts/:accountId/messages/reply", async (req: Request, res: Res
         isHandled: true,
       }
     }).catch((cErr: any) => console.warn("[Chat] Erro ao marcar contato como atendido no reply:", cErr));
+
+    // Atendente humano assumiu: pausa o agente de IA para este contato (ou renova a pausa).
+    // O agente é avisado só quando a pausa começa, não a cada resposta do atendente.
+    const pausedAt = new Date();
+    prisma.whatsAppContact
+      .updateMany({
+        where: {
+          accountId,
+          phone: normalizedTo,
+          OR: [{ agentPaused: false }, { agentPausedAt: { lt: new Date(pausedAt.getTime() - agentPauseMs()) } }],
+        },
+        data: { agentPaused: true, agentPausedAt: pausedAt, agentPausedBy: senderName },
+      })
+      .then(async (newly) => {
+        if (newly.count > 0) {
+          await notifyAgentOfHandover(accountId, normalizedTo, { by: "human", userName: senderName, pausedAt });
+        } else {
+          await prisma.whatsAppContact.updateMany({
+            where: { accountId, phone: normalizedTo, agentPaused: true },
+            data: { agentPausedAt: pausedAt, agentPausedBy: senderName },
+          });
+        }
+      })
+      .catch((pErr: any) => console.warn("[Chat] Erro ao pausar o agente de IA:", pErr.message));
 
     console.log(`[Chat] Resposta enviada por ${senderName} com sucesso para ${normalizedTo}. Wamid: ${wamid}`);
 

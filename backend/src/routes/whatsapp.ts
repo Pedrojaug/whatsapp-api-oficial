@@ -12,6 +12,7 @@ import trackingRouter from "./trackingRoutes";
 import apiKeyRouter from "./apiKeyRoutes";
 import campaignRouter from "./campaignRoutes";
 import quickReplyRouter from "./quickReplyRoutes";
+import agentRouter from "./agentRoutes";
 
 const router = Router();
 
@@ -29,5 +30,6 @@ router.use(trackingRouter);
 router.use(apiKeyRouter);
 router.use(campaignRouter);
 router.use(quickReplyRouter);
+router.use(agentRouter);
 
 export default router;

@@ -102,6 +102,15 @@ On server startup, any messages stuck in `PROCESSING` are reset to `PENDING` (ha
 
 `workers/campaignWorker.ts` polls every 60 seconds for ACTIVE campaigns with `nextRunAt ≤ now`. Variable mappings support: `CONTACT_NAME`, `CONTACT_PHONE`, `CONTACT_VAR_1/2/3`, `STATIC:<value>`. After execution: ONCE campaigns → COMPLETED; recurring → `calculateNextRun()` sets next `nextRunAt`.
 
+### AI Agent Integration
+
+An external sales agent (Python) talks to leads through Send, never directly to Meta. Spec for the agent team: `docs/integracao-agente-ia.md`.
+
+- Inbound: `webhookRoutes.ts` → `services/agentService.ts` `notifyAgentOfIncomingMessage` writes an `AgentEvent` (outbox). `workers/agentDelivery.ts` POSTs it to `Account.agentWebhookUrl` with `X-Send-Signature` (HMAC of `${timestamp}.${body}`), in `seq` order per phone, with retries (10s → 1h, 7 attempts). Without a URL, events stay `PULL` and the agent reads `GET /api/v1/events`.
+- Outbound: `routes/agentApiRoutes.ts` (API key, mounted inside `publicApiRoutes.ts`): `POST /messages/text` (24h window, up to 3 buttons), `GET /conversations/:phone[/messages]`, `POST /conversations/:phone/handover`, `GET /media/:mediaId`, `GET /events`.
+- Handover: a human reply in Live Chat sets `WhatsAppContact.agentPaused` (expires after `AGENT_PAUSE_HOURS`, default 24). Paused contacts are not forwarded and `/messages/text` returns 409. Panel routes in `routes/agentRoutes.ts`; UI in `AgentIntegrationCard` (API page) and `AgentStatusBar` (Live Chat).
+- Integration tests: `src/tests/*.integration.test.ts` run only with `TEST_DATABASE_URL` (use a Neon branch, never production).
+
 ### Real-time Updates (SSE)
 
 `messageEventEmitter` (Node EventEmitter) is the in-process pub/sub. `chatRoutes.ts` exposes `GET /accounts/:id/messages/events?token=<jwt>` as a persistent SSE stream. Frontend `Layout.tsx` connects on mount and dispatches a `CustomEvent("messageUpdated")` that any page can listen to.

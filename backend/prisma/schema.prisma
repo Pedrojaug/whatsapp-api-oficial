@@ -73,6 +73,11 @@ model Account {
   campaigns        Campaign[]
   shares           AccountShare[]
   quickReplies     QuickReply[]
+  agentEvents      AgentEvent[]
+  // Integração com agente de IA externo (ver docs/integracao-agente-ia.md)
+  agentEnabled       Boolean @default(false)
+  agentWebhookUrl    String? // vazio = agente busca os eventos em GET /api/v1/events
+  agentWebhookSecret String? // segredo HMAC, criptografado como o accessToken
 
   @@unique([userId, name])
 }
@@ -172,6 +177,9 @@ model WhatsAppContact {
   profileName String?  // Nome de perfil do WhatsApp (contacts[].profile.name)
   blacklisted Boolean  @default(false) // Contato movido para a Lista Negra
   isHandled   Boolean  @default(false) // Conversa concluída/atendida
+  agentPaused   Boolean   @default(false) // Agente de IA pausado: um humano assumiu a conversa
+  agentPausedAt DateTime?
+  agentPausedBy String?   // nome do atendente, ou "agente" quando a IA pediu um humano
   accountId   String
   account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
@@ -307,4 +315,26 @@ model capitania_catalogo {
   updated_at       DateTime?              @default(now()) @db.Timestamptz(6)
 
   @@unique([nome, tamanho, genero], map: "unique_produto_tamanho_genero")
+}
+
+// Fila de eventos para o agente de IA (outbox). O mesmo registro serve ao
+// envio por webhook (deliveryStatus) e à leitura por GET /api/v1/events (seq).
+model AgentEvent {
+  id             String    @id @default(uuid())
+  seq            Int       @unique @default(autoincrement())
+  accountId      String
+  account        Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type           String    // message.received, conversation.handover, ping
+  phone          String?
+  payload        Json
+  deliveryStatus String    @default("PENDING") // PENDING, PROCESSING, DELIVERED, FAILED, PULL
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime?
+  lastError      String?
+  deliveredAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([deliveryStatus, nextAttemptAt])
+  @@index([accountId, seq])
+  @@index([accountId, phone, seq])
 }

@@ -9,6 +9,7 @@ import { Edit2, Trash2 } from "lucide-react";
 import { useSSE } from "../hooks/useSSE";
 import { API_BASE_URL, useAuth } from "../contexts/AuthContext";
 import { chatCache } from "../utils/chatCache";
+import AgentStatusBar from "../components/AgentStatusBar";
 
 // 30 amplitudes pré-definidas simulando a curva harmônica de voz do WhatsApp
 const WAVEFORM_HEIGHTS = [
@@ -2339,6 +2340,10 @@ export default function ChatPage() {
                     </button>
                   </div>
                 </div>
+
+                {selectedAccount && (
+                  <AgentStatusBar accountId={selectedAccount.id} phone={selectedPhone} canChat={!isViewer} />
+                )}
 
                 {/* Barra de filtros por status */}
                 <div className="chat-templates-bar" style={{ display: "flex", gap: "var(--space-1)", padding: "var(--space-1) var(--space-3-5)", borderBottom: "1px solid var(--border-color)", overflowX: "auto", flexWrap: "nowrap", flexShrink: 0 }}>
